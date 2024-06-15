@@ -36,7 +36,7 @@ m.fs.solex_loading = SolventExtraction(
         "has_energy_balance": False,
         "has_pressure_balance": False,
     },
-    aqueous_to_organic=True
+    aqueous_to_organic=True,
 )
 
 # Stripping model
@@ -56,7 +56,7 @@ m.fs.solex_stripping = SolventExtraction(
         "has_energy_balance": False,
         "has_pressure_balance": False,
     },
-    aqueous_to_organic=False
+    aqueous_to_organic=False,
 )
 
 # Distribution coefficient values for the different operations
@@ -69,8 +69,12 @@ pH_loading = 1.524
 pH_stripping = 0.241
 
 for e in Elements:
-    m.fs.solex_loading.distribution_coefficient[:, "aqueous", "organic", e] = 10**(slope[e]*pH_loading + intercept[e])
-    m.fs.solex_stripping.distribution_coefficient[:, "aqueous", "organic", e] = 10**(slope[e]*pH_stripping + intercept[e])
+    m.fs.solex_loading.distribution_coefficient[:, "aqueous", "organic", e] = 10 ** (
+        slope[e] * pH_loading + intercept[e]
+    )
+    m.fs.solex_stripping.distribution_coefficient[:, "aqueous", "organic", e] = 10 ** (
+        slope[e] * pH_stripping + intercept[e]
+    )
 
 m.fs.solex_loading.distribution_coefficient[:, "aqueous", "organic", "Sc"] = 1
 m.fs.solex_loading.distribution_coefficient[:, "aqueous", "organic", "Al"] = 1
@@ -83,7 +87,10 @@ m.fs.solex_stripping.distribution_coefficient[:, "aqueous", "organic", "Ca"] = 1
 
 # Connecting loading outlet and stripping inlet
 
-m.loading_to_stripping = Arc(source = m.fs.solex_loading.mscontactor.organic_outlet, destination=m.fs.solex_stripping.mscontactor.organic_inlet)
+m.loading_to_stripping = Arc(
+    source=m.fs.solex_loading.mscontactor.organic_outlet,
+    destination=m.fs.solex_stripping.mscontactor.organic_inlet,
+)
 TransformationFactory("network.expand_arcs").apply_to(m)
 
 # Fixing feed connections
@@ -91,7 +98,7 @@ TransformationFactory("network.expand_arcs").apply_to(m)
 eps = 1e-18
 
 m.fs.solex_loading.mscontactor.aqueous_inlet_state[0].conc_mass_comp["H2O"].fix(1e6)
-m.fs.solex_loading.mscontactor.aqueous_inlet_state[0].conc_mass_comp["H"].fix(eps)
+m.fs.solex_loading.mscontactor.aqueous_inlet_state[0].conc_mass_comp["H"].fix(1.755)
 m.fs.solex_loading.mscontactor.aqueous_inlet_state[0].conc_mass_comp["SO4"].fix(eps)
 m.fs.solex_loading.mscontactor.aqueous_inlet_state[0].conc_mass_comp["HSO4"].fix(eps)
 m.fs.solex_loading.mscontactor.aqueous_inlet_state[0].conc_mass_comp["Al"].fix(eps)
@@ -125,7 +132,7 @@ m.fs.solex_loading.mscontactor.organic_inlet_state[0].conc_mass_comp["Dy"].fix(e
 m.fs.solex_loading.mscontactor.organic_inlet_state[0].flow_vol.fix(50)
 
 m.fs.solex_stripping.mscontactor.aqueous_inlet_state[0].conc_mass_comp["H2O"].fix(1e6)
-m.fs.solex_stripping.mscontactor.aqueous_inlet_state[0].conc_mass_comp["H"].fix(eps)
+m.fs.solex_stripping.mscontactor.aqueous_inlet_state[0].conc_mass_comp["H"].fix(1.755)
 m.fs.solex_stripping.mscontactor.aqueous_inlet_state[0].conc_mass_comp["SO4"].fix(eps)
 m.fs.solex_stripping.mscontactor.aqueous_inlet_state[0].conc_mass_comp["HSO4"].fix(eps)
 m.fs.solex_stripping.mscontactor.aqueous_inlet_state[0].conc_mass_comp["Al"].fix(eps)
@@ -157,8 +164,8 @@ solver.solve(m, tee=True)
 
 # Loading outlet
 
-m.fs.solex_loading.mscontactor.organic[0,1].conc_mass_comp.pprint()
+m.fs.solex_loading.mscontactor.organic[0, 1].conc_mass_comp.pprint()
 
 # Stripping outlet
 
-m.fs.solex_stripping.mscontactor.aqueous[0,1].conc_mass_comp.pprint()
+m.fs.solex_stripping.mscontactor.aqueous[0, 1].conc_mass_comp.pprint()
