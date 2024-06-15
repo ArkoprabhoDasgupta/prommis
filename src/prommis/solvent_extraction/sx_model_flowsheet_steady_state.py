@@ -51,7 +51,7 @@ m.fs.solex = SolventExtraction(
 )
 
 """
-Specification of the values of the partition coefficients of the elements
+Specification of the values of the distribution coefficients of the elements
 based on the values provided in the REESim file. 
 
 """
@@ -60,31 +60,31 @@ stage_number = np.arange(1, number_of_stages + 1)
 
 for s in stage_number:
     if s == 1:
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Al"] = 5.2 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Ca"] = 3 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Fe"] = 24.7 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Sc"] = 99.1 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Y"] = 99.9 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "La"] = 32.4 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Ce"] = 58.2 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Pr"] = 58.2 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Nd"] = 87.6 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Sm"] = 99.9 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Gd"] = 69.8 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Dy"] = 96.6 / 100
+        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Al"] = 5.2 / 100
+        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Ca"] = 3 / 100
+        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Fe"] = 24.7 / 100
+        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Sc"] = 99.1 / 100
+        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Y"] = 99.9 / 100
+        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "La"] = 32.4 / 100
+        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Ce"] = 58.2 / 100
+        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Pr"] = 58.2 / 100
+        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Nd"] = 87.6 / 100
+        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Sm"] = 99.9 / 100
+        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Gd"] = 69.8 / 100
+        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Dy"] = 96.6 / 100
     else:
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Al"] = 4.9 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Ca"] = 12.3 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Fe"] = 6.4 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Sc"] = 16.7 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Y"] = 99.9 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "La"] = 23.2 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Ce"] = 24.9 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Pr"] = 15.1 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Nd"] = 99.9 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Sm"] = 99.9 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Gd"] = 7.6 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Dy"] = 5 / 100
+        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Al"] = 4.9 / 100
+        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Ca"] = 12.3 / 100
+        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Fe"] = 6.4 / 100
+        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Sc"] = 16.7 / 100
+        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Y"] = 99.9 / 100
+        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "La"] = 23.2 / 100
+        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Ce"] = 24.9 / 100
+        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Pr"] = 15.1 / 100
+        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Nd"] = 99.9 / 100
+        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Sm"] = 99.9 / 100
+        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Gd"] = 7.6 / 100
+        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Dy"] = 5 / 100
 
 """
 Fixing the inlet conditions of the two feed streams to the solvent extraction model,

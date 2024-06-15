@@ -39,73 +39,86 @@ pH_loading = 1.5421
 pH_stripping = 0.241
 
 # Volumes of the phases in mL
-V_aq = 50 
+V_aq = 50
 V_org = 50
 
 m = ConcreteModel()
-m.C_loading_aq = Var(Elements, bounds=(0,None))
-m.C_loading_org = Var(Elements, bounds=(0,None))
-m.C_stripping_aq = Var(Elements, bounds=(0,None))
-m.C_stripping_org = Var(Elements, bounds=(0,None))
-m.C_stripping_feed = Var(Elements, bounds=(0,None))
-m.D_loading = Var(Elements, bounds=(0,None))
-m.D_stripping = Var(Elements, bounds=(0,None))
-m.E = Var(Elements, bounds=(0,100))
-m.S = Var(Elements, bounds=(0,100))
+m.C_loading_aq = Var(Elements, bounds=(0, None))
+m.C_loading_org = Var(Elements, bounds=(0, None))
+m.C_stripping_aq = Var(Elements, bounds=(0, None))
+m.C_stripping_org = Var(Elements, bounds=(0, None))
+m.C_stripping_feed = Var(Elements, bounds=(0, None))
+m.D_loading = Var(Elements, bounds=(0, None))
+m.D_stripping = Var(Elements, bounds=(0, None))
+m.E = Var(Elements, bounds=(0, 100))
+m.S = Var(Elements, bounds=(0, 100))
 
 # Loading
+
 
 # D constraint loading
 @m.Constraint(Elements)
 def D_loading_ratio(m, e):
-    return m.C_loading_org[e] == m.D_loading[e]*m.C_loading_aq[e]
+    return m.C_loading_org[e] == m.D_loading[e] * m.C_loading_aq[e]
+
 
 # D calculation loading
 @m.Constraint(Elements)
 def D_loading_cal(m, e):
-    return m.D_loading[e] == 10**(a[e]*pH_loading + b[e])
+    return m.D_loading[e] == 10 ** (a[e] * pH_loading + b[e])
+
 
 # Material balance loading
 @m.Constraint(Elements)
 def material_balance_load(m, e):
-    return V_aq*C_aq_feed[e] == V_aq*m.C_loading_aq[e] + V_org*m.C_loading_org[e]
+    return V_aq * C_aq_feed[e] == V_aq * m.C_loading_aq[e] + V_org * m.C_loading_org[e]
+
 
 # Extraction percentage
 @m.Constraint(Elements)
 def extraction_load(m, e):
-    return m.C_loading_aq[e]/C_aq_feed[e] == 1 - m.E[e]/100
+    return m.C_loading_aq[e] / C_aq_feed[e] == 1 - m.E[e] / 100
+
 
 # Stripping feed
 @m.Constraint(Elements)
 def stripping_feed(m, e):
-    return m.C_stripping_feed[e]  == m.C_loading_org[e]
+    return m.C_stripping_feed[e] == m.C_loading_org[e]
+
 
 # D constraint stripping
 @m.Constraint(Elements)
 def D_stripping_ratio(m, e):
-    return m.C_stripping_org[e] == m.D_stripping[e]*m.C_stripping_aq[e]
+    return m.C_stripping_org[e] == m.D_stripping[e] * m.C_stripping_aq[e]
+
 
 # D calculation stripping
 @m.Constraint(Elements)
 def D_stripping_cal(m, e):
-    return m.D_stripping[e] == 10**(a[e]*pH_stripping + b[e])
+    return m.D_stripping[e] == 10 ** (a[e] * pH_stripping + b[e])
+
 
 # Material balance stripping
 @m.Constraint(Elements)
 def material_balance_strip(m, e):
-    return V_org*m.C_stripping_feed[e] == V_aq*m.C_stripping_aq[e] + V_org*m.C_stripping_org[e]
+    return (
+        V_org * m.C_stripping_feed[e]
+        == V_aq * m.C_stripping_aq[e] + V_org * m.C_stripping_org[e]
+    )
+
 
 # Stripping percentage
 @m.Constraint(Elements)
 def stripping_load(m, e):
-    return m.C_stripping_org[e]/m.C_stripping_feed[e] == 1 - m.S[e]/100
+    return m.C_stripping_org[e] / m.C_stripping_feed[e] == 1 - m.S[e] / 100
+
 
 solver = SolverFactory("ipopt")
-#solver = get_solver("ipopt")
+# solver = get_solver("ipopt")
 solver.solve(m, tee=True)
 
 for e in Elements:
-    print('Extraction percentage of ' + e + ' = ' + str(m.E[e]()) + ' %')
+    print("Extraction percentage of " + e + " = " + str(m.E[e]()) + " %")
 
 for e in Elements:
-    print('Stripping percentage of ' + e + ' = ' + str(m.S[e]()) + ' %')
+    print("Stripping percentage of " + e + " = " + str(m.S[e]()) + " %")
