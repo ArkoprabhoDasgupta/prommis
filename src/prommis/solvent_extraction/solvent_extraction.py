@@ -232,11 +232,11 @@ class SolventExtractionData(UnitModelBlockData):
         #     )
 
         def mass_transfer_term(b, t, s, k, l, m):
-            return b.mscontactor.organic[t, s].get_material_flow_terms(
+            return b.mscontactor.organic[t, s].get_material_density_terms(
                 b.mscontactor.organic.phase_list, m
             ) == b.distribution_coefficient[s, (k, l, m)] * b.mscontactor.aqueous[
                 t, s
-            ].get_material_flow_terms(
+            ].get_material_density_terms(
                 b.mscontactor.aqueous.phase_list, m
             )
 
