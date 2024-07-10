@@ -1,3 +1,9 @@
+#####################################################################################################
+# “PrOMMiS” was produced under the DOE Process Optimization and Modeling for Minerals Sustainability
+# (“PrOMMiS”) initiative, and is copyright (c) 2023-2024 by the software owners: The Regents of the
+# University of California, through Lawrence Berkeley National Laboratory, et al. All rights reserved.
+# Please see the files COPYRIGHT.md and LICENSE.md for full copyright and license information.
+#####################################################################################################
 """
 Solvent Extraction Model
 
@@ -191,7 +197,7 @@ class SolventExtractionData(UnitModelBlockData):
         self.distribution_coefficient = Param(
             self.mscontactor.elements,
             self.mscontactor.stream_component_interactions,
-            initialize=param_init,
+            initialize=1,
             mutable=True,
             doc="The fraction of component that goes from aqueous to organic phase",
         )
