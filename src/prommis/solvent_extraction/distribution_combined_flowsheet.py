@@ -4,6 +4,7 @@ from pyomo.network import Arc
 import numpy as np
 
 from idaes.core import FlowDirection, FlowsheetBlock
+from idaes.core.util.model_statistics import degrees_of_freedom as dof
 from idaes.core.initialization.block_triangularization import (
     BlockTriangularizationInitializer,
 )
@@ -11,7 +12,7 @@ from idaes.core.initialization.block_triangularization import (
 from prommis.leaching.leach_solution_properties import LeachSolutionParameters
 from prommis.solvent_extraction.ree_og_distribution import REESolExOgParameters
 from prommis.solvent_extraction.solvent_extraction import SolventExtraction
-from idaes.core.util.model_statistics import degrees_of_freedom as dof
+from prommis.solvent_extraction.D_model_all_systems import D_calculation
 
 
 m = ConcreteModel()
@@ -61,29 +62,27 @@ m.fs.solex_stripping = SolventExtraction(
 
 # Distribution coefficient values for the different operations
 
-Elements = ["Y", "La", "Ce", "Pr", "Nd", "Sm", "Gd", "Dy"]
-slope = dict(zip(Elements, [2.39, 0.54, 0.55, 0.29, 0.5, 0.7, 1.12, 2.03]))
-intercept = dict(zip(Elements, [-2.32, -1.93, -1.94, -1.48, -1.89, -2, -2.22, -2.44]))
+Elements = ["Y", "Ce", "Nd", "Sm", "Gd", "Dy"]
 
 pH_loading = 1.524
 pH_stripping = 0.241
 
 for e in Elements:
-    m.fs.solex_loading.distribution_coefficient[:, "aqueous", "organic", e] = 10 ** (
-        slope[e] * pH_loading + intercept[e]
-    )
-    m.fs.solex_stripping.distribution_coefficient[:, "aqueous", "organic", e] = 10 ** (
-        slope[e] * pH_stripping + intercept[e]
-    )
+    m.fs.solex_loading.distribution_coefficient[:, "aqueous", "organic", e] = D_calculation(e, '5% dehpa 10% tbp', pH_loading)
+    m.fs.solex_stripping.distribution_coefficient[:, "aqueous", "organic", e] = D_calculation(e, '5% dehpa 10% tbp', pH_stripping)
 
 m.fs.solex_loading.distribution_coefficient[:, "aqueous", "organic", "Sc"] = 1
 m.fs.solex_loading.distribution_coefficient[:, "aqueous", "organic", "Al"] = 1
 m.fs.solex_loading.distribution_coefficient[:, "aqueous", "organic", "Fe"] = 1
 m.fs.solex_loading.distribution_coefficient[:, "aqueous", "organic", "Ca"] = 1
+m.fs.solex_loading.distribution_coefficient[:, "aqueous", "organic", "La"] = 1
+m.fs.solex_loading.distribution_coefficient[:, "aqueous", "organic", "Pr"] = 1
 m.fs.solex_stripping.distribution_coefficient[:, "aqueous", "organic", "Sc"] = 1
 m.fs.solex_stripping.distribution_coefficient[:, "aqueous", "organic", "Al"] = 1
 m.fs.solex_stripping.distribution_coefficient[:, "aqueous", "organic", "Fe"] = 1
 m.fs.solex_stripping.distribution_coefficient[:, "aqueous", "organic", "Ca"] = 1
+m.fs.solex_stripping.distribution_coefficient[:, "aqueous", "organic", "La"] = 1
+m.fs.solex_stripping.distribution_coefficient[:, "aqueous", "organic", "Pr"] = 1
 
 # Connecting loading outlet and stripping inlet
 
@@ -160,8 +159,6 @@ initializer = BlockTriangularizationInitializer(constraint_tolerance=1e-4)
 initializer.initialize(m)
 
 solver = SolverFactory("ipopt")
-solver.options["bound_push"] = 1e-8
-solver.options["mu_init"] = 1e-8
 solver.solve(m, tee=True)
 
 # Loading outlet
