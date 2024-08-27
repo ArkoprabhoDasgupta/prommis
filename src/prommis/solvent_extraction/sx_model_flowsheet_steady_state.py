@@ -24,6 +24,7 @@ from idaes.core.initialization.block_triangularization import (
 from prommis.leaching.leach_solution_properties import LeachSolutionParameters
 from prommis.solvent_extraction.ree_og_distribution import REESolExOgParameters
 from prommis.solvent_extraction.solvent_extraction import SolventExtraction
+from prommis.solvent_extraction.D_model_all_systems import D_calculation
 
 """
 Method of building a solvent extraction model with a specified number of stages
@@ -62,35 +63,50 @@ based on the values provided in the REESim file.
 
 """
 
-stage_number = np.arange(1, number_of_stages + 1)
+Elements = ["Y", "Ce", "Nd", "Sm", "Gd", "Dy"]
 
-for s in stage_number:
-    if s == 1:
-        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Al"] = 5.2 / 100
-        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Ca"] = 3 / 100
-        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Fe"] = 24.7 / 100
-        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Sc"] = 99.1 / 100
-        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Y"] = 99.9 / 100
-        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "La"] = 32.4 / 100
-        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Ce"] = 58.2 / 100
-        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Pr"] = 58.2 / 100
-        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Nd"] = 87.6 / 100
-        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Sm"] = 99.9 / 100
-        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Gd"] = 69.8 / 100
-        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Dy"] = 96.6 / 100
-    else:
-        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Al"] = 4.9 / 100
-        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Ca"] = 12.3 / 100
-        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Fe"] = 6.4 / 100
-        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Sc"] = 16.7 / 100
-        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Y"] = 99.9 / 100
-        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "La"] = 23.2 / 100
-        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Ce"] = 24.9 / 100
-        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Pr"] = 15.1 / 100
-        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Nd"] = 99.9 / 100
-        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Sm"] = 99.9 / 100
-        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Gd"] = 7.6 / 100
-        m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Dy"] = 5 / 100
+pH_loading = 1.524
+
+for e in Elements:
+    m.fs.solex.distribution_coefficient[:, "aqueous", "organic", e] = D_calculation(e, '5% dehpa 10% tbp', pH_loading)
+    
+
+m.fs.solex.distribution_coefficient[:, "aqueous", "organic", "Sc"] = 1
+m.fs.solex.distribution_coefficient[:, "aqueous", "organic", "Al"] = 1
+m.fs.solex.distribution_coefficient[:, "aqueous", "organic", "Fe"] = 1
+m.fs.solex.distribution_coefficient[:, "aqueous", "organic", "Ca"] = 1
+m.fs.solex.distribution_coefficient[:, "aqueous", "organic", "La"] = 1
+m.fs.solex.distribution_coefficient[:, "aqueous", "organic", "Pr"] = 1
+
+# stage_number = np.arange(1, number_of_stages + 1)
+
+# for s in stage_number:
+#     if s == 1:
+#         m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Al"] = 5.2 / 100
+#         m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Ca"] = 3 / 100
+#         m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Fe"] = 24.7 / 100
+#         m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Sc"] = 99.1 / 100
+#         m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Y"] = 99.9 / 100
+#         m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "La"] = 32.4 / 100
+#         m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Ce"] = 58.2 / 100
+#         m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Pr"] = 58.2 / 100
+#         m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Nd"] = 87.6 / 100
+#         m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Sm"] = 99.9 / 100
+#         m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Gd"] = 69.8 / 100
+#         m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Dy"] = 96.6 / 100
+#     else:
+#         m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Al"] = 4.9 / 100
+#         m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Ca"] = 12.3 / 100
+#         m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Fe"] = 6.4 / 100
+#         m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Sc"] = 16.7 / 100
+#         m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Y"] = 99.9 / 100
+#         m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "La"] = 23.2 / 100
+#         m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Ce"] = 24.9 / 100
+#         m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Pr"] = 15.1 / 100
+#         m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Nd"] = 99.9 / 100
+#         m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Sm"] = 99.9 / 100
+#         m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Gd"] = 7.6 / 100
+#         m.fs.solex.distribution_coefficient[s, "aqueous", "organic", "Dy"] = 5 / 100
 
 """
 Fixing the inlet conditions of the two feed streams to the solvent extraction model,
