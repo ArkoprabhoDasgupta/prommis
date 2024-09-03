@@ -95,28 +95,6 @@ stage_number = np.arange(1, number_of_stages + 1)
 
 Elements = ["Y", "Ce", "Nd", "Sm", "Gd", "Dy"]
 
-pH_loading = 1.5
-
-for e in Elements:
-    m.fs.solex.distribution_coefficient[:, "aqueous", "organic", e] = D_calculation(e, '2% dehpa 10% tbp', pH_loading)
-
-for s in stage_number:
-    if s == 1:
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Al"] = 5.2 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Ca"] = 3 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Fe"] = 24.7 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Sc"] = 99.1 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "La"] = 32.4 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Pr"] = 58.2 / 100
-
-    else:
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Al"] = 4.9 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Ca"] = 12.3 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Fe"] = 6.4 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Sc"] = 16.7 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "La"] = 23.2 / 100
-        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Pr"] = 15.1 / 100
-
 """
 Initialization of the model, which gives a good starting point.
 
@@ -140,6 +118,30 @@ def copy_first_steady_state(m):
 
 
 copy_first_steady_state(m)
+
+pH_loading = 1.55
+
+for e in Elements:
+    m.fs.solex.distribution_coefficient[:, "aqueous", "organic", e] = D_calculation(
+        e, "5% dehpa 10% tbp", pH_loading
+    )
+
+for s in stage_number:
+    if s == 1:
+        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Al"] = 5.2 / 100
+        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Ca"] = 3 / 100
+        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Fe"] = 24.7 / 100
+        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Sc"] = 99.1 / 100
+        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "La"] = 32.4 / 100
+        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Pr"] = 58.2 / 100
+
+    else:
+        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Al"] = 4.9 / 100
+        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Ca"] = 12.3 / 100
+        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Fe"] = 6.4 / 100
+        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Sc"] = 16.7 / 100
+        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "La"] = 23.2 / 100
+        m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Pr"] = 15.1 / 100
 
 """
 Fixation of the inlet conditions and the initial state values for all the components.
@@ -211,7 +213,9 @@ m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["Pr"].fix(3.711e-5)
 m.fs.solex.mscontactor.organic[0, :].flow_vol.fix(62.01)
 
 for e in Elements:
-    m.fs.solex.mscontactor.material_transfer_term[0.0,:,'aqueous','organic',e].fix(1e-8)
+    m.fs.solex.mscontactor.material_transfer_term[0.0, :, "aqueous", "organic", e].fix(
+        1e-8
+    )
 
 
 """
@@ -233,11 +237,30 @@ m.fs.solex.mscontactor.aqueous[time_duration, number_of_stages].conc_mol_comp.di
 percent_recovery = {}
 for ei, e in enumerate(Elements):
     for si, s in enumerate(stage_number):
-        percent_recovery[e,s] = [(1-x/m.fs.solex.mscontactor.aqueous[0, s].conc_mass_comp[e]())*100 for x in m.fs.solex.mscontactor.aqueous[:, s].conc_mass_comp[e]()]
+        percent_recovery[e, s] = [
+            (
+                1
+                - (
+                    (
+                        m.fs.solex.mscontactor.aqueous[t, s].conc_mass_comp[e]()
+                        * m.fs.solex.mscontactor.aqueous[t, s].flow_vol()
+                    )
+                    / (
+                        m.fs.solex.mscontactor.aqueous[0, s].conc_mass_comp[e]()
+                        * m.fs.solex.mscontactor.aqueous[0, s].flow_vol()
+                    )
+                )
+            )
+            * 100
+            for t in m.fs.time
+        ]
+
 
 for e in Elements:
-    plt.plot(m.fs.time, percent_recovery[e,1])
+    plt.plot(m.fs.time, percent_recovery[e, 1])
 plt.legend(Elements)
-plt.xlabel('time, hrs')
-plt.ylabel('percent recovery, %')
-plt.title('Aqueous phase percent recovery graph w.r.t. time')
+plt.xlabel("time, hrs")
+plt.ylabel("percent recovery, %")
+plt.title("Aqueous phase percent recovery graph w.r.t. time")
+
+print(percent_recovery["Y", 1])

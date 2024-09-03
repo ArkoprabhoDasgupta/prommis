@@ -264,12 +264,16 @@ class SolventExtractionData(UnitModelBlockData):
         )
 
         working_set = set()
-        for e in ['Y', 'Nd', 'Dy', 'Gd', 'Sm', 'Ce']:
-            working_set.add(('aqueous','organic',e))
-        
-        partition_based_set = self.mscontactor.stream_component_interactions - working_set
+        for e in ["Y", "Nd", "Dy", "Gd", "Sm", "Ce"]:
+            working_set.add(("aqueous", "organic", e))
 
-        distribution_based_set = self.mscontactor.stream_component_interactions - partition_based_set
+        partition_based_set = (
+            self.mscontactor.stream_component_interactions - working_set
+        )
+
+        distribution_based_set = (
+            self.mscontactor.stream_component_interactions - partition_based_set
+        )
 
         self.partition_coefficient = Param(
             self.mscontactor.elements,
@@ -280,20 +284,21 @@ class SolventExtractionData(UnitModelBlockData):
         )
 
         self.distribution_coefficient = Param(
+            self.flowsheet().time,
             self.mscontactor.elements,
             distribution_based_set,
             initialize=1,
             mutable=True,
             doc="The ratios of the concentrations in the organic phase and aqueous phase",
         )
-   
+
         self.aqueous_inlet = Port(extends=self.mscontactor.aqueous_inlet)
         self.aqueous_outlet = Port(extends=self.mscontactor.aqueous_outlet)
         self.organic_inlet = Port(extends=self.mscontactor.organic_inlet)
         self.organic_outlet = Port(extends=self.mscontactor.organic_outlet)
 
         def mass_transfer_term(b, t, s, k, l, m):
-            if m not in ['Y', 'Nd', 'Dy', 'Gd', 'Sm', 'Ce']:
+            if m not in ["Y", "Nd", "Dy", "Gd", "Sm", "Ce"]:
                 if self.config.aqueous_to_organic:
                     stream_state = b.mscontactor.aqueous
                     in_state = b.mscontactor.aqueous_inlet_state
@@ -325,12 +330,13 @@ class SolventExtractionData(UnitModelBlockData):
             else:
                 return b.mscontactor.organic[t, s].get_material_density_terms(
                     b.mscontactor.organic.phase_list, m
-                ) == b.distribution_coefficient[s, (k, l, m)] * b.mscontactor.aqueous[
+                ) == b.distribution_coefficient[
+                    t, s, (k, l, m)
+                ] * b.mscontactor.aqueous[
                     t, s
                 ].get_material_density_terms(
                     b.mscontactor.aqueous.phase_list, m
                 )
-
 
         self.mass_transfer_constraint = Constraint(
             self.flowsheet().time,
