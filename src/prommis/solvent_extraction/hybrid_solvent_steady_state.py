@@ -67,7 +67,9 @@ Elements = ["Y", "Ce", "Nd", "Sm", "Gd", "Dy"]
 pH_loading = 1.524
 
 for e in Elements:
-    m.fs.solex.distribution_coefficient[:, "aqueous", "organic", e] = D_calculation(e, '5% dehpa 10% tbp', pH_loading)
+    m.fs.solex.distribution_coefficient[0, :, "aqueous", "organic", e] = D_calculation(
+        e, "5% dehpa 10% tbp", pH_loading
+    )
 
 for s in stage_number:
     if s == 1:

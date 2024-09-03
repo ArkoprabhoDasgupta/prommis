@@ -16,6 +16,7 @@ from idaes.core.util.config import (
     is_reaction_parameter_block,
 )
 
+
 @declare_process_block_class("NeutralizationTank")
 class NeutralizationTankData(UnitModelBlockData):
 
@@ -29,9 +30,9 @@ class NeutralizationTankData(UnitModelBlockData):
             description="Dynamic model flag - must be False",
             doc="""Indicates whether this model will be dynamic or not,
         **default** = False. Equilibrium Reactors do not support dynamic behavior.""",
-                ),
-            )
-    
+        ),
+    )
+
     CONFIG.declare(
         "has_holdup",
         ConfigValue(
@@ -41,9 +42,9 @@ class NeutralizationTankData(UnitModelBlockData):
             doc="""Indicates whether holdup terms should be constructed or not.
         **default** - False. Equilibrium reactors do not have defined volume, thus
         this must be False.""",
-                ),
-            )
-    
+        ),
+    )
+
     CONFIG.declare(
         "material_balance_type",
         ConfigValue(
@@ -60,9 +61,9 @@ class NeutralizationTankData(UnitModelBlockData):
         **MaterialBalanceType.componentTotal** - use total component balances,
         **MaterialBalanceType.elementTotal** - use total element balances,
         **MaterialBalanceType.total** - use total material balance.}""",
-                ),
-            )
-    
+        ),
+    )
+
     CONFIG.declare(
         "property_package",
         ConfigValue(
@@ -74,9 +75,9 @@ class NeutralizationTankData(UnitModelBlockData):
         **Valid values:** {
         **useDefault** - use default package from parent model or flowsheet,
         **PhysicalParameterObject** - a PhysicalParameterBlock object.}""",
-                ),
-            )
-    
+        ),
+    )
+
     CONFIG.declare(
         "property_package_args",
         ConfigBlock(
@@ -87,7 +88,5 @@ class NeutralizationTankData(UnitModelBlockData):
         **default** - None.
         **Valid values:** {
         see property package for documentation.}""",
-                ),
-            )
-
-
+        ),
+    )
