@@ -137,7 +137,7 @@ def pH_variance(m, t):
 #     for t in m.fs.time:
 #         m.fs.solex.distribution_coefficient[t,:, "aqueous", "organic", e] = D_calculation(
 #             e, "5% dehpa 10% tbp", m.pH_loading[t]
-#         )
+#         )m.p
 
 for e in Elements:
     for t in m.fs.time:
@@ -282,8 +282,8 @@ for ei, e in enumerate(Elements):
                         * m.fs.solex.mscontactor.aqueous[t, s].flow_vol()
                     )
                     / (
-                        m.fs.solex.mscontactor.aqueous[0, s].conc_mass_comp[e]()
-                        * m.fs.solex.mscontactor.aqueous[0, s].flow_vol()
+                        m.fs.solex.mscontactor.aqueous_inlet_state[0].conc_mass_comp[e]()
+                        * m.fs.solex.mscontactor.aqueous_inlet_state[0].flow_vol()
                     )
                 )
             )

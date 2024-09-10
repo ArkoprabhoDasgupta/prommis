@@ -42,7 +42,7 @@ m.fs = FlowsheetBlock(dynamic=False)
 m.fs.prop_o = REESolExOgParameters()
 m.fs.leach_soln = LeachSolutionParameters()
 
-number_of_stages = 3
+number_of_stages = 1
 stage_number = np.arange(1, number_of_stages + 1)
 
 m.fs.solex = SolventExtraction(
@@ -156,4 +156,21 @@ m.fs.solex.mscontactor.organic[0, 1].conc_mol_comp.display()
 m.fs.solex.mscontactor.aqueous[0, number_of_stages].conc_mass_comp.display()
 m.fs.solex.mscontactor.aqueous[0, number_of_stages].conc_mol_comp.display()
 
-to_json(m, fname="hybrid_solvent_extraction.json", human_read=True)
+for e in ["Y", "Dy", "Gd"]:
+    print(
+        (
+            1
+            - (
+                m.fs.solex.mscontactor.aqueous[0, number_of_stages].conc_mass_comp[e]()
+                * m.fs.solex.mscontactor.aqueous[0,number_of_stages].flow_vol()
+            )
+            / (
+                m.fs.solex.mscontactor.aqueous_inlet_state[
+                    0].conc_mass_comp[e]()
+                * m.fs.solex.mscontactor.aqueous_inlet_state[0].flow_vol()
+            )
+        )
+        * 100
+    )
+
+# to_json(m, fname="hybrid_solvent_extraction.json", human_read=True)
