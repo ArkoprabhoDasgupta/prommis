@@ -43,7 +43,7 @@ This is a loading operation, so no additional argument has to be specified.
 
 m = ConcreteModel()
 
-time_duration = 24
+time_duration = 60
 
 m.fs = FlowsheetBlock(dynamic=True, time_set=[0, time_duration], time_units=units.hour)
 
@@ -76,7 +76,7 @@ for all the stages.
 """
 
 m.discretizer = TransformationFactory("dae.collocation")
-m.discretizer.apply_to(m, nfe=6, ncp=2, wrt=m.fs.time, scheme="LAGRANGE-RADAU")
+m.discretizer.apply_to(m, nfe=12, ncp=2, wrt=m.fs.time, scheme="LAGRANGE-RADAU")
 
 """
 Specifications of the partition coefficients, volume and volume fractions for all
@@ -139,8 +139,8 @@ copy_first_steady_state(m)
 pH_loading = 2
 
 for e in Elements:
-    m.fs.solex.distribution_coefficient[:, "aqueous", "organic", e] = D_calculation(
-        e, "2% dehpa 10% tbp", pH_loading
+    m.fs.solex.distribution_coefficient[:,:, "aqueous", "organic", e] = D_calculation(
+        e, "5% dehpa 10% tbp", pH_loading
     )
 
 """
@@ -195,9 +195,9 @@ m.fs.solex.mscontactor.organic_inlet_state[:].conc_mass_comp["Dy"].fix(8.008e-6)
 #         return m.fs.solex.mscontactor.organic_inlet_state[t].flow_vol == 62.01
 
 for t in m.fs.time:
-    if t <= 10:
-        ramp_slope = (62.01 - 10) / (10 - 0)
-        m.fs.solex.mscontactor.organic_inlet_state[t].flow_vol.fix(10 + ramp_slope * t)
+    if t <= 24:
+        ramp_slope = (62.01 - 1) / (24 - 0)
+        m.fs.solex.mscontactor.organic_inlet_state[t].flow_vol.fix(1 + ramp_slope * t)
     else:
         m.fs.solex.mscontactor.organic_inlet_state[t].flow_vol.fix(62.01)
 
@@ -272,8 +272,8 @@ for ei, e in enumerate(Elements):
                         * m.fs.solex.mscontactor.aqueous[t, s].flow_vol()
                     )
                     / (
-                        m.fs.solex.mscontactor.aqueous[0, s].conc_mass_comp[e]()
-                        * m.fs.solex.mscontactor.aqueous[0, s].flow_vol()
+                        m.fs.solex.mscontactor.aqueous_inlet_state[0].conc_mass_comp[e]()
+                        * m.fs.solex.mscontactor.aqueous_inlet_state[0].flow_vol()
                     )
                 )
             )
@@ -282,7 +282,7 @@ for ei, e in enumerate(Elements):
         ]
 
 for e in Elements:
-    plt.plot(m.fs.time, percent_recovery[e, 3])
+    plt.plot(m.fs.time, percent_recovery[e, 1])
 plt.legend(Elements)
 plt.xlabel("time, hrs")
 plt.ylabel("percent recovery, %")

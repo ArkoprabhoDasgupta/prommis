@@ -77,7 +77,7 @@ for all the stages.
 """
 
 m.discretizer = TransformationFactory("dae.collocation")
-m.discretizer.apply_to(m, nfe=3, ncp=2, wrt=m.fs.time, scheme="LAGRANGE-RADAU")
+m.discretizer.apply_to(m, nfe=12, ncp=2, wrt=m.fs.time, scheme="LAGRANGE-RADAU")
 
 """
 Specifications of the partition coefficients, volume and volume fractions for all
@@ -122,7 +122,7 @@ copy_first_steady_state(m)
 pH_loading = 1.55
 
 for e in Elements:
-    m.fs.solex.distribution_coefficient[:, "aqueous", "organic", e] = D_calculation(
+    m.fs.solex.distribution_coefficient[:,:, "aqueous", "organic", e] = D_calculation(
         e, "5% dehpa 10% tbp", pH_loading
     )
 
@@ -246,8 +246,8 @@ for ei, e in enumerate(Elements):
                         * m.fs.solex.mscontactor.aqueous[t, s].flow_vol()
                     )
                     / (
-                        m.fs.solex.mscontactor.aqueous[0, s].conc_mass_comp[e]()
-                        * m.fs.solex.mscontactor.aqueous[0, s].flow_vol()
+                        m.fs.solex.mscontactor.aqueous_inlet_state[0].conc_mass_comp[e]()
+                        * m.fs.solex.mscontactor.aqueous_inlet_state[0].flow_vol()
                     )
                 )
             )
