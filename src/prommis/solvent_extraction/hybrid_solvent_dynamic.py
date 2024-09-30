@@ -122,7 +122,7 @@ copy_first_steady_state(m)
 pH_loading = 1.55
 
 for e in Elements:
-    m.fs.solex.distribution_coefficient[:,:, "aqueous", "organic", e] = D_calculation(
+    m.fs.solex.distribution_coefficient[:, :, "aqueous", "organic", e] = D_calculation(
         e, "5% dehpa 10% tbp", pH_loading
     )
 
@@ -246,7 +246,9 @@ for ei, e in enumerate(Elements):
                         * m.fs.solex.mscontactor.aqueous[t, s].flow_vol()
                     )
                     / (
-                        m.fs.solex.mscontactor.aqueous_inlet_state[0].conc_mass_comp[e]()
+                        m.fs.solex.mscontactor.aqueous_inlet_state[0].conc_mass_comp[
+                            e
+                        ]()
                         * m.fs.solex.mscontactor.aqueous_inlet_state[0].flow_vol()
                     )
                 )

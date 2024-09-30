@@ -8,7 +8,7 @@ def D_calculation(element_name, system_name, pH_value):  # Add m to the argument
     Element = ["Y", "Nd", "Dy", "Sm", "Gd", "Ce"]
     System = ["5% dehpa 10% tbp", "2% dehpa 10% tbp", "2% dehpa", "2% cyanex"]
 
-    m = ConcreteModel()    # Remove m and do something like solex = m.fs.solex
+    m = ConcreteModel()  # Remove m and do something like solex = m.fs.solex
     # Use solex.a, M, B etc
     m.a = Var(Element, System, domain=Binary)
     m.M = Var()
@@ -62,8 +62,9 @@ def D_calculation(element_name, system_name, pH_value):  # Add m to the argument
     @m.Constraint()
     def D_calculation(m):
         return m.D == 10 ** (m.M * pH_value + m.B)
+
     # Remove solver stuff
     solver = SolverFactory("ipopt")
     solver.solve(m)
 
-    return m.D()   # Return m only
+    return m.D()  # Return m only

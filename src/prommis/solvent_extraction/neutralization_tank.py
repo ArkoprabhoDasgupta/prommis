@@ -1,49 +1,25 @@
-from pyomo.common.config import ConfigBlock, ConfigValue, In, Bool, ConfigDict
-from pyomo.environ import Reference
+from pyomo.common.config import ConfigBlock, ConfigValue, In, ConfigDict
+from pyomo.environ import Param, Constraint, Var, units
 
 # Import IDAES cores
 from idaes.core import (
     ControlVolume0DBlock,
     declare_process_block_class,
     MaterialBalanceType,
-    EnergyBalanceType,
-    MomentumBalanceType,
     UnitModelBlockData,
     useDefault,
+    FlowDirection,
 )
 from idaes.core.util.config import (
     is_physical_parameter_block,
-    is_reaction_parameter_block,
 )
+
 
 @declare_process_block_class("NeutralizationTank")
 class NeutralizationTankData(UnitModelBlockData):
 
-    CONFIG = ConfigBlock()
+    CONFIG = UnitModelBlockData.CONFIG()
 
-    CONFIG.declare(
-        "dynamic",
-        ConfigValue(
-            domain=In([False]),
-            default=False,
-            description="Dynamic model flag - must be False",
-            doc="""Indicates whether this model will be dynamic or not,
-        **default** = False. Equilibrium Reactors do not support dynamic behavior.""",
-                ),
-            )
-    
-    CONFIG.declare(
-        "has_holdup",
-        ConfigValue(
-            default=False,
-            domain=In([False]),
-            description="Holdup construction flag - must be False",
-            doc="""Indicates whether holdup terms should be constructed or not.
-        **default** - False. Equilibrium reactors do not have defined volume, thus
-        this must be False.""",
-                ),
-            )
-    
     CONFIG.declare(
         "material_balance_type",
         ConfigValue(
@@ -60,9 +36,9 @@ class NeutralizationTankData(UnitModelBlockData):
         **MaterialBalanceType.componentTotal** - use total component balances,
         **MaterialBalanceType.elementTotal** - use total element balances,
         **MaterialBalanceType.total** - use total material balance.}""",
-                ),
-            )
-    
+        ),
+    )
+
     CONFIG.declare(
         "property_package",
         ConfigValue(
@@ -74,9 +50,9 @@ class NeutralizationTankData(UnitModelBlockData):
         **Valid values:** {
         **useDefault** - use default package from parent model or flowsheet,
         **PhysicalParameterObject** - a PhysicalParameterBlock object.}""",
-                ),
-            )
-    
+        ),
+    )
+
     CONFIG.declare(
         "property_package_args",
         ConfigBlock(
@@ -87,38 +63,10 @@ class NeutralizationTankData(UnitModelBlockData):
         **default** - None.
         **Valid values:** {
         see property package for documentation.}""",
-                ),
-            )
-
-    base_config = ConfigDict()
-
-    base_config.declare(
-        "base_flowrate",
-        ConfigValue(
-            domain=float,
-            description="Volumetric flowrate of the base"
-        )
-    )
-
-    base_config.declare(
-        "base_concentration",
-        ConfigValue(
-            domain=float,
-            description="Concentration of the base"
-        )
-    )
-
-    CONFIG.declare(
-        "base_stream",
-        ConfigDict(
-            implicit=True,
-            implicit_domain=base_config,
-            description="Total base flowrate"
-        )
+        ),
     )
 
     def build(self):
-
         """
         Begin building model.
 
@@ -129,7 +77,7 @@ class NeutralizationTankData(UnitModelBlockData):
             None
         """
 
-        super(NeutralizationTankData, self).build
+        super(NeutralizationTankData, self).build()
 
         self.control_volume = ControlVolume0DBlock(
             dynamic=self.config.dynamic,
@@ -138,8 +86,49 @@ class NeutralizationTankData(UnitModelBlockData):
             property_package_args=self.config.property_package_args,
         )
 
-        
+        self.control_volume.add_state_blocks(
+            information_flow=FlowDirection.forward, has_phase_equilibrium=True
+        )
 
+        self.control_volume.add_total_component_balances(
+            has_rate_reactions=False,
+            has_equilibrium_reactions=False,
+            has_phase_equilibrium=False,
+            has_mass_transfer=True,
+            custom_molar_term=None,
+            custom_mass_term=None,
+        )
 
+        self.base_concentration = Var(self.flowsheet().time, units=units.mol / units.L)
 
+        self.base_flowrate = Var(self.flowsheet().time, units=units.L / units.hr)
 
+        water_concentration = 55.55 * units.mol / units.L
+
+        def mass_transfer_term(self, t, p, c):
+
+            if c == "H2O":
+                return (
+                    self.control_volume.mass_transfer_term[t, p, c]
+                    == (self.base_concentration[t] + water_concentration)
+                    * self.base_flowrate[t]
+                )
+            elif c == "H":
+                return (
+                    self.control_volume.mass_transfer_term[t, p, c]
+                    == -self.base_concentration[t] * self.base_flowrate[t]
+                )
+            else:
+                return (
+                    self.control_volume.mass_transfer_term[t, p, c]
+                    == 0 * units.mol / units.L
+                )
+
+        pc_set = self.config.property_package._phase_component_set
+
+        self.mass_transfer_constraint = Constraint(
+            self.flowsheet().time, pc_set, rule=mass_transfer_term
+        )
+
+        self.add_inlet_port()
+        self.add_outlet_port()
