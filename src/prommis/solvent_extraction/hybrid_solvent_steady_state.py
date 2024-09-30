@@ -162,11 +162,10 @@ for e in ["Y", "Dy", "Gd"]:
             1
             - (
                 m.fs.solex.mscontactor.aqueous[0, number_of_stages].conc_mass_comp[e]()
-                * m.fs.solex.mscontactor.aqueous[0,number_of_stages].flow_vol()
+                * m.fs.solex.mscontactor.aqueous[0, number_of_stages].flow_vol()
             )
             / (
-                m.fs.solex.mscontactor.aqueous_inlet_state[
-                    0].conc_mass_comp[e]()
+                m.fs.solex.mscontactor.aqueous_inlet_state[0].conc_mass_comp[e]()
                 * m.fs.solex.mscontactor.aqueous_inlet_state[0].flow_vol()
             )
         )

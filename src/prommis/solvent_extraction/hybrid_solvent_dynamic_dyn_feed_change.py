@@ -282,7 +282,9 @@ for ei, e in enumerate(Elements):
                         * m.fs.solex.mscontactor.aqueous[t, s].flow_vol()
                     )
                     / (
-                        m.fs.solex.mscontactor.aqueous_inlet_state[0].conc_mass_comp[e]()
+                        m.fs.solex.mscontactor.aqueous_inlet_state[0].conc_mass_comp[
+                            e
+                        ]()
                         * m.fs.solex.mscontactor.aqueous_inlet_state[0].flow_vol()
                     )
                 )
