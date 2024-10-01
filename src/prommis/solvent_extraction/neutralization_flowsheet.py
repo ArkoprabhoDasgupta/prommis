@@ -3,6 +3,7 @@ from pyomo.environ import TransformationFactory
 
 from idaes.core import FlowDirection, FlowsheetBlock
 from idaes.core.solvers import get_solver
+from idaes.core.util import DiagnosticsToolbox
 
 from prommis.leaching.leach_solution_properties import LeachSolutionParameters
 from prommis.solvent_extraction.neutralization_tank import NeutralizationTank
@@ -20,24 +21,41 @@ m.fs.neutral.base_flowrate[0].fix(1)
 m.fs.neutral.base_concentration[0].fix(0.2)
 
 m.fs.neutral.inlet.flow_vol.fix(62.01)
-m.fs.neutral.inlet.conc_mass_comp[0, "H2O"].fix(1e6)
-m.fs.neutral.inlet.conc_mass_comp[0, "H"].fix(10)
-m.fs.neutral.inlet.conc_mass_comp[0, "HSO4"].fix(60)
-m.fs.neutral.inlet.conc_mass_comp[0, "Cl"].fix(10)
-m.fs.neutral.inlet.conc_mass_comp[0, "SO4"].fix(40)
-m.fs.neutral.inlet.conc_mass_comp[0, "Al"].fix(10)
-m.fs.neutral.inlet.conc_mass_comp[0, "Ca"].fix(10)
-m.fs.neutral.inlet.conc_mass_comp[0, "Fe"].fix(10)
-m.fs.neutral.inlet.conc_mass_comp[0, "Sc"].fix(10)
-m.fs.neutral.inlet.conc_mass_comp[0, "La"].fix(10)
-m.fs.neutral.inlet.conc_mass_comp[0, "Ce"].fix(10)
-m.fs.neutral.inlet.conc_mass_comp[0, "Pr"].fix(10)
-m.fs.neutral.inlet.conc_mass_comp[0, "Nd"].fix(10)
-m.fs.neutral.inlet.conc_mass_comp[0, "Sm"].fix(10)
-m.fs.neutral.inlet.conc_mass_comp[0, "Gd"].fix(10)
-m.fs.neutral.inlet.conc_mass_comp[0, "Dy"].fix(10)
-m.fs.neutral.inlet.conc_mass_comp[0, "Y"].fix(10)
+# m.fs.neutral.inlet.conc_mass_comp[0, "H2O"].fix(1e6)
+# m.fs.neutral.inlet.conc_mass_comp[0, "H"].fix(15)
+# m.fs.neutral.inlet.conc_mass_comp[0, "HSO4"].fix(60)
+# m.fs.neutral.inlet.conc_mass_comp[0, "Cl"].fix(10)
+# m.fs.neutral.inlet.conc_mass_comp[0, "SO4"].fix(40)
+# m.fs.neutral.inlet.conc_mass_comp[0, "Al"].fix(10)
+# m.fs.neutral.inlet.conc_mass_comp[0, "Ca"].fix(10)
+# m.fs.neutral.inlet.conc_mass_comp[0, "Fe"].fix(10)
+# m.fs.neutral.inlet.conc_mass_comp[0, "Sc"].fix(10)
+# m.fs.neutral.inlet.conc_mass_comp[0, "La"].fix(10)
+# m.fs.neutral.inlet.conc_mass_comp[0, "Ce"].fix(10)
+# m.fs.neutral.inlet.conc_mass_comp[0, "Pr"].fix(10)
+# m.fs.neutral.inlet.conc_mass_comp[0, "Nd"].fix(10)
+# m.fs.neutral.inlet.conc_mass_comp[0, "Sm"].fix(10)
+# m.fs.neutral.inlet.conc_mass_comp[0, "Gd"].fix(10)
+# m.fs.neutral.inlet.conc_mass_comp[0, "Dy"].fix(10)
+# m.fs.neutral.inlet.conc_mass_comp[0, "Y"].fix(10)
 
+m.fs.neutral.inlet.conc_mass_comp[0,"H2O"].fix(1e6)
+m.fs.neutral.inlet.conc_mass_comp[0,"H"].fix(1.755)
+m.fs.neutral.inlet.conc_mass_comp[0,"SO4"].fix(3999.818)
+m.fs.neutral.inlet.conc_mass_comp[0,"HSO4"].fix(693.459)
+m.fs.neutral.inlet.conc_mass_comp[0,"Al"].fix(422.375)
+m.fs.neutral.inlet.conc_mass_comp[0,"Ca"].fix(109.542)
+m.fs.neutral.inlet.conc_mass_comp[0,"Fe"].fix(688.266)
+m.fs.neutral.inlet.conc_mass_comp[0,"Sc"].fix(0.032)
+m.fs.neutral.inlet.conc_mass_comp[0,"Y"].fix(0.124)
+m.fs.neutral.inlet.conc_mass_comp[0,"La"].fix(0.986)
+m.fs.neutral.inlet.conc_mass_comp[0,"Ce"].fix(2.277)
+m.fs.neutral.inlet.conc_mass_comp[0,"Pr"].fix(0.303)
+m.fs.neutral.inlet.conc_mass_comp[0,"Nd"].fix(0.946)
+m.fs.neutral.inlet.conc_mass_comp[0,"Sm"].fix(0.097)
+m.fs.neutral.inlet.conc_mass_comp[0,"Gd"].fix(0.2584)
+m.fs.neutral.inlet.conc_mass_comp[0,"Dy"].fix(0.047)
+m.fs.neutral.inlet.conc_mass_comp[0,"Cl"].fix(1e-8)
 
 class NeutralizeScale(CustomScalerBase):
 
@@ -85,13 +103,17 @@ class NeutralTankScale(CustomScalerBase):
             overwrite=overwrite,
         )
 
-        # self.call_submodel_scaler_method(
-        #     model=model,
-        #     submodel="control_volume.properties_out",
-        #     method="variable_scaling_routine",
-        #     submodel_scalers=submodel_scalers,
-        #     overwrite=overwrite,
-        # )
+        self.call_submodel_scaler_method(
+            model=model,
+            submodel="control_volume.properties_out",
+            method="variable_scaling_routine",
+            submodel_scalers=submodel_scalers,
+            overwrite=overwrite,
+        )
+        
+        for v in model.base_flowrate.values():
+            self.set_variable_scaling_factor(v, 1e-2)
+        
 
     def constraint_scaling_routine(
         self, model, overwrite: bool = False, submodel_scalers: dict = None
@@ -143,10 +165,11 @@ scaler.scale_model(
 
 report_scaling_factors(m, descend_into=True)
 
-
-sm = TransformationFactory("core.scale_model").create_using(m, rename=False)
-
 solver = get_solver(
     "ipopt_v2", writer_config={"linear_presolve": True, "scale_model": True}
 )
-solver.solve(sm, tee=True)
+solver.solve(m, tee=True)
+
+
+sm = TransformationFactory("core.scale_model").create_using(m, rename=False)
+dt = DiagnosticsToolbox(sm)
