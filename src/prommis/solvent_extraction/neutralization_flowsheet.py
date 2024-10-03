@@ -1,4 +1,4 @@
-from pyomo.environ import ConcreteModel, SolverFactory, Constraint, units
+from pyomo.environ import ConcreteModel, SolverFactory, Constraint, units, log10
 from pyomo.environ import TransformationFactory
 
 from idaes.core import FlowDirection, FlowsheetBlock
@@ -170,6 +170,8 @@ solver = get_solver(
 )
 solver.solve(m, tee=True)
 
+print(-log10(m.fs.neutral.control_volume.properties_in[0].conc_mol_comp['H']()))
+print(-log10(m.fs.neutral.control_volume.properties_out[0].conc_mol_comp['H']()))
 
 sm = TransformationFactory("core.scale_model").create_using(m, rename=False)
 dt = DiagnosticsToolbox(sm)
