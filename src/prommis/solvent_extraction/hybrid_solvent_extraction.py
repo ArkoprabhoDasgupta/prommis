@@ -89,7 +89,7 @@ function of the parameter of partition coefficient defined by the user.
 """
 
 from pyomo.common.config import Bool, ConfigDict, ConfigValue, In
-from pyomo.environ import Constraint, Param, Block
+from pyomo.environ import Constraint, Param, Block, Var
 from pyomo.network import Port
 
 from idaes.core import (
@@ -152,7 +152,7 @@ class SolventExtractionInitializer(ModularInitializerBase):
         model.mscontactor.material_transfer_term.unfix()
 
         solver = self._get_solver()
-        init_model = solver.solve(model.mscontactor)
+        init_model = solver.solve(model)
 
         return init_model
 
@@ -283,12 +283,10 @@ class SolventExtractionData(UnitModelBlockData):
             doc="The fraction of component that goes from aqueous to organic phase",
         )
 
-        self.distribution_coefficient = Param(
+        self.distribution_coefficient = Var(
             self.flowsheet().time,
             self.mscontactor.elements,
             distribution_based_set,
-            initialize=1,
-            mutable=True,
             doc="The ratios of the concentrations in the organic phase and aqueous phase",
         )
 

@@ -103,14 +103,27 @@ class NeutralizationTankData(UnitModelBlockData):
 
         self.base_flowrate = Var(self.flowsheet().time, units=units.L / units.hr)
 
-        water_concentration = 55.55 * units.mol / units.L
+        self.water_feed_conc = Var(self.flowsheet().time, units=units.mol / units.L)
+
+        def water_inlet_conc(self, t):
+
+            base_molar_density = 40 * units.g / units.mol 
+            water_concentration = 55.55 * units.mol / units.L
+            specific_volume_base = 1e-3 * units.L / units.g 
+            solution_basis = 1 * units.L 
+
+            return self.water_feed_conc[t] == (solution_basis - base_molar_density*self.base_concentration[t]*specific_volume_base)*water_concentration/solution_basis
+
+        self.water_feed_constraint = Constraint(
+            self.flowsheet().time, rule=water_inlet_conc
+        )
 
         def mass_transfer_term(self, t, p, c):
 
             if c == "H2O":
                 return (
                     self.control_volume.mass_transfer_term[t, p, c]
-                    == (self.base_concentration[t] + water_concentration)
+                    == (self.base_concentration[t] + self.water_feed_conc[t])
                     * self.base_flowrate[t]
                 )
             elif c == "H":
