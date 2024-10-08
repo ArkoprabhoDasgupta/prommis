@@ -3,10 +3,10 @@ from idaes.core.solvers import get_solver
 import numpy as np
 
 
-def D_calculation(element_name, dosage, pH_value):
+def D_calculation(element_name, dosage ): #, pH_value):
 
     Element = ["Y", "Nd", "Dy", "Sm", "Gd", "Ce"]
-    System = ["5% dehpa 10% tbp", "2% dehpa 10% tbp", "2% dehpa", "2% cyanex"]
+    #System = ["5% dehpa 10% tbp", "2% dehpa 10% tbp", "2% dehpa", "2% cyanex"]
 
     m = ConcreteModel()
 
@@ -42,11 +42,11 @@ def D_calculation(element_name, dosage, pH_value):
             m.a[e] * LR_parameters[e][0] for e in Element
         ) * np.log10((dosage + 10) / 15)
 
-    @m.Constraint()
-    def D_calculation(m):
-        return m.D == 10 ** (m.M * pH_value + m.B)
+    # @m.Constraint()
+    # def D_calculation(m):
+    #     return m.D == 10 ** (m.M * pH_value + m.B)
 
     solver = SolverFactory("ipopt")
     solver.solve(m)
 
-    return m.D()
+    return m.M(), m.B()
