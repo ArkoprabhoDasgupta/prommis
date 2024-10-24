@@ -66,6 +66,12 @@ Elements = ["Y", "Ce", "Nd", "Sm", "Gd", "Dy"]
 
 pH_loading = 1.524
 
+# @m.Constraint(m.fs.time, stage_number, Elements)
+# def distribution_calculation(m,t,s,e):
+#     return m.fs.solex.distribution_coefficient[t, s, "aqueous", "organic", e] == D_calculation(
+#             e, "5% dehpa 10% tbp", pH_loading
+#         )
+
 for e in Elements:
     m.fs.solex.distribution_coefficient[0, :, "aqueous", "organic", e] = D_calculation(
         e, "5% dehpa 10% tbp", pH_loading
@@ -134,8 +140,8 @@ Initialization of the model, which gives a good starting point.
 
 """
 
-initializer = SolventExtractionInitializer()
-initializer.initialize(m.fs.solex)
+# initializer = SolventExtractionInitializer()
+# initializer.initialize(m.fs.solex)
 
 """ 
 Solution of the model and display of the final results.

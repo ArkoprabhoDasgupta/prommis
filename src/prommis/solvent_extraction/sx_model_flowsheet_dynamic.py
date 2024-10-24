@@ -26,6 +26,7 @@ import numpy as np
 
 from idaes.core import FlowDirection, FlowsheetBlock
 from idaes.core.util import from_json
+from idaes.core.solvers import get_solver
 
 from prommis.leaching.leach_solution_properties import LeachSolutionParameters
 from prommis.solvent_extraction.ree_og_distribution import REESolExOgParameters
@@ -66,7 +67,6 @@ m.fs.solex = SolventExtraction(
     },
 )
 
-
 """
 Discretization of the time domain, and specification of the partition coefficients,
 volume, volume fractions, and the initial conditions of state variables for the components
@@ -75,14 +75,38 @@ for all the stages.
 """
 
 m.discretizer = TransformationFactory("dae.collocation")
-m.discretizer.apply_to(m, nfe=6, ncp=2, wrt=m.fs.time, scheme="LAGRANGE-RADAU")
+m.discretizer.apply_to(m, nfe=3, ncp=2, wrt=m.fs.time, scheme="LAGRANGE-RADAU")
+
+
+"""
+Initialization of the model, which gives a good starting point.
+
+"""
+
+from_json(m, fname="solvent_extraction.json")
+
+def copy_first_steady_state(m):
+    # Function that propogates initial steady state guess to future time points
+    # regular_vars
+    regular_vars, time_vars = flatten_dae_components(m, m.fs.time, Var, active=True)
+    # Copy initial conditions forward
+    for var in time_vars:
+        for t in m.fs.time:
+            if t == m.fs.time.first():
+                continue
+            else:
+                var[t].value = var[m.fs.time.first()].value
+                # var.pprint()
+
+
+copy_first_steady_state(m)
+
 
 """
 Specifications of the partition coefficients, volume and volume fractions for all
 the stages.
 
 """
-
 
 m.fs.solex.mscontactor.volume[:].fix(0.4)
 
@@ -120,29 +144,6 @@ for s in stage_number:
         m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Dy"] = 5 / 100
 
 
-"""
-Initialization of the model, which gives a good starting point.
-
-"""
-
-from_json(m, fname="solvent_extraction.json")
-
-
-def copy_first_steady_state(m):
-    # Function that propogates initial steady state guess to future time points
-    # regular_vars
-    regular_vars, time_vars = flatten_dae_components(m, m.fs.time, Var, active=True)
-    # Copy initial conditions forward
-    for var in time_vars:
-        for t in m.fs.time:
-            if t == m.fs.time.first():
-                continue
-            else:
-                var[t].value = var[m.fs.time.first()].value
-                # var.pprint()
-
-
-copy_first_steady_state(m)
 
 """
 Fixation of the inlet conditions and the initial state values for all the components.
@@ -241,7 +242,7 @@ Solution of the model and display of the final results.
 
 """
 
-solver = SolverFactory("ipopt")
+solver = get_solver("ipopt")
 solver.solve(m, tee=True)
 
 # Final organic outlet display
