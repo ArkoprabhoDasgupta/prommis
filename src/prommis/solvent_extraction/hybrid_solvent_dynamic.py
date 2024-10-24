@@ -28,6 +28,7 @@ import matplotlib.pyplot as plt
 
 from idaes.core import FlowDirection, FlowsheetBlock
 from idaes.core.util import from_json
+from idaes.core.solvers import get_solver
 
 from prommis.leaching.leach_solution_properties import LeachSolutionParameters
 from prommis.solvent_extraction.ree_og_distribution import REESolExOgParameters
@@ -77,7 +78,7 @@ for all the stages.
 """
 
 m.discretizer = TransformationFactory("dae.collocation")
-m.discretizer.apply_to(m, nfe=12, ncp=2, wrt=m.fs.time, scheme="LAGRANGE-RADAU")
+m.discretizer.apply_to(m, nfe=4, ncp=2, wrt=m.fs.time, scheme="LAGRANGE-RADAU")
 
 """
 Specifications of the partition coefficients, volume and volume fractions for all
@@ -85,23 +86,12 @@ the stages.
 
 """
 
-
-m.fs.solex.mscontactor.volume[:].fix(0.4)
-
-m.fs.solex.mscontactor.volume_frac_stream[:, :, "organic"].fix(0.4)
-
-number_of_stages = 3
-stage_number = np.arange(1, number_of_stages + 1)
-
-Elements = ["Y", "Ce", "Nd", "Sm", "Gd", "Dy"]
-
 """
 Initialization of the model, which gives a good starting point.
 
 """
 
 from_json(m, fname="hybrid_solvent_extraction.json")
-
 
 def copy_first_steady_state(m):
     # Function that propogates initial steady state guess to future time points
@@ -119,12 +109,40 @@ def copy_first_steady_state(m):
 
 copy_first_steady_state(m)
 
-pH_loading = 1.55
+m.fs.solex.mscontactor.volume[:].fix(0.4)
 
-for e in Elements:
-    m.fs.solex.distribution_coefficient[:, :, "aqueous", "organic", e] = D_calculation(
-        e, "5% dehpa 10% tbp", pH_loading
-    )
+m.fs.solex.mscontactor.volume_frac_stream[:, :, "organic"].fix(0.4)
+
+number_of_stages = 3
+stage_number = np.arange(1, number_of_stages + 1)
+
+Elements = ["Y", "Ce", "Nd", "Sm", "Gd", "Dy"]
+
+pH_loading = 1.524
+
+# @m.Constraint(m.fs.time, stage_number, Elements)
+# def distribution_calculation(m,t,s,e):
+#     return m.fs.solex.distribution_coefficient[t, s, "aqueous", "organic", e] == D_calculation(
+#             e, "5% dehpa 10% tbp", pH_loading
+#         )
+
+for t in m.fs.time:
+    for e in Elements:
+        m.fs.solex.distribution_coefficient[t, :, "aqueous", "organic", e] = D_calculation(
+            e, "5% dehpa 10% tbp", pH_loading
+        )
+
+        # if t <= 36:
+        #     dosage = 5
+        #     m.fs.solex.distribution_coefficient[t, :, "aqueous", "organic", e] = (
+        #         D_calculation(e, dosage, 1.3)
+        #     )
+        # else:
+        #     # pH_loading = 1.2 + (1.7-1.2)*(t-50)/10
+        #     dosage = 9.3
+        #     m.fs.solex.distribution_coefficient[t, :, "aqueous", "organic", e] = (
+        #         D_calculation(e, dosage, 1.3)
+        #     )
 
 for s in stage_number:
     if s == 1:
@@ -203,18 +221,34 @@ m.fs.solex.mscontactor.aqueous_inherent_reaction_extent[0, :, "Ka2"].fix(1e-8)
 m.fs.solex.mscontactor.aqueous[0, :].flow_vol.fix(62.01)
 
 
+# m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["Al"].fix(1.267e-5)
+# m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["Ca"].fix(2.684e-5)
+# m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["Fe"].fix(2.837e-6)
+# m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["Sc"].fix(1.734)
+# m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["La"].fix(0.000105)
+# m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["Pr"].fix(3.711e-5)
+
 m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["Al"].fix(1.267e-5)
 m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["Ca"].fix(2.684e-5)
-m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["Fe"].fix(2.837e-6)
+m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["Fe"].fix(2.873e-6)
 m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["Sc"].fix(1.734)
+m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["Y"].fix(2.179e-5)
 m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["La"].fix(0.000105)
+m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["Ce"].fix(0.00031)
 m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["Pr"].fix(3.711e-5)
+m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["Nd"].fix(0.000165)
+m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["Sm"].fix(1.701e-5)
+m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["Gd"].fix(3.357e-5)
+m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["Dy"].fix(8.008e-6)
 
 m.fs.solex.mscontactor.organic[0, :].flow_vol.fix(62.01)
 
 for e in Elements:
+    m.fs.solex.mass_transfer_constraint[0, :, "aqueous", "organic", e].deactivate()
+
+for e in Elements:
     m.fs.solex.mscontactor.material_transfer_term[0.0, :, "aqueous", "organic", e].fix(
-        1e-8
+        -1e-8
     )
 
 
@@ -223,7 +257,7 @@ Solution of the model and display of the final results.
 
 """
 
-solver = SolverFactory("ipopt")
+solver = get_solver("ipopt")
 solver.solve(m, tee=True)
 
 # Final organic outlet display
@@ -234,35 +268,35 @@ m.fs.solex.mscontactor.organic[time_duration, 1].conc_mol_comp.display()
 m.fs.solex.mscontactor.aqueous[time_duration, number_of_stages].conc_mass_comp.display()
 m.fs.solex.mscontactor.aqueous[time_duration, number_of_stages].conc_mol_comp.display()
 
-percent_recovery = {}
-for ei, e in enumerate(Elements):
-    for si, s in enumerate(stage_number):
-        percent_recovery[e, s] = [
-            (
-                1
-                - (
-                    (
-                        m.fs.solex.mscontactor.aqueous[t, s].conc_mass_comp[e]()
-                        * m.fs.solex.mscontactor.aqueous[t, s].flow_vol()
-                    )
-                    / (
-                        m.fs.solex.mscontactor.aqueous_inlet_state[0].conc_mass_comp[
-                            e
-                        ]()
-                        * m.fs.solex.mscontactor.aqueous_inlet_state[0].flow_vol()
-                    )
-                )
-            )
-            * 100
-            for t in m.fs.time
-        ]
+# percent_recovery = {}
+# for ei, e in enumerate(Elements):
+#     for si, s in enumerate(stage_number):
+#         percent_recovery[e, s] = [
+#             (
+#                 1
+#                 - (
+#                     (
+#                         m.fs.solex.mscontactor.aqueous[t, s].conc_mass_comp[e]()
+#                         * m.fs.solex.mscontactor.aqueous[t, s].flow_vol()
+#                     )
+#                     / (
+#                         m.fs.solex.mscontactor.aqueous_inlet_state[0].conc_mass_comp[
+#                             e
+#                         ]()
+#                         * m.fs.solex.mscontactor.aqueous_inlet_state[0].flow_vol()
+#                     )
+#                 )
+#             )
+#             * 100
+#             for t in m.fs.time
+#         ]
 
 
-for e in Elements:
-    plt.plot(m.fs.time, percent_recovery[e, 1])
-plt.legend(Elements)
-plt.xlabel("time, hrs")
-plt.ylabel("percent recovery, %")
-plt.title("Aqueous phase percent recovery graph w.r.t. time")
+# for e in Elements:
+#     plt.plot(m.fs.time, percent_recovery[e, 1])
+# plt.legend(Elements)
+# plt.xlabel("time, hrs")
+# plt.ylabel("percent recovery, %")
+# plt.title("Aqueous phase percent recovery graph w.r.t. time")
 
-print(percent_recovery["Y", 1])
+# print(percent_recovery["Y", 1])
