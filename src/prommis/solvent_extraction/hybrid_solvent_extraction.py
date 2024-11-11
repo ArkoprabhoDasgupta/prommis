@@ -283,12 +283,10 @@ class SolventExtractionData(UnitModelBlockData):
             doc="The fraction of component that goes from aqueous to organic phase",
         )
 
-        self.distribution_coefficient = Param(
+        self.distribution_coefficient = Var(
             self.flowsheet().time,
             self.mscontactor.elements,
             distribution_based_set,
-            initialize=1,
-            mutable=True,
             doc="The ratios of the concentrations in the organic phase and aqueous phase",
         )
 
