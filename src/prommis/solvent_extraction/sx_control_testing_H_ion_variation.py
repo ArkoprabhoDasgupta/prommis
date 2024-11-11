@@ -191,7 +191,7 @@ Fixation of the inlet conditions and the initial state values for all the compon
 """
 
 m.fs.solex.mscontactor.aqueous_inlet_state[:].conc_mass_comp["H2O"].fix(1e6)
-m.fs.solex.mscontactor.aqueous_inlet_state[:].conc_mass_comp["H"].fix(10.75)
+#m.fs.solex.mscontactor.aqueous_inlet_state[:].conc_mass_comp["H"].fix(10.75)
 m.fs.solex.mscontactor.aqueous_inlet_state[:].conc_mass_comp["SO4"].fix(100)
 m.fs.solex.mscontactor.aqueous_inlet_state[:].conc_mass_comp["HSO4"].fix(1e4)
 m.fs.solex.mscontactor.aqueous_inlet_state[:].conc_mass_comp["Al"].fix(422.375)
@@ -208,13 +208,13 @@ m.fs.solex.mscontactor.aqueous_inlet_state[:].conc_mass_comp["Sm"].fix(0.097)
 m.fs.solex.mscontactor.aqueous_inlet_state[:].conc_mass_comp["Gd"].fix(0.2584)
 m.fs.solex.mscontactor.aqueous_inlet_state[:].conc_mass_comp["Dy"].fix(0.047)
 
-# for t in m.fs.time:
-#     if t <= 24:
-#         m.fs.solex.mscontactor.aqueous_inlet_state[t].conc_mass_comp["Y"].fix(0.124)
-#     else:
-#         m.fs.solex.mscontactor.aqueous_inlet_state[t].conc_mass_comp["Y"].fix(
-#             0.124 + 0.1
-#         )
+for t in m.fs.time:
+    if t <= 12:
+        m.fs.solex.mscontactor.aqueous_inlet_state[t].conc_mass_comp['H'].fix(10.75)
+    else:
+        m.fs.solex.mscontactor.aqueous_inlet_state[t].flow_vol.fix(
+            10.75 + 2*(t-12)/12
+        )
 
 m.fs.solex.mscontactor.aqueous_inlet_state[:].flow_vol.fix(62.01)
 

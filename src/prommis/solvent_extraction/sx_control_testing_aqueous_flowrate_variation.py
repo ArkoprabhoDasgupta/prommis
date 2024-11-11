@@ -208,15 +208,15 @@ m.fs.solex.mscontactor.aqueous_inlet_state[:].conc_mass_comp["Sm"].fix(0.097)
 m.fs.solex.mscontactor.aqueous_inlet_state[:].conc_mass_comp["Gd"].fix(0.2584)
 m.fs.solex.mscontactor.aqueous_inlet_state[:].conc_mass_comp["Dy"].fix(0.047)
 
-# for t in m.fs.time:
-#     if t <= 24:
-#         m.fs.solex.mscontactor.aqueous_inlet_state[t].conc_mass_comp["Y"].fix(0.124)
-#     else:
-#         m.fs.solex.mscontactor.aqueous_inlet_state[t].conc_mass_comp["Y"].fix(
-#             0.124 + 0.1
-#         )
+for t in m.fs.time:
+    if t <= 12:
+        m.fs.solex.mscontactor.aqueous_inlet_state[t].flow_vol.fix(62.01)
+    else:
+        m.fs.solex.mscontactor.aqueous_inlet_state[t].flow_vol.fix(
+            62.01 + 5*(t-12)/12
+        )
 
-m.fs.solex.mscontactor.aqueous_inlet_state[:].flow_vol.fix(62.01)
+#m.fs.solex.mscontactor.aqueous_inlet_state[:].flow_vol.fix(62.01)
 
 m.fs.solex.mscontactor.organic_inlet_state[:].conc_mass_comp["Al"].fix(1.267e-5)
 m.fs.solex.mscontactor.organic_inlet_state[:].conc_mass_comp["Ca"].fix(2.684e-5)
@@ -278,192 +278,6 @@ for e in Elements:
         -1e-8
     )
 
-# m.scaling_factor[m.fs.solex.mscontactor.aqueous[:,:].conc_mass_comp['Y']] = 1e4
-# m.scaling_factor[m.fs.solex.mscontactor.aqueous[:,:].conc_mass_comp['Dy']] = 1e4
-# m.scaling_factor[m.fs.solex.mscontactor.organic[:,:].conc_mass_comp['Y']] = 1e4
-# m.scaling_factor[m.fs.solex.mscontactor.organic[:,:].conc_mass_comp['Dy']] = 1e4
-
-# scaling = TransformationFactory("core.scale_model")
-# scaled_model = scaling.create_using(m, rename=False)
-
-
-# class AqueousPropertyScale(CustomScalerBase):
-
-#     DEFAULT_SCALING_FACTORS = {"flow_vol":1, "conc_mass_comp":1}
-
-#     def variable_scaling_routine(self, model, overwrite: bool = False, submodel_scalers: dict = None):
-#         self.scale_variable_by_default(model.flow_vol, overwrite=overwrite)
-#         for k, v in model.conc_mass_comp.items():
-#             if k == "H2O":
-#                 self.set_variable_scaling_factor(v, 1, overwrite=overwrite)
-#             elif k == ['H','SO4','HSO4']:
-#                 self.set_variable_scaling_factor(v, 1, overwrite=overwrite)
-#             else:
-#                 self.scale_variable_by_default(v,overwrite=False)
-    
-#     def constraint_scaling_routine(
-#         self, model, overwrite: bool = False, submodel_scalers: dict = None
-#     ):
-#         if model.is_property_constructed("h2o_concentration"):
-#             for v in model.h2o_concentration.values():
-#                 self.scale_constraint_by_nominal_value(v, scheme="inverse_maximum", overwrite=overwrite)
-#         if model.is_property_constructed("molar_concentration_constraint"):
-#             for v in model.molar_concentration_constraint.values():
-#                 self.scale_constraint_by_nominal_value(v, scheme="inverse_maximum", overwrite=overwrite)
-#         if model.is_property_constructed("hso4_dissociation"):
-#             for v in model.hso4_dissociation.values():
-#                 self.scale_constraint_by_nominal_value(v, scheme="inverse_maximum", overwrite=overwrite)
-
-
-
-# class OrganicPropertyScale(CustomScalerBase):
-
-#     DEFAULT_SCALING_FACTORS = {"flow_vol":1, "conc_mass_comp":1}
-
-#     def variable_scaling_routine(self, model, overwrite: bool = False, submodel_scalers: dict = None):
-#         self.scale_variable_by_default(model.flow_vol, overwrite=overwrite)
-#         for k, v in model.conc_mass_comp.items():
-#             self.scale_variable_by_default(v,overwrite=False)
-    
-#     def constraint_scaling_routine(
-#         self, model, overwrite: bool = False, submodel_scalers: dict = None
-#     ):
-#         if model.is_property_constructed("molar_concentration_constraint"):
-#             for v in model.molar_concentration_constraint.values():
-#                 self.scale_constraint_by_nominal_value(v, scheme="inverse_maximum", overwrite=overwrite)
-
-
-# class SXScale(CustomScalerBase):
-
-#     def variable_scaling_routine(
-#         self, model, overwrite: bool = False, submodel_scalers: dict = None
-#     ):
-
-#         self.call_submodel_scaler_method(
-#             model=model,
-#             submodel="mscontactor.aqueous_inlet_state",
-#             method="variable_scaling_routine",
-#             submodel_scalers=submodel_scalers,
-#             overwrite=overwrite,
-#         )
-
-#         # self.propagate_state_scaling(
-#         #     target_state=model.mscontactor.aqueous,
-#         #     source_state=model.mscontactor.aqueous_inlet_state,
-#         #     overwrite=overwrite,
-#         # )
-
-#         self.call_submodel_scaler_method(
-#             model=model,
-#             submodel="mscontactor.aqueous",
-#             method="variable_scaling_routine",
-#             submodel_scalers=submodel_scalers,
-#             overwrite=overwrite,
-#         )
-
-#         self.call_submodel_scaler_method(
-#             model=model,
-#             submodel="mscontactor.organic_inlet_state",
-#             method="variable_scaling_routine",
-#             submodel_scalers=submodel_scalers,
-#             overwrite=overwrite,
-#         )
-
-#         # self.propagate_state_scaling(
-#         #     target_state=model.mscontactor.organic,
-#         #     source_state=model.mscontactor.organic_inlet_state,
-#         #     overwrite=overwrite,
-#         # )
-
-#         self.call_submodel_scaler_method(
-#             model=model,
-#             submodel="mscontactor.organic",
-#             method="variable_scaling_routine",
-#             submodel_scalers=submodel_scalers,
-#             overwrite=overwrite,
-#         )
-        
-#         for v in model.mscontactor.aqueous_inherent_reaction_extent.values():
-#             self.set_variable_scaling_factor(v, 1)
-        
-#         for v in model.mscontactor.material_transfer_term.values():
-#             self.set_variable_scaling_factor(v, 1)
-    
-#     def constraint_scaling_routine(
-#         self, model, overwrite: bool = False, submodel_scalers: dict = None
-#     ):
-
-#         self.call_submodel_scaler_method(
-#             model=model,
-#             submodel="mscontactor.aqueous_inlet_state",
-#             method="constraint_scaling_routine",
-#             submodel_scalers=submodel_scalers,
-#             overwrite=overwrite,
-#         )
-
-#         # self.propagate_state_scaling(
-#         #     target_state=model.mscontactor.aqueous,
-#         #     source_state=model.mscontactor.aqueous_inlet_state,
-#         #     overwrite=overwrite,
-#         # )
-
-#         self.call_submodel_scaler_method(
-#             model=model,
-#             submodel="mscontactor.aqueous",
-#             method="constraint_scaling_routine",
-#             submodel_scalers=submodel_scalers,
-#             overwrite=overwrite,
-#         )
-
-#         self.call_submodel_scaler_method(
-#             model=model,
-#             submodel="mscontactor.organic_inlet_state",
-#             method="constraint_scaling_routine",
-#             submodel_scalers=submodel_scalers,
-#             overwrite=overwrite,
-#         )
-
-#         # self.propagate_state_scaling(
-#         #     target_state=model.mscontactor.organic,
-#         #     source_state=model.mscontactor.organic_inlet_state,
-#         #     overwrite=overwrite,
-#         # )
-
-#         self.call_submodel_scaler_method(
-#             model=model,
-#             submodel="mscontactor.organic",
-#             method="constraint_scaling_routine",
-#             submodel_scalers=submodel_scalers,
-#             overwrite=overwrite,
-#         )
-        
-#         for c in model.mscontactor.component_data_objects(
-#             Constraint, descend_into=False
-#         ):
-#             self.scale_constraint_by_nominal_value(
-#                 c,
-#                 scheme="inverse_maximum",
-#                 overwrite=overwrite,
-#             )
-        
-#         if hasattr(model, "mass_transfer_constraint"):
-#             for c in model.mass_transfer_constraint.values():
-#                 self.scale_constraint_by_nominal_value(
-#                     c,
-#                     scheme="inverse_maximum",
-#                     overwrite=overwrite,
-#                 )
-        
-# scaler = SXScale()
-# scaler.scale_model(
-#     m.fs.solex,
-#     submodel_scalers={
-#         "mscontactor.aqueous_inlet_state": AqueousPropertyScale,
-#         "mscontactor.aqueous": AqueousPropertyScale,
-#         "mscontactor.organic_inlet_state": OrganicPropertyScale,
-#         "mscontactor.organic": OrganicPropertyScale,
-#     },
-# )
 
 """
 Solution of the model and display of the final results.
