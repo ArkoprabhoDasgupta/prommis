@@ -22,14 +22,18 @@ from pyomo.environ import (
     value,
     log10,
     Suffix,
-    Constraint
+    Constraint,
 )
 
 import numpy as np
 
 from idaes.core import FlowDirection, FlowsheetBlock
 from idaes.core.util import DiagnosticsToolbox
-from idaes.core.scaling import CustomScalerBase, report_scaling_factors, set_scaling_factor
+from idaes.core.scaling import (
+    CustomScalerBase,
+    report_scaling_factors,
+    set_scaling_factor,
+)
 from idaes.core.solvers import get_solver
 
 from prommis.leaching.leach_solution_properties import LeachSolutionParameters
@@ -76,15 +80,21 @@ Elements = ["Y", "Ce", "Nd", "Sm", "Gd", "Dy"]
 
 m.pH = Var(m.fs.time, stage_number)
 
+
 @m.Constraint(m.fs.time, stage_number)
-def pH_value(m,t,s):
-    #return m.fs.solex.mscontactor.aqueous[t,s].conc_mol_comp['H'] == 10**(-m.pH[t,s]) * units.mol/units.L
-    return m.pH[t,s] == -log10(m.fs.solex.mscontactor.aqueous[t,s].conc_mol_comp['H'] * units.L/units.mol)
+def pH_value(m, t, s):
+    # return m.fs.solex.mscontactor.aqueous[t,s].conc_mol_comp['H'] == 10**(-m.pH[t,s]) * units.mol/units.L
+    return m.pH[t, s] == -log10(
+        m.fs.solex.mscontactor.aqueous[t, s].conc_mol_comp["H"] * units.L / units.mol
+    )
+
 
 @m.Constraint(m.fs.time, stage_number, Elements)
-def distribution_calculation(m,t,s,e):
-    a, b = D_calculation(e,5)
-    return m.fs.solex.distribution_coefficient[t, s, "aqueous", "organic", e] == 10**(a*m.pH[t,s] + b)
+def distribution_calculation(m, t, s, e):
+    a, b = D_calculation(e, 5)
+    return m.fs.solex.distribution_coefficient[t, s, "aqueous", "organic", e] == 10 ** (
+        a * m.pH[t, s] + b
+    )
 
 
 for s in stage_number:
@@ -145,50 +155,62 @@ m.fs.solex.mscontactor.organic_inlet_state[0].conc_mass_comp["Dy"].fix(8.008e-6)
 
 m.fs.solex.mscontactor.organic_inlet_state[0].flow_vol.fix(62.01)
 
+
 class AqueousPropertyScale(CustomScalerBase):
 
-    DEFAULT_SCALING_FACTORS = {"flow_vol":1, "conc_mass_comp":1}
+    DEFAULT_SCALING_FACTORS = {"flow_vol": 1, "conc_mass_comp": 1}
 
-    def variable_scaling_routine(self, model, overwrite: bool = False, submodel_scalers: dict = None):
+    def variable_scaling_routine(
+        self, model, overwrite: bool = False, submodel_scalers: dict = None
+    ):
         self.scale_variable_by_default(model.flow_vol, overwrite=overwrite)
         for k, v in model.conc_mass_comp.items():
             if k == "H2O":
                 self.set_variable_scaling_factor(v, 1, overwrite=overwrite)
-            elif k == ['H','SO4','HSO4']:
+            elif k == ["H", "SO4", "HSO4"]:
                 self.set_variable_scaling_factor(v, 1, overwrite=overwrite)
             else:
-                self.scale_variable_by_default(v,overwrite=False)
-    
+                self.scale_variable_by_default(v, overwrite=False)
+
     def constraint_scaling_routine(
         self, model, overwrite: bool = False, submodel_scalers: dict = None
     ):
         if model.is_property_constructed("h2o_concentration"):
             for v in model.h2o_concentration.values():
-                self.scale_constraint_by_nominal_value(v, scheme="inverse_maximum", overwrite=overwrite)
+                self.scale_constraint_by_nominal_value(
+                    v, scheme="inverse_maximum", overwrite=overwrite
+                )
         if model.is_property_constructed("molar_concentration_constraint"):
             for v in model.molar_concentration_constraint.values():
-                self.scale_constraint_by_nominal_value(v, scheme="inverse_maximum", overwrite=overwrite)
+                self.scale_constraint_by_nominal_value(
+                    v, scheme="inverse_maximum", overwrite=overwrite
+                )
         if model.is_property_constructed("hso4_dissociation"):
             for v in model.molar_concentration_constraint.values():
-                self.scale_constraint_by_nominal_value(v, scheme="inverse_maximum", overwrite=overwrite)
-
+                self.scale_constraint_by_nominal_value(
+                    v, scheme="inverse_maximum", overwrite=overwrite
+                )
 
 
 class OrganicPropertyScale(CustomScalerBase):
 
-    DEFAULT_SCALING_FACTORS = {"flow_vol":1, "conc_mass_comp":1}
+    DEFAULT_SCALING_FACTORS = {"flow_vol": 1, "conc_mass_comp": 1}
 
-    def variable_scaling_routine(self, model, overwrite: bool = False, submodel_scalers: dict = None):
+    def variable_scaling_routine(
+        self, model, overwrite: bool = False, submodel_scalers: dict = None
+    ):
         self.scale_variable_by_default(model.flow_vol, overwrite=overwrite)
         for k, v in model.conc_mass_comp.items():
-            self.scale_variable_by_default(v,overwrite=False)
-    
+            self.scale_variable_by_default(v, overwrite=False)
+
     def constraint_scaling_routine(
         self, model, overwrite: bool = False, submodel_scalers: dict = None
     ):
         if model.is_property_constructed("molar_concentration_constraint"):
             for v in model.molar_concentration_constraint.values():
-                self.scale_constraint_by_nominal_value(v, scheme="inverse_maximum", overwrite=overwrite)
+                self.scale_constraint_by_nominal_value(
+                    v, scheme="inverse_maximum", overwrite=overwrite
+                )
 
 
 class SXScale(CustomScalerBase):
@@ -240,13 +262,13 @@ class SXScale(CustomScalerBase):
             submodel_scalers=submodel_scalers,
             overwrite=overwrite,
         )
-        
+
         for v in model.mscontactor.aqueous_inherent_reaction_extent.values():
             self.set_variable_scaling_factor(v, 1e2)
-        
+
         for v in model.mscontactor.material_transfer_term.values():
             self.set_variable_scaling_factor(v, 1e2)
-    
+
     def constraint_scaling_routine(
         self, model, overwrite: bool = False, submodel_scalers: dict = None
     ):
@@ -294,7 +316,7 @@ class SXScale(CustomScalerBase):
             submodel_scalers=submodel_scalers,
             overwrite=overwrite,
         )
-        
+
         for c in model.mscontactor.component_data_objects(
             Constraint, descend_into=False
         ):
@@ -303,7 +325,7 @@ class SXScale(CustomScalerBase):
                 scheme="inverse_maximum",
                 overwrite=overwrite,
             )
-        
+
         if hasattr(model, "mass_transfer_constraint"):
             for c in model.mass_transfer_constraint.values():
                 self.scale_constraint_by_nominal_value(
@@ -311,7 +333,8 @@ class SXScale(CustomScalerBase):
                     scheme="inverse_maximum",
                     overwrite=overwrite,
                 )
-        
+
+
 scaler = SXScale()
 scaler.scale_model(
     m.fs.solex,

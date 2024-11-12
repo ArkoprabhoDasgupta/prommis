@@ -32,23 +32,24 @@ m.fs.neutral.base_concentration[0].fix(0.1)
 
 m.fs.neutral.inlet.flow_vol.fix(62.01)
 
-m.fs.neutral.inlet.conc_mass_comp[0,"H2O"].fix(1e6)
-m.fs.neutral.inlet.conc_mass_comp[0,"H"].fix(1.755)
-m.fs.neutral.inlet.conc_mass_comp[0,"SO4"].fix(3999.818)
-m.fs.neutral.inlet.conc_mass_comp[0,"HSO4"].fix(693.459)
-m.fs.neutral.inlet.conc_mass_comp[0,"Al"].fix(422.375)
-m.fs.neutral.inlet.conc_mass_comp[0,"Ca"].fix(109.542)
-m.fs.neutral.inlet.conc_mass_comp[0,"Fe"].fix(688.266)
-m.fs.neutral.inlet.conc_mass_comp[0,"Sc"].fix(0.032)
-m.fs.neutral.inlet.conc_mass_comp[0,"Y"].fix(0.124)
-m.fs.neutral.inlet.conc_mass_comp[0,"La"].fix(0.986)
-m.fs.neutral.inlet.conc_mass_comp[0,"Ce"].fix(2.277)
-m.fs.neutral.inlet.conc_mass_comp[0,"Pr"].fix(0.303)
-m.fs.neutral.inlet.conc_mass_comp[0,"Nd"].fix(0.946)
-m.fs.neutral.inlet.conc_mass_comp[0,"Sm"].fix(0.097)
-m.fs.neutral.inlet.conc_mass_comp[0,"Gd"].fix(0.2584)
-m.fs.neutral.inlet.conc_mass_comp[0,"Dy"].fix(0.047)
-m.fs.neutral.inlet.conc_mass_comp[0,"Cl"].fix(1e-8)
+m.fs.neutral.inlet.conc_mass_comp[0, "H2O"].fix(1e6)
+m.fs.neutral.inlet.conc_mass_comp[0, "H"].fix(1.755)
+m.fs.neutral.inlet.conc_mass_comp[0, "SO4"].fix(3999.818)
+m.fs.neutral.inlet.conc_mass_comp[0, "HSO4"].fix(693.459)
+m.fs.neutral.inlet.conc_mass_comp[0, "Al"].fix(422.375)
+m.fs.neutral.inlet.conc_mass_comp[0, "Ca"].fix(109.542)
+m.fs.neutral.inlet.conc_mass_comp[0, "Fe"].fix(688.266)
+m.fs.neutral.inlet.conc_mass_comp[0, "Sc"].fix(0.032)
+m.fs.neutral.inlet.conc_mass_comp[0, "Y"].fix(0.124)
+m.fs.neutral.inlet.conc_mass_comp[0, "La"].fix(0.986)
+m.fs.neutral.inlet.conc_mass_comp[0, "Ce"].fix(2.277)
+m.fs.neutral.inlet.conc_mass_comp[0, "Pr"].fix(0.303)
+m.fs.neutral.inlet.conc_mass_comp[0, "Nd"].fix(0.946)
+m.fs.neutral.inlet.conc_mass_comp[0, "Sm"].fix(0.097)
+m.fs.neutral.inlet.conc_mass_comp[0, "Gd"].fix(0.2584)
+m.fs.neutral.inlet.conc_mass_comp[0, "Dy"].fix(0.047)
+m.fs.neutral.inlet.conc_mass_comp[0, "Cl"].fix(1e-8)
+
 
 class NeutralizeScale(CustomScalerBase):
 
@@ -103,10 +104,9 @@ class NeutralTankScale(CustomScalerBase):
             submodel_scalers=submodel_scalers,
             overwrite=overwrite,
         )
-        
+
         for v in model.base_flowrate.values():
             self.set_variable_scaling_factor(v, 1e-2)
-        
 
     def constraint_scaling_routine(
         self, model, overwrite: bool = False, submodel_scalers: dict = None
@@ -180,18 +180,22 @@ m.fs.solex = SolventExtraction(
 
 Elements = ["Y", "Ce", "Nd", "Sm", "Gd", "Dy"]
 
-#pH_loading = 1.524
+# pH_loading = 1.524
 
 m.pH = Var(m.fs.time, stage_number)
 
+
 @m.Constraint(m.fs.time, stage_number)
-def pH_value(m,t,s):
-    return m.pH[t,s] == -log10(m.fs.solex.mscontactor.aqueous[t,s].conc_mol_comp['H'])
+def pH_value(m, t, s):
+    return m.pH[t, s] == -log10(m.fs.solex.mscontactor.aqueous[t, s].conc_mol_comp["H"])
+
 
 @m.Constraint(m.fs.time, stage_number, Elements)
-def distribution_calculation(m,t,s,e):
-    a, b = D_calculation(e,5)
-    return m.fs.solex.distribution_coefficient[t, s, "aqueous", "organic", e] == 10**(a*m.pH[t,s] + b)
+def distribution_calculation(m, t, s, e):
+    a, b = D_calculation(e, 5)
+    return m.fs.solex.distribution_coefficient[t, s, "aqueous", "organic", e] == 10 ** (
+        a * m.pH[t, s] + b
+    )
 
 
 # for e in Elements:
@@ -246,7 +250,7 @@ print(dof(m))
 solver = get_solver(
     "ipopt_v2", writer_config={"linear_presolve": True, "scale_model": True}
 )
-solver.options['max_iter'] = 10000
+solver.options["max_iter"] = 10000
 solver.solve(m, tee=True)
 
 sm = TransformationFactory("core.scale_model").create_using(m, rename=False)

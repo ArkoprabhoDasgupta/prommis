@@ -22,7 +22,7 @@ from pyomo.environ import (
     value,
     log10,
     Suffix,
-    Constraint
+    Constraint,
 )
 from pyomo.dae.flatten import flatten_dae_components
 
@@ -32,7 +32,11 @@ import matplotlib.pyplot as plt
 
 from idaes.core import FlowDirection, FlowsheetBlock
 from idaes.core.util import from_json, DiagnosticsToolbox
-from idaes.core.scaling import set_scaling_factor, CustomScalerBase, report_scaling_factors
+from idaes.core.scaling import (
+    set_scaling_factor,
+    CustomScalerBase,
+    report_scaling_factors,
+)
 from idaes.core.solvers import get_solver
 
 from prommis.leaching.leach_solution_properties import LeachSolutionParameters
@@ -79,6 +83,7 @@ m.discretizer.apply_to(m, nfe=12, ncp=2, wrt=m.fs.time, scheme="LAGRANGE-RADAU")
 
 from_json(m, fname="hybrid_solvent_extraction.json")
 
+
 def copy_first_steady_state(m):
     # Function that propogates initial steady state guess to future time points
     # regular_vars
@@ -92,6 +97,7 @@ def copy_first_steady_state(m):
                 var[t].value = var[m.fs.time.first()].value
                 # var.pprint()
 
+
 copy_first_steady_state(m)
 
 m.fs.solex.mscontactor.volume[:].fix(0.4)
@@ -103,10 +109,14 @@ Elements = ["Y", "Ce", "Nd", "Sm", "Gd", "Dy"]
 
 m.pH = Var(m.fs.time, stage_number)
 
+
 @m.Constraint(m.fs.time, stage_number)
-def pH_value(m,t,s):
-    #return m.fs.solex.mscontactor.aqueous[t,s].conc_mol_comp['H'] == 10**(-m.pH[t,s])*units.mol/units.L
-    return m.pH[t,s] == -log10(m.fs.solex.mscontactor.aqueous[t,s].conc_mol_comp['H'] * units.L/units.mol)
+def pH_value(m, t, s):
+    # return m.fs.solex.mscontactor.aqueous[t,s].conc_mol_comp['H'] == 10**(-m.pH[t,s])*units.mol/units.L
+    return m.pH[t, s] == -log10(
+        m.fs.solex.mscontactor.aqueous[t, s].conc_mol_comp["H"] * units.L / units.mol
+    )
+
 
 # for t in m.fs.time:
 #     for e in Elements:
@@ -115,15 +125,19 @@ def pH_value(m,t,s):
 #             pH = 1
 #             m.fs.solex.distribution_coefficient[t, s, "aqueous", "organic", e].fix(10**(a*pH+b))
 
-@m.Constraint(m.fs.time, stage_number, Elements)
-def distribution_calculation(m,t,s,e):
-    a, b = D_calculation(e,5)
-    #pH = 1.542
-    # pH = -log10(m.fs.solex.mscontactor.aqueous[t,s].conc_mol_comp['H'] * units.L/units.mol)
-    return m.fs.solex.distribution_coefficient[t, s, "aqueous", "organic", e] == 10**(a*m.pH[t,s] + b)
-    #return m.fs.solex.distribution_coefficient[t, s, "aqueous", "organic", e] == 1
 
-#m.scaling_factor = Suffix(direction=Suffix.EXPORT)
+@m.Constraint(m.fs.time, stage_number, Elements)
+def distribution_calculation(m, t, s, e):
+    a, b = D_calculation(e, 5)
+    # pH = 1.542
+    # pH = -log10(m.fs.solex.mscontactor.aqueous[t,s].conc_mol_comp['H'] * units.L/units.mol)
+    return m.fs.solex.distribution_coefficient[t, s, "aqueous", "organic", e] == 10 ** (
+        a * m.pH[t, s] + b
+    )
+    # return m.fs.solex.distribution_coefficient[t, s, "aqueous", "organic", e] == 1
+
+
+# m.scaling_factor = Suffix(direction=Suffix.EXPORT)
 
 # m.pH_loading = Var(m.fs.time)
 # m.extractant_dosage = Var(m.fs.time)
@@ -268,7 +282,7 @@ m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["Dy"].fix(8.008e-6)
 
 m.fs.solex.mscontactor.organic[0, :].flow_vol.fix(62.01)
 
-m.fs.solex.mscontactor.aqueous[0.0,:].hso4_dissociation.deactivate()
+m.fs.solex.mscontactor.aqueous[0.0, :].hso4_dissociation.deactivate()
 
 for e in Elements:
     m.fs.solex.mass_transfer_constraint[0, :, "aqueous", "organic", e].deactivate()
@@ -300,7 +314,7 @@ for e in Elements:
 #                 self.set_variable_scaling_factor(v, 1, overwrite=overwrite)
 #             else:
 #                 self.scale_variable_by_default(v,overwrite=False)
-    
+
 #     def constraint_scaling_routine(
 #         self, model, overwrite: bool = False, submodel_scalers: dict = None
 #     ):
@@ -315,7 +329,6 @@ for e in Elements:
 #                 self.scale_constraint_by_nominal_value(v, scheme="inverse_maximum", overwrite=overwrite)
 
 
-
 # class OrganicPropertyScale(CustomScalerBase):
 
 #     DEFAULT_SCALING_FACTORS = {"flow_vol":1, "conc_mass_comp":1}
@@ -324,7 +337,7 @@ for e in Elements:
 #         self.scale_variable_by_default(model.flow_vol, overwrite=overwrite)
 #         for k, v in model.conc_mass_comp.items():
 #             self.scale_variable_by_default(v,overwrite=False)
-    
+
 #     def constraint_scaling_routine(
 #         self, model, overwrite: bool = False, submodel_scalers: dict = None
 #     ):
@@ -382,13 +395,13 @@ for e in Elements:
 #             submodel_scalers=submodel_scalers,
 #             overwrite=overwrite,
 #         )
-        
+
 #         for v in model.mscontactor.aqueous_inherent_reaction_extent.values():
 #             self.set_variable_scaling_factor(v, 1)
-        
+
 #         for v in model.mscontactor.material_transfer_term.values():
 #             self.set_variable_scaling_factor(v, 1)
-    
+
 #     def constraint_scaling_routine(
 #         self, model, overwrite: bool = False, submodel_scalers: dict = None
 #     ):
@@ -436,7 +449,7 @@ for e in Elements:
 #             submodel_scalers=submodel_scalers,
 #             overwrite=overwrite,
 #         )
-        
+
 #         for c in model.mscontactor.component_data_objects(
 #             Constraint, descend_into=False
 #         ):
@@ -445,7 +458,7 @@ for e in Elements:
 #                 scheme="inverse_maximum",
 #                 overwrite=overwrite,
 #             )
-        
+
 #         if hasattr(model, "mass_transfer_constraint"):
 #             for c in model.mass_transfer_constraint.values():
 #                 self.scale_constraint_by_nominal_value(
@@ -453,7 +466,7 @@ for e in Elements:
 #                     scheme="inverse_maximum",
 #                     overwrite=overwrite,
 #                 )
-        
+
 # scaler = SXScale()
 # scaler.scale_model(
 #     m.fs.solex,
@@ -475,14 +488,14 @@ Solution of the model and display of the final results.
 # solver.solve(m, tee=True)
 
 solver = get_solver("ipopt")
-solver.options['max_iter'] = 500
+solver.options["max_iter"] = 500
 solver.solve(m, tee=True)
 
-#Final organic outlet display
+# Final organic outlet display
 m.fs.solex.mscontactor.organic[time_duration, 1].conc_mass_comp.display()
 m.fs.solex.mscontactor.organic[time_duration, 1].conc_mol_comp.display()
 
-#Final aqueous outlets display
+# Final aqueous outlets display
 m.fs.solex.mscontactor.aqueous[time_duration, number_of_stages].conc_mass_comp.display()
 m.fs.solex.mscontactor.aqueous[time_duration, number_of_stages].conc_mol_comp.display()
 

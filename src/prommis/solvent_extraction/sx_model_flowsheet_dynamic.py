@@ -85,6 +85,7 @@ Initialization of the model, which gives a good starting point.
 
 from_json(m, fname="solvent_extraction.json")
 
+
 def copy_first_steady_state(m):
     # Function that propogates initial steady state guess to future time points
     # regular_vars
@@ -142,7 +143,6 @@ for s in stage_number:
         m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Sm"] = 99.9 / 100
         m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Gd"] = 7.6 / 100
         m.fs.solex.partition_coefficient[s, "aqueous", "organic", "Dy"] = 5 / 100
-
 
 
 """

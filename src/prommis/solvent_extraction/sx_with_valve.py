@@ -7,7 +7,7 @@ from pyomo.environ import (
     value,
     log10,
     Suffix,
-    Constraint
+    Constraint,
 )
 from pyomo.dae.flatten import flatten_dae_components
 
@@ -17,7 +17,11 @@ import matplotlib.pyplot as plt
 
 from idaes.core import FlowDirection, FlowsheetBlock, MaterialBalanceType
 from idaes.core.util import from_json, DiagnosticsToolbox
-from idaes.core.scaling import set_scaling_factor, CustomScalerBase, report_scaling_factors
+from idaes.core.scaling import (
+    set_scaling_factor,
+    CustomScalerBase,
+    report_scaling_factors,
+)
 from idaes.core.solvers import get_solver
 from idaes.models.unit_models import Valve
 from idaes.models.control.controller import (
@@ -59,10 +63,12 @@ m.fs.solex = SolventExtraction(
 )
 
 m.fs.valve = Valve(
-        dynamic=False,
-        has_holdup=False,
-        material_balance_type=MaterialBalanceType.componentTotal,
-        property_package=m.fs.leach_soln,
-    )
+    dynamic=False,
+    has_holdup=False,
+    material_balance_type=MaterialBalanceType.componentTotal,
+    property_package=m.fs.leach_soln,
+)
 
-m.fs.control = PIDController(process_var=m.fs.solex.mscontactor.volume_frac_stream[:, 3, "aqueous"])
+m.fs.control = PIDController(
+    process_var=m.fs.solex.mscontactor.volume_frac_stream[:, 3, "aqueous"]
+)
