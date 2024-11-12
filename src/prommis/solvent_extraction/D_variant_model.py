@@ -3,10 +3,10 @@ from idaes.core.solvers import get_solver
 import numpy as np
 
 
-def D_calculation(element_name, dosage ): #, pH_value):
+def D_calculation(element_name, dosage):  # , pH_value):
 
     Element = ["Y", "Nd", "Dy", "Sm", "Gd", "Ce"]
-    #System = ["5% dehpa 10% tbp", "2% dehpa 10% tbp", "2% dehpa", "2% cyanex"]
+    # System = ["5% dehpa 10% tbp", "2% dehpa 10% tbp", "2% dehpa", "2% cyanex"]
 
     m = ConcreteModel()
 

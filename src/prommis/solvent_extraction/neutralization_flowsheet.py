@@ -22,23 +22,24 @@ m.fs.neutral.base_concentration[0].fix(0.2)
 
 m.fs.neutral.inlet.flow_vol.fix(62.01)
 
-m.fs.neutral.inlet.conc_mass_comp[0,"H2O"].fix(1e6)
-m.fs.neutral.inlet.conc_mass_comp[0,"H"].fix(1.755)
-m.fs.neutral.inlet.conc_mass_comp[0,"SO4"].fix(3999.818)
-m.fs.neutral.inlet.conc_mass_comp[0,"HSO4"].fix(693.459)
-m.fs.neutral.inlet.conc_mass_comp[0,"Al"].fix(422.375)
-m.fs.neutral.inlet.conc_mass_comp[0,"Ca"].fix(109.542)
-m.fs.neutral.inlet.conc_mass_comp[0,"Fe"].fix(688.266)
-m.fs.neutral.inlet.conc_mass_comp[0,"Sc"].fix(0.032)
-m.fs.neutral.inlet.conc_mass_comp[0,"Y"].fix(0.124)
-m.fs.neutral.inlet.conc_mass_comp[0,"La"].fix(0.986)
-m.fs.neutral.inlet.conc_mass_comp[0,"Ce"].fix(2.277)
-m.fs.neutral.inlet.conc_mass_comp[0,"Pr"].fix(0.303)
-m.fs.neutral.inlet.conc_mass_comp[0,"Nd"].fix(0.946)
-m.fs.neutral.inlet.conc_mass_comp[0,"Sm"].fix(0.097)
-m.fs.neutral.inlet.conc_mass_comp[0,"Gd"].fix(0.2584)
-m.fs.neutral.inlet.conc_mass_comp[0,"Dy"].fix(0.047)
-m.fs.neutral.inlet.conc_mass_comp[0,"Cl"].fix(1e-8)
+m.fs.neutral.inlet.conc_mass_comp[0, "H2O"].fix(1e6)
+m.fs.neutral.inlet.conc_mass_comp[0, "H"].fix(1.755)
+m.fs.neutral.inlet.conc_mass_comp[0, "SO4"].fix(3999.818)
+m.fs.neutral.inlet.conc_mass_comp[0, "HSO4"].fix(693.459)
+m.fs.neutral.inlet.conc_mass_comp[0, "Al"].fix(422.375)
+m.fs.neutral.inlet.conc_mass_comp[0, "Ca"].fix(109.542)
+m.fs.neutral.inlet.conc_mass_comp[0, "Fe"].fix(688.266)
+m.fs.neutral.inlet.conc_mass_comp[0, "Sc"].fix(0.032)
+m.fs.neutral.inlet.conc_mass_comp[0, "Y"].fix(0.124)
+m.fs.neutral.inlet.conc_mass_comp[0, "La"].fix(0.986)
+m.fs.neutral.inlet.conc_mass_comp[0, "Ce"].fix(2.277)
+m.fs.neutral.inlet.conc_mass_comp[0, "Pr"].fix(0.303)
+m.fs.neutral.inlet.conc_mass_comp[0, "Nd"].fix(0.946)
+m.fs.neutral.inlet.conc_mass_comp[0, "Sm"].fix(0.097)
+m.fs.neutral.inlet.conc_mass_comp[0, "Gd"].fix(0.2584)
+m.fs.neutral.inlet.conc_mass_comp[0, "Dy"].fix(0.047)
+m.fs.neutral.inlet.conc_mass_comp[0, "Cl"].fix(1e-8)
+
 
 class NeutralizeScale(CustomScalerBase):
 
@@ -93,10 +94,9 @@ class NeutralTankScale(CustomScalerBase):
             submodel_scalers=submodel_scalers,
             overwrite=overwrite,
         )
-        
+
         for v in model.base_flowrate.values():
             self.set_variable_scaling_factor(v, 1e-2)
-        
 
     def constraint_scaling_routine(
         self, model, overwrite: bool = False, submodel_scalers: dict = None
@@ -153,8 +153,8 @@ solver = get_solver(
 )
 solver.solve(m, tee=True)
 
-print(-log10(m.fs.neutral.control_volume.properties_in[0].conc_mol_comp['H']()))
-print(-log10(m.fs.neutral.control_volume.properties_out[0].conc_mol_comp['H']()))
+print(-log10(m.fs.neutral.control_volume.properties_in[0].conc_mol_comp["H"]()))
+print(-log10(m.fs.neutral.control_volume.properties_out[0].conc_mol_comp["H"]()))
 
 sm = TransformationFactory("core.scale_model").create_using(m, rename=False)
 dt = DiagnosticsToolbox(sm)

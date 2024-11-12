@@ -93,6 +93,7 @@ Initialization of the model, which gives a good starting point.
 
 from_json(m, fname="hybrid_solvent_extraction.json")
 
+
 def copy_first_steady_state(m):
     # Function that propogates initial steady state guess to future time points
     # regular_vars
@@ -128,8 +129,8 @@ pH_loading = 1.524
 
 for t in m.fs.time:
     for e in Elements:
-        m.fs.solex.distribution_coefficient[t, :, "aqueous", "organic", e] = D_calculation(
-            e, "5% dehpa 10% tbp", pH_loading
+        m.fs.solex.distribution_coefficient[t, :, "aqueous", "organic", e] = (
+            D_calculation(e, "5% dehpa 10% tbp", pH_loading)
         )
 
         # if t <= 36:

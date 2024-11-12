@@ -107,12 +107,22 @@ class NeutralizationTankData(UnitModelBlockData):
 
         def water_inlet_conc(self, t):
 
-            base_molar_density = 40 * units.g / units.mol 
+            base_molar_density = 40 * units.g / units.mol
             water_concentration = 55.55 * units.mol / units.L
-            specific_volume_base = 1e-3 * units.L / units.g 
-            solution_basis = 1 * units.L 
+            specific_volume_base = 1e-3 * units.L / units.g
+            solution_basis = 1 * units.L
 
-            return self.water_feed_conc[t] == (solution_basis - base_molar_density*self.base_concentration[t]*specific_volume_base)*water_concentration/solution_basis
+            return (
+                self.water_feed_conc[t]
+                == (
+                    solution_basis
+                    - base_molar_density
+                    * self.base_concentration[t]
+                    * specific_volume_base
+                )
+                * water_concentration
+                / solution_basis
+            )
 
         self.water_feed_constraint = Constraint(
             self.flowsheet().time, rule=water_inlet_conc
