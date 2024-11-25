@@ -310,4 +310,5 @@ class LeachSolutionStateBlockData(StateBlockData):
             "flow_vol": self.flow_vol,
             "conc_mass_comp": self.conc_mass_comp,
             "temperature": self.temperature,
+            "pressure": self.pressure,
         }

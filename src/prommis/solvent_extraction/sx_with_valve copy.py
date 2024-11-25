@@ -79,21 +79,30 @@ def _valve_pressure_flow_cb(b):
 
     b.Cv = Var(initialize=0.1)
     b.Cv.fix()
-    b.delta_P = Var(b.flowsheet().time)
 
     @b.Constraint(b.flowsheet().time)
     def pressure_flow_equation(b, t):
-        rho_aqueous = sum(
-            b.control_volume.properties_in[t].conc_mass_comp[k]
-            for k in b.control_volume.properties_in[t].conc_mass_comp.keys()
+        # rho_aqueous = sum(
+        #     b.control_volume.properties_in[t].conc_mass_comp[k]
+        #     for k in b.control_volume.properties_in[t].conc_mass_comp.keys()
+        # )
+        rho_aqueous = units.convert(
+            b.control_volume.properties_in[t].dens_mass,
+            to_units=units.kg / (units.m**3),
         )
-        # Po = b.control_volume.properties_out[t].pressure
-        # Pi = b.control_volume.properties_in[t].pressure
-        del_P = b.delta_P[t]
-        F = b.control_volume.properties_in[t].flow_vol
+        Po = units.convert(
+            b.control_volume.properties_out[t].pressure, to_units=units.Pa
+        )
+        Pi = units.convert(
+            b.control_volume.properties_in[t].pressure, to_units=units.Pa
+        )
+        F = units.convert(
+            b.control_volume.properties_in[t].flow_vol,
+            to_units=(units.m**3) / units.sec,
+        )
         Cv = b.Cv
         fun = b.valve_function[t]
-        return F**2 == (Cv**2 * del_P * fun**2) / rho_aqueous
+        return F**2 == ((Cv**2 * (Pi - Po)) * fun**2) / rho_aqueous
 
 
 m.fs.valve = Valve(
@@ -107,50 +116,9 @@ m.fs.valve = Valve(
 )
 
 
-m.discretizer = TransformationFactory("dae.collocation")
-m.discretizer.apply_to(m, nfe=1, ncp=2, wrt=m.fs.time, scheme="LAGRANGE-RADAU")
-
-# m.x = Var(m.fs.time, bounds=(0, 1))
-
-
-# @m.Constraint(m.fs.time)
-# def pressure_valve_flow(m, t):
-#     g = 9.8
-#     A = 1
-#     Cv = 0.2
-#     rho_aqueous = sum(
-#         m.fs.solex.mscontactor.aqueous[t, 1].conc_mass_comp[e]
-#         for e in m.fs.solex.mscontactor.aqueous[t, 1].conc_mass_comp.keys()
-#     )
-#     rho_organic = sum(
-#         m.fs.solex.mscontactor.organic[t, 1].conc_mass_comp[e]
-#         for e in m.fs.solex.mscontactor.organic[t, 1].conc_mass_comp.keys()
-#     )
-#     P_aqueous = (
-#         rho_aqueous
-#         * g
-#         * m.fs.solex.mscontactor.volume[1]
-#         * m.fs.solex.mscontactor.volume_frac_stream[t, 1, "aqueous"]
-#         / A
-#     )
-#     P_organic = (
-#         rho_organic
-#         * g
-#         * m.fs.solex.mscontactor.volume[1]
-#         * m.fs.solex.mscontactor.volume_frac_stream[t, 1, "organic"]
-#         / A
-#     )
-#     delta_P = P_aqueous + P_organic
-#     F = m.fs.solex.mscontactor.aqueous[t, 1].flow_vol
-#     x = m.x[t]
-
-#     return F**2 == (Cv**2) * (x**2) * (delta_P / rho_aqueous)
-
 m.fs.sx_to_v = Arc(
     source=m.fs.solex.mscontactor.aqueous_outlet, destination=m.fs.valve.inlet
 )
-
-TransformationFactory("network.expand_arcs").apply_to(m.fs)
 
 m.fs.control = PIDController(
     process_var=m.fs.solex.mscontactor.volume_frac_stream[:, 1, "aqueous"],
@@ -158,8 +126,16 @@ m.fs.control = PIDController(
     controller_type=ControllerType.PID,
 )
 
+TransformationFactory("network.expand_arcs").apply_to(m.fs)
+
+m.discretizer = TransformationFactory("dae.collocation")
+m.discretizer.apply_to(m, nfe=8, ncp=2, wrt=m.fs.time, scheme="LAGRANGE-RADAU")
+
+
+# Fixing inlet and feed stuffs
+
 m.fs.solex.mscontactor.volume[:].fix(0.4)
-m.fs.solex.mscontactor.volume_frac_stream[0, :, "aqueous"].fix(0.4)
+m.fs.solex.mscontactor.volume_frac_stream[0, :, "aqueous"].fix(0.8)
 
 m.pH = Var(m.fs.time, stage_number)
 
@@ -177,6 +153,34 @@ def distribution_calculation(m, t, s, e):
     return m.fs.solex.distribution_coefficient[t, s, "aqueous", "organic", e] == 10 ** (
         a * m.pH[t, s] + b
     )
+
+
+@m.Constraint(m.fs.time, stage_number)
+def pressure_calculation(m, t, s):
+    g = 9.8 * (units.m) / units.sec**2
+    P_atm = 101325 * units.Pa
+    A = 1 * units.m**2
+    P_aq = units.convert(
+        (
+            m.fs.leach_soln.dens_mass
+            * g
+            * m.fs.solex.mscontactor.volume[s]
+            * m.fs.solex.mscontactor.volume_frac_stream[t, s, "aqueous"]
+            / A
+        ),
+        to_units=units.Pa,
+    )
+    P_org = units.convert(
+        (
+            m.fs.prop_o.dens_mass
+            * g
+            * m.fs.solex.mscontactor.volume[s]
+            * m.fs.solex.mscontactor.volume_frac_stream[t, s, "organic"]
+            / A
+        ),
+        to_units=units.Pa,
+    )
+    return m.fs.solex.mscontactor.aqueous[t, s].pressure == P_aq + P_org + P_atm
 
 
 for s in stage_number:
@@ -249,7 +253,7 @@ m.fs.solex.mscontactor.aqueous[0, :].conc_mass_comp["Gd"].fix(0.2584)
 m.fs.solex.mscontactor.aqueous[0, :].conc_mass_comp["Dy"].fix(0.047)
 
 m.fs.solex.mscontactor.aqueous_inherent_reaction_extent[0, :, "Ka2"].fix(1e-8)
-m.fs.solex.mscontactor.aqueous[0, :].flow_vol.fix(62.01)
+# m.fs.solex.mscontactor.aqueous[0, :].flow_vol.fix(62.01)
 
 m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["Al"].fix(1.267e-5)
 m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["Ca"].fix(2.684e-5)
@@ -276,13 +280,22 @@ for e in Elements:
         -1
     )
 
-# m.fs.solex.mscontactor.aqueous_inlet_state[:].temperature.fix(298.15)
-m.fs.solex.mscontactor.aqueous[:, :].temperature.fix(298.15)
+m.fs.solex.mscontactor.aqueous_inlet_state[:].temperature.fix(305.15 * units.K)
+m.fs.solex.mscontactor.aqueous[:, :].temperature.fix(305.15 * units.K)
 
-m.fs.control.gain_p.fix(1e-6)
-m.fs.control.gain_i.fix(1e-5)
-m.fs.control.gain_d.fix(1e-6)
+m.fs.control.gain_p.fix(-0.01)
+m.fs.control.gain_i.fix(1e-10)
+m.fs.control.gain_d.fix(1e-10)
 m.fs.control.setpoint.fix(0.5)
-m.fs.control.mv_ref.fix(0)
+m.fs.control.mv_ref.fix(1e-6)
+m.fs.control.derivative_term[m.fs.time.first()].fix(0)
+
+m.fs.valve.control_volume.properties_out[:].pressure.fix(101235 * units.Pa)
+m.fs.valve.valve_opening[:].unfix()
+m.fs.valve.valve_opening[0].fix(1)
 
 print(dof(m))
+
+solver = get_solver(solver="ipopt_v2")
+solver.options["max_iter"] = 5000
+solver.solve(m, tee=True)
