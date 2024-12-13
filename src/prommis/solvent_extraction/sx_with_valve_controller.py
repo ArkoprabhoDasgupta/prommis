@@ -23,6 +23,8 @@ from idaes.core import (
     EnergyBalanceType,
     MomentumBalanceType,
 )
+import idaes.core.solvers.petsc as petsc
+from idaes.core.util.initialization import initialize_by_time_element
 from idaes.models.unit_models.pressure_changer import ThermodynamicAssumption
 from idaes.core.util import from_json, DiagnosticsToolbox
 from idaes.core.util.model_statistics import degrees_of_freedom as dof
@@ -77,15 +79,11 @@ m.fs.solex = SolventExtraction(
 
 def _valve_pressure_flow_cb(b):
 
-    b.Cv = Var(initialize=0.1)
+    b.Cv = Var(initialize=1.79e-5)
     b.Cv.fix()
 
     @b.Constraint(b.flowsheet().time)
     def pressure_flow_equation(b, t):
-        # rho_aqueous = sum(
-        #     b.control_volume.properties_in[t].conc_mass_comp[k]
-        #     for k in b.control_volume.properties_in[t].conc_mass_comp.keys()
-        # )
         rho_aqueous = units.convert(
             b.control_volume.properties_in[t].dens_mass,
             to_units=units.kg / (units.m**3),
@@ -102,15 +100,13 @@ def _valve_pressure_flow_cb(b):
         )
         Cv = b.Cv
         fun = b.valve_function[t]
-        return F**2 == ((Cv**2 * (Pi - Po)) * fun**2) / rho_aqueous
+        return F**2 == (((Cv * fun) ** 2) * (Pi - Po)) / rho_aqueous
 
 
 m.fs.valve = Valve(
     dynamic=False,
     has_holdup=False,
     material_balance_type=MaterialBalanceType.componentTotal,
-    # energy_balance_type=EnergyBalanceType.none,
-    # momentum_balance_type=MomentumBalanceType.none,
     property_package=m.fs.leach_soln,
     pressure_flow_callback=_valve_pressure_flow_cb,
 )
@@ -123,20 +119,24 @@ m.fs.sx_to_v = Arc(
 m.fs.control = PIDController(
     process_var=m.fs.solex.mscontactor.volume_frac_stream[:, 1, "aqueous"],
     manipulated_var=m.fs.valve.valve_opening,
-    controller_type=ControllerType.PID,
+    controller_type=ControllerType.P,
 )
 
 TransformationFactory("network.expand_arcs").apply_to(m.fs)
 
-m.discretizer = TransformationFactory("dae.collocation")
-m.discretizer.apply_to(m, nfe=8, ncp=2, wrt=m.fs.time, scheme="LAGRANGE-RADAU")
+m.discretizer = TransformationFactory("dae.finite_difference")
+m.discretizer.apply_to(m, nfe=15, wrt=m.fs.time, scheme="BACKWARD")
 
 
 # Fixing inlet and feed stuffs
 
-m.fs.solex.mscontactor.volume[:].fix(0.4)
-m.fs.solex.mscontactor.volume_frac_stream[0, :, "aqueous"].fix(0.8)
+m.fs.solex.mscontactor.volume[:].fix(400 * units.L)
+# for t in m.fs.time:
+#     m.fs.solex.mscontactor.volume_frac_stream[t, :, "aqueous"].fix(0.5 + 0.3 * (t / 24))
 
+m.fs.solex.mscontactor.volume_frac_stream[0, :, "aqueous"].fix(0.7)
+m.fs.solex.mscontactor.volume_frac_stream.setub(1)
+m.fs.solex.mscontactor.volume_frac_stream.setlb(0)
 m.pH = Var(m.fs.time, stage_number)
 
 
@@ -253,7 +253,7 @@ m.fs.solex.mscontactor.aqueous[0, :].conc_mass_comp["Gd"].fix(0.2584)
 m.fs.solex.mscontactor.aqueous[0, :].conc_mass_comp["Dy"].fix(0.047)
 
 m.fs.solex.mscontactor.aqueous_inherent_reaction_extent[0, :, "Ka2"].fix(1e-8)
-# m.fs.solex.mscontactor.aqueous[0, :].flow_vol.fix(62.01)
+m.fs.solex.mscontactor.aqueous[0, :].flow_vol.fix(72.01)
 
 m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["Al"].fix(1.267e-5)
 m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["Ca"].fix(2.684e-5)
@@ -283,19 +283,32 @@ for e in Elements:
 m.fs.solex.mscontactor.aqueous_inlet_state[:].temperature.fix(305.15 * units.K)
 m.fs.solex.mscontactor.aqueous[:, :].temperature.fix(305.15 * units.K)
 
-m.fs.control.gain_p.fix(-0.01)
-m.fs.control.gain_i.fix(1e-10)
-m.fs.control.gain_d.fix(1e-10)
+m.fs.control.gain_p.fix(1)
+# m.fs.control.gain_i.fix(0)
+# m.fs.control.gain_d.fix(0)
 m.fs.control.setpoint.fix(0.5)
-m.fs.control.mv_ref.fix(1e-6)
-m.fs.control.derivative_term[m.fs.time.first()].fix(0)
+m.fs.control.mv_ref.fix(1e-3)
+# m.fs.control.derivative_term[0].fix(1e-4)
 
 m.fs.valve.control_volume.properties_out[:].pressure.fix(101235 * units.Pa)
 m.fs.valve.valve_opening[:].unfix()
-m.fs.valve.valve_opening[0].fix(1)
+# m.fs.valve.valve_opening[0].fix(0.8)
 
 print(dof(m))
 
+# initialize_by_time_element(m.fs, m.fs.time)
 solver = get_solver(solver="ipopt_v2")
 solver.options["max_iter"] = 5000
 solver.solve(m, tee=True)
+
+# result = petsc.petsc_dae_by_time_element(
+#     m,
+#     time=m.fs.time,
+#     ts_options={
+#         "--ts_type": "beuler",
+#         "--ts_dt": 0.1,
+#         "--ts_monitor": "",  # set initial step to 0.1
+#         "--ts_save_trajectory": 1,
+#     },
+# )
+# tj = result.trajectory  # trajectroy data

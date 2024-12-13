@@ -109,7 +109,7 @@ the stages.
 
 """
 
-m.fs.solex.mscontactor.volume[:].fix(0.4)
+m.fs.solex.mscontactor.volume[:].fix(400 * units.L)
 
 m.fs.solex.mscontactor.volume_frac_stream[:, :, "organic"].fix(0.4)
 
