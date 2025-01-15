@@ -120,6 +120,7 @@ m.fs.solex.mscontactor.aqueous_inlet_state[0].conc_mass_comp["Cl"].fix(1e-8)
 
 m.fs.solex.mscontactor.aqueous_inlet_state[0].flow_vol.fix(62.01)
 
+m.fs.solex.mscontactor.organic_inlet_state[0].conc_mass_comp["DEHPA"].fix(975.8e3)
 m.fs.solex.mscontactor.organic_inlet_state[0].conc_mass_comp["Al"].fix(1.267e-5)
 m.fs.solex.mscontactor.organic_inlet_state[0].conc_mass_comp["Ca"].fix(2.684e-5)
 m.fs.solex.mscontactor.organic_inlet_state[0].conc_mass_comp["Fe"].fix(2.873e-6)

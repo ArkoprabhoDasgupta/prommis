@@ -12,7 +12,7 @@ Authors: Arkoprabho Dasgupta
 
 """
 
-from pyomo.environ import Param, Set, Var, units
+from pyomo.environ import Param, Set, Var, units, Constraint
 
 from idaes.core import (
     Component,
@@ -24,6 +24,7 @@ from idaes.core import (
     declare_process_block_class,
 )
 from idaes.core.util.initialization import fix_state_vars
+from idaes.core.util.misc import add_object_reference
 
 
 @declare_process_block_class("REESolExOgParameters")
@@ -66,22 +67,22 @@ class REESolExOgParameterData(PhysicalParameterBlock):
         self.Gd = Component()
         self.Dy = Component()
 
-        self.dissolved_elements = Set(
-            initialize=[
-                "Al",
-                "Ca",
-                "Fe",
-                "Sc",
-                "Y",
-                "La",
-                "Ce",
-                "Pr",
-                "Nd",
-                "Sm",
-                "Gd",
-                "Dy",
-            ]
-        )
+        # self.dissolved_elements = Set(
+        #     initialize=[
+        #         "Al",
+        #         "Ca",
+        #         "Fe",
+        #         "Sc",
+        #         "Y",
+        #         "La",
+        #         "Ce",
+        #         "Pr",
+        #         "Nd",
+        #         "Sm",
+        #         "Gd",
+        #         "Dy",
+        #     ]
+        # )
 
         self.mw = Param(
             self.component_list,
@@ -114,6 +115,14 @@ class REESolExOgParameterData(PhysicalParameterBlock):
 
     @classmethod
     def define_metadata(cls, obj):
+        obj.add_properties(
+            {
+                "flow_vol": {"method": None},
+                "conc_mass_comp": {"method": None},
+                "conc_mol_comp": {"method": None},
+                "dens_mass": {"method": "_dens_mass"},
+            }
+        )
         obj.add_default_units(
             {
                 "time": units.hour,
@@ -141,23 +150,23 @@ class REESolExOgStateBlockData(StateBlockData):
         super().build()
 
         self.conc_mass_comp = Var(
-            self.params.dissolved_elements,
+            self.params.component_list,
             units=units.mg / units.L,
-            initialize=1e-7,
+            initialize=1e-8,
             bounds=(1e-20, None),
         )
 
         self.flow_vol = Var(units=units.L / units.hour, bounds=(1e-8, None))
 
         self.conc_mol_comp = Var(
-            self.params.dissolved_elements,
+            self.params.component_list,
             units=units.mol / units.L,
             initialize=1e-5,
             bounds=(1e-20, None),
         )
 
         # Concentration conversion constraint
-        @self.Constraint(self.params.dissolved_elements)
+        @self.Constraint(self.params.component_list)
         def molar_concentration_constraint(b, j):
             return (
                 units.convert(
@@ -166,12 +175,24 @@ class REESolExOgStateBlockData(StateBlockData):
                 == b.conc_mass_comp[j]
             )
 
+        if not self.config.defined_state:
+            # Concentration of H2O based on assumed density
+            self.dehpa_concentration = Constraint(
+                expr=self.conc_mass_comp["DEHPA"] == 975.8e3 * units.mg / units.L
+            )
+
     def get_material_flow_basis(self):
         return MaterialFlowBasis.molar
 
+    def _dens_mass(self):
+        add_object_reference(self, "dens_mass", self.params.dens_mass)
+
     def get_material_flow_terms(self, p, j):
         if j == "DEHPA":
-            return self.flow_vol * self.params.dens_mass / self.params.mw[j]
+            return units.convert(
+                self.flow_vol * self.conc_mass_comp[j] / self.params.mw[j],
+                to_units=units.mol / units.hour,
+            )
         else:
             return units.convert(
                 self.flow_vol * self.conc_mass_comp[j] / self.params.mw[j],
@@ -181,7 +202,7 @@ class REESolExOgStateBlockData(StateBlockData):
     def get_material_density_terms(self, p, j):
         if j == "DEHPA":
             return units.convert(
-                self.params.dens_mass / self.params.mw[j],
+                self.conc_mass_comp[j] / self.params.mw[j],
                 to_units=units.mol / units.m**3,
             )
         else:
