@@ -29,6 +29,7 @@ import matplotlib.pyplot as plt
 from idaes.core import FlowDirection, FlowsheetBlock
 from idaes.core.util import from_json
 from idaes.core.solvers import get_solver
+from idaes.core.util.model_statistics import degrees_of_freedom as dof
 
 from prommis.leaching.leach_solution_properties import LeachSolutionParameters
 from prommis.solvent_extraction.ree_og_distribution import REESolExOgParameters
@@ -257,7 +258,7 @@ for e in Elements:
 Solution of the model and display of the final results.
 
 """
-
+print(dof(m))
 solver = get_solver("ipopt")
 solver.solve(m, tee=True)
 
