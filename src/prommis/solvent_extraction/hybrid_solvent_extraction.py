@@ -100,7 +100,10 @@ from idaes.core import (
 )
 from idaes.core.util.config import is_physical_parameter_block
 from idaes.core.initialization import ModularInitializerBase
-from idaes.models.unit_models.mscontactor import MSContactor
+
+# from idaes.models.unit_models.mscontactor import MSContactor
+
+from fake_mscontactor import MSContactor
 
 
 class SolventExtractionInitializer(ModularInitializerBase):
@@ -342,3 +345,30 @@ class SolventExtractionData(UnitModelBlockData):
             self.mscontactor.stream_component_interactions,
             rule=mass_transfer_term,
         )
+
+        # self.H_generation_term = Var(self.flowsheet().time, self.mscontactor.elements)
+
+        # def H_generation_rule(b, t, s):
+        #     return b.H_generation_term[t, s] == 3 * sum(
+        #         b.mscontactor.material_transfer_term[t, s, e]
+        #         for e in b.mscontactor.stream_component_interactions
+        #     )
+
+        # self.H_generation_constraint = Constraint(
+        #     self.flowsheet().time, self.mscontactor.elements, rule=H_generation_rule
+        # )
+
+        # self.mscontactor.aqueous_inherent_reaction_constraint[
+        #     :, :, "liquid", "H"
+        # ].deactivate()
+
+        # def H_material_balance(b, t, s):
+        #     return (
+        #         b.mscontactor.aqueous_inherent_reaction_generation[t, s, "liquid", "H"]
+        #         == b.mscontactor.aqueous_inherent_reaction_extent[t, s, "Ka2"]
+        #         + b.H_generation_term[t, s]
+        #     )
+
+        # self.H_material_constraint = Constraint(
+        #     self.flowsheet().time, self.mscontactor.elements, rule=H_material_balance
+        # )

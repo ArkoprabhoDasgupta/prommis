@@ -79,7 +79,7 @@ m.fs.solex = SolventExtraction(
 
 def _valve_pressure_flow_cb(b):
 
-    b.Cv = Var(initialize=1.79e-5)
+    b.Cv = Var(initialize=1e-5)
     b.Cv.fix()
 
     @b.Constraint(b.flowsheet().time)
@@ -101,6 +101,7 @@ def _valve_pressure_flow_cb(b):
         Cv = b.Cv
         fun = b.valve_function[t]
         return F**2 == (((Cv * fun) ** 2) * (Pi - Po)) / rho_aqueous
+        # return F == Cv * fun * ((Pi - Po) / rho_aqueous) ** 0.5
 
 
 m.fs.valve = Valve(
@@ -119,7 +120,7 @@ m.fs.sx_to_v = Arc(
 m.fs.control = PIDController(
     process_var=m.fs.solex.mscontactor.volume_frac_stream[:, 1, "aqueous"],
     manipulated_var=m.fs.valve.valve_opening,
-    controller_type=ControllerType.P,
+    controller_type=ControllerType.PI,
 )
 
 TransformationFactory("network.expand_arcs").apply_to(m.fs)
@@ -255,7 +256,7 @@ m.fs.solex.mscontactor.aqueous[0, :].conc_mass_comp["Gd"].fix(0.2584)
 m.fs.solex.mscontactor.aqueous[0, :].conc_mass_comp["Dy"].fix(0.047)
 
 m.fs.solex.mscontactor.aqueous_inherent_reaction_extent[0, :, "Ka2"].fix(1e-8)
-# m.fs.solex.mscontactor.aqueous[0, :].flow_vol.fix(62.01)
+m.fs.solex.mscontactor.aqueous[0, :].flow_vol.fix(62.01)
 
 m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["Al"].fix(1.267e-5)
 m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["Ca"].fix(2.684e-5)
@@ -346,8 +347,8 @@ def organic_total_conc(m, t, s):
     return m.V_o_m[t, s] * m.C_o_total[t, s] == 1
 
 
-m.fs.control.gain_p.fix(1)
-# m.fs.control.gain_i.fix(0)
+m.fs.control.gain_p.fix(5)
+m.fs.control.gain_i.fix(3)
 # m.fs.control.gain_d.fix(0)
 m.fs.control.setpoint.fix(0.5)
 m.fs.control.mv_ref.fix(0)
@@ -355,7 +356,7 @@ m.fs.control.mv_ref.fix(0)
 
 m.fs.valve.control_volume.properties_out[:].pressure.fix(101235 * units.Pa)
 m.fs.valve.valve_opening[:].unfix()
-m.fs.valve.valve_opening[0].fix(0.496)
+# m.fs.valve.valve_opening[0].fix(1)
 
 print(dof(m))
 
