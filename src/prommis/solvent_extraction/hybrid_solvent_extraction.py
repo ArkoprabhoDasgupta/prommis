@@ -101,9 +101,9 @@ from idaes.core import (
 from idaes.core.util.config import is_physical_parameter_block
 from idaes.core.initialization import ModularInitializerBase
 
-# from idaes.models.unit_models.mscontactor import MSContactor
+from idaes.models.unit_models.mscontactor import MSContactor
 
-from fake_mscontactor import MSContactor
+# from fake_mscontactor import MSContactor
 
 
 class SolventExtractionInitializer(ModularInitializerBase):
