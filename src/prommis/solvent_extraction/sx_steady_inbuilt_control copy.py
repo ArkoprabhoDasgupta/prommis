@@ -38,7 +38,7 @@ from idaes.core.solvers import get_solver
 
 from prommis.leaching.leach_solution_properties import LeachSolutionParameters
 from prommis.solvent_extraction.ree_og_distribution import REESolExOgParameters
-from prommis.solvent_extraction.hybrid_solvent_extraction import SolventExtraction
+from prommis.solvent_extraction.hybrid_solvent_extraction_trial import SolventExtraction
 from prommis.solvent_extraction.D_variant_model import D_calculation
 
 """
@@ -54,6 +54,7 @@ m.fs = FlowsheetBlock()
 
 m.fs.prop_o = REESolExOgParameters()
 m.fs.leach_soln = LeachSolutionParameters()
+Elements = ["Y", "Ce", "Nd", "Sm", "Gd", "Dy"]
 
 number_of_stages = 3
 
@@ -71,12 +72,12 @@ m.fs.solex = SolventExtraction(
         "has_energy_balance": False,
         "has_pressure_balance": False,
     },
+    elements_using_D=Elements,
 )
 
 
 stage_number = np.arange(1, number_of_stages + 1)
 
-Elements = ["Y", "Ce", "Nd", "Sm", "Gd", "Dy"]
 
 # m.pH = Var(m.fs.time, stage_number)
 
@@ -140,8 +141,8 @@ m.fs.solex.mscontactor.aqueous_inlet_state[0].conc_mass_comp["Cl"].fix(1e-8)
 
 m.fs.solex.mscontactor.aqueous_inlet_state[0].flow_vol.fix(62.01)
 
-m.fs.solex.mscontactor.organic_inlet_state[0].conc_mass_comp["Kerosene"].fix(820)
-m.fs.solex.mscontactor.organic_inlet_state[0].conc_mass_comp["DEHPA"].fix(975.8)
+m.fs.solex.mscontactor.organic_inlet_state[0].conc_mass_comp["Kerosene"].fix(820e3)
+m.fs.solex.mscontactor.organic_inlet_state[0].conc_mass_comp["DEHPA"].fix(975.8e3)
 m.fs.solex.mscontactor.organic_inlet_state[0].conc_mass_comp["Al"].fix(1.267e-5)
 m.fs.solex.mscontactor.organic_inlet_state[0].conc_mass_comp["Ca"].fix(2.684e-5)
 m.fs.solex.mscontactor.organic_inlet_state[0].conc_mass_comp["Fe"].fix(2.873e-6)

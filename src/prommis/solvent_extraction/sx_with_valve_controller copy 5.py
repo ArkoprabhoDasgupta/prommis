@@ -23,6 +23,8 @@ from idaes.core import (
     EnergyBalanceType,
     MomentumBalanceType,
 )
+import idaes.core.solvers.petsc as petsc
+from idaes.core.util.initialization import initialize_by_time_element
 from idaes.models.unit_models.pressure_changer import ThermodynamicAssumption
 from idaes.core.util import from_json, DiagnosticsToolbox
 from idaes.core.util.model_statistics import degrees_of_freedom as dof
@@ -74,87 +76,120 @@ m.fs.solex = SolventExtraction(
     },
 )
 
+
 # def _valve_pressure_flow_cb(b):
 
-#     b.Cv = Var(initialize=0.1)
+#     b.Cv = Var(initialize=2e4, units=units.m ** (-2))
 #     b.Cv.fix()
-#     b.delta_P = Var(b.flowsheet().time)
 
 #     @b.Constraint(b.flowsheet().time)
 #     def pressure_flow_equation(b, t):
-#         rho_aqueous = sum(
-#             b.control_volume.properties_in[t].conc_mass_comp[k]
-#             for k in b.control_volume.properties_in[t].conc_mass_comp.keys()
+#         # rho_aqueous = units.convert(
+#         #     b.control_volume.properties_in[t].dens_mass,
+#         #     to_units=units.kg / (units.m**3),
+#         # )
+#         rho_aqueous = units.convert(
+#             sum(
+#                 b.control_volume.properties_out[t].conc_mass_comp[p]
+#                 for p in m.fs.leach_soln.component_list
+#             ),
+#             to_units=units.kg / (units.m**3),
 #         )
-#         # Po = b.control_volume.properties_out[t].pressure
-#         # Pi = b.control_volume.properties_in[t].pressure
-#         del_P = b.delta_P[t]
-#         F = b.control_volume.properties_in[t].flow_vol
+#         Po = units.convert(
+#             b.control_volume.properties_out[t].pressure, to_units=units.Pa
+#         )
+#         Pi = units.convert(
+#             b.control_volume.properties_in[t].pressure, to_units=units.Pa
+#         )
+#         vel_head = units.convert(
+#             (Pi - Po) / rho_aqueous, to_units=(units.m**2 / units.hr**2)
+#         )
+
+#         F = units.convert(
+#             b.control_volume.properties_out[t].flow_vol,
+#             to_units=units.m**3 / units.hr,
+#         )
 #         Cv = b.Cv
 #         fun = b.valve_function[t]
-#         return F**2 == (Cv**2 * del_P * fun**2) / rho_aqueous
+#         # return F**2 == ((Cv * fun) ** 2) * vel_head
+#         return (Cv * F) ** 2 == vel_head * fun**2
 
 
-# m.fs.valve = Valve(
-#     dynamic=False,
-#     has_holdup=False,
-#     material_balance_type=MaterialBalanceType.componentTotal,
-#     energy_balance_type=EnergyBalanceType.none,
-#     momentum_balance_type=MomentumBalanceType.none,
-#     property_package=m.fs.leach_soln,
-#     pressure_flow_callback=_valve_pressure_flow_cb,
-# )
+def _valve_pressure_flow_cb(b):
+
+    b.Cv = Var(initialize=1e-2, units=units.dm**2)
+    b.Cv.fix()
+
+    @b.Constraint(b.flowsheet().time)
+    def pressure_flow_equation(b, t):
+        # rho_aqueous = units.convert(
+        #     b.control_volume.properties_in[t].dens_mass,
+        #     to_units=units.kg / (units.m**3),
+        # )
+        rho_aqueous = units.convert(
+            sum(
+                b.control_volume.properties_out[t].conc_mass_comp[p]
+                for p in m.fs.leach_soln.component_list
+            ),
+            to_units=units.kg / (units.m**3),
+        )
+        Po = units.convert(
+            b.control_volume.properties_out[t].pressure, to_units=units.Pa
+        )
+        Pi = units.convert(
+            b.control_volume.properties_in[t].pressure, to_units=units.Pa
+        )
+        vel_head = units.convert(
+            (Pi - Po) / rho_aqueous, to_units=(units.dm**2 / units.hr**2)
+        )
+
+        F = units.convert(
+            b.control_volume.properties_out[t].flow_vol,
+            to_units=units.L / units.hr,
+        )
+        Cv = b.Cv
+        fun = b.valve_function[t]
+        return F**2 == ((Cv * fun) ** 2) * vel_head
+        # return (Cv * F) ** 2 == vel_head * fun**2
 
 
-m.discretizer = TransformationFactory("dae.collocation")
-m.discretizer.apply_to(m, nfe=1, ncp=2, wrt=m.fs.time, scheme="LAGRANGE-RADAU")
+m.fs.valve = Valve(
+    dynamic=False,
+    has_holdup=False,
+    material_balance_type=MaterialBalanceType.componentTotal,
+    property_package=m.fs.leach_soln,
+    pressure_flow_callback=_valve_pressure_flow_cb,
+)
 
-m.x = Var(m.fs.time, bounds=(0, 1))
 
-
-@m.Constraint(m.fs.time)
-def pressure_valve_flow(m, t):
-    g = 9.8
-    A = 1
-    Cv = 0.2
-    rho_aqueous = sum(
-        m.fs.solex.mscontactor.aqueous[t, 1].conc_mass_comp[e]
-        for e in m.fs.solex.mscontactor.aqueous[t, 1].conc_mass_comp.keys()
-    )
-    rho_organic = sum(
-        m.fs.solex.mscontactor.organic[t, 1].conc_mass_comp[e]
-        for e in m.fs.solex.mscontactor.organic[t, 1].conc_mass_comp.keys()
-    )
-    P_aqueous = (
-        rho_aqueous
-        * g
-        * m.fs.solex.mscontactor.volume[1]
-        * m.fs.solex.mscontactor.volume_frac_stream[t, 1, "aqueous"]
-        / A
-    )
-    P_organic = (
-        rho_organic
-        * g
-        * m.fs.solex.mscontactor.volume[1]
-        * m.fs.solex.mscontactor.volume_frac_stream[t, 1, "organic"]
-        / A
-    )
-    delta_P = P_aqueous + P_organic
-    F = m.fs.solex.mscontactor.aqueous[t, 1].flow_vol
-    x = m.x[t]
-
-    return F**2 == (Cv**2) * (x**2) * (delta_P / rho_aqueous)
-
+m.fs.sx_to_v = Arc(
+    source=m.fs.solex.mscontactor.aqueous_outlet, destination=m.fs.valve.inlet
+)
 
 m.fs.control = PIDController(
     process_var=m.fs.solex.mscontactor.volume_frac_stream[:, 1, "aqueous"],
-    manipulated_var=m.x[:],
-    controller_type=ControllerType.PID,
+    manipulated_var=m.fs.valve.valve_opening,
+    controller_type=ControllerType.PI,
 )
 
-m.fs.solex.mscontactor.volume[:].fix(0.4)
-m.fs.solex.mscontactor.volume_frac_stream[0, :, "aqueous"].fix(0.4)
+TransformationFactory("network.expand_arcs").apply_to(m.fs)
 
+m.discretizer = TransformationFactory("dae.finite_difference")
+m.discretizer.apply_to(m, nfe=40, wrt=m.fs.time, scheme="BACKWARD")
+
+# m.discretizer = TransformationFactory("dae.collocation")
+# m.discretizer.apply_to(m, nfe=16, wrt=m.fs.time, scheme="LAGRANGE-RADAU")
+
+
+# Fixing inlet and feed stuffs
+
+m.fs.solex.mscontactor.volume[:].fix(100 * units.L)
+# for t in m.fs.time:
+#     m.fs.solex.mscontactor.volume_frac_stream[t, :, "aqueous"].fix(0.5 + 0.3 * (t / 24))
+
+m.fs.solex.mscontactor.volume_frac_stream[0, :, "aqueous"].fix(0.3)
+m.fs.solex.mscontactor.volume_frac_stream.setub(1)
+m.fs.solex.mscontactor.volume_frac_stream.setlb(0)
 m.pH = Var(m.fs.time, stage_number)
 
 
@@ -171,6 +206,43 @@ def distribution_calculation(m, t, s, e):
     return m.fs.solex.distribution_coefficient[t, s, "aqueous", "organic", e] == 10 ** (
         a * m.pH[t, s] + b
     )
+
+
+@m.Constraint(m.fs.time, stage_number)
+def pressure_calculation(m, t, s):
+    g = 9.8 * (units.m) / units.sec**2
+    P_atm = 101325 * units.Pa
+    A = 1 * units.m**2
+
+    rho_aq = sum(
+        m.fs.solex.mscontactor.aqueous[t, s].conc_mass_comp[p]
+        for p in m.fs.leach_soln.component_list
+    )
+    rho_og = sum(
+        m.fs.solex.mscontactor.organic[t, s].conc_mass_comp[p]
+        for p in m.fs.prop_o.component_list
+    )
+    P_aq = units.convert(
+        (
+            rho_aq
+            * g
+            * m.fs.solex.mscontactor.volume[s]
+            * m.fs.solex.mscontactor.volume_frac_stream[t, s, "aqueous"]
+            / A
+        ),
+        to_units=units.Pa,
+    )
+    P_org = units.convert(
+        (
+            rho_og
+            * g
+            * m.fs.solex.mscontactor.volume[s]
+            * m.fs.solex.mscontactor.volume_frac_stream[t, s, "organic"]
+            / A
+        ),
+        to_units=units.Pa,
+    )
+    return m.fs.solex.mscontactor.aqueous[t, s].pressure == P_aq + P_org + P_atm
 
 
 for s in stage_number:
@@ -208,8 +280,16 @@ m.fs.solex.mscontactor.aqueous_inlet_state[:].conc_mass_comp["Sm"].fix(0.097)
 m.fs.solex.mscontactor.aqueous_inlet_state[:].conc_mass_comp["Gd"].fix(0.2584)
 m.fs.solex.mscontactor.aqueous_inlet_state[:].conc_mass_comp["Dy"].fix(0.047)
 
-m.fs.solex.mscontactor.aqueous_inlet_state[:].flow_vol.fix(62.01)
+for t in m.fs.time:
+    if t <= 10:
+        m.fs.solex.mscontactor.aqueous_inlet_state[t].flow_vol.fix(62.01)
+    else:
+        m.fs.solex.mscontactor.aqueous_inlet_state[t].flow_vol.fix(82.01)
 
+
+# m.fs.solex.mscontactor.aqueous_inlet_state[:].flow_vol.fix(62.01)
+
+m.fs.solex.mscontactor.organic_inlet_state[:].conc_mass_comp["DEHPA"].fix(975.8e3)
 m.fs.solex.mscontactor.organic_inlet_state[:].conc_mass_comp["Al"].fix(1.267e-5)
 m.fs.solex.mscontactor.organic_inlet_state[:].conc_mass_comp["Ca"].fix(2.684e-5)
 m.fs.solex.mscontactor.organic_inlet_state[:].conc_mass_comp["Fe"].fix(2.873e-6)
@@ -223,7 +303,13 @@ m.fs.solex.mscontactor.organic_inlet_state[:].conc_mass_comp["Sm"].fix(1.701e-5)
 m.fs.solex.mscontactor.organic_inlet_state[:].conc_mass_comp["Gd"].fix(3.357e-5)
 m.fs.solex.mscontactor.organic_inlet_state[:].conc_mass_comp["Dy"].fix(8.008e-6)
 
-m.fs.solex.mscontactor.organic_inlet_state[:].flow_vol.fix(62.01)
+for t in m.fs.time:
+    if t <= 10:
+        m.fs.solex.mscontactor.organic_inlet_state[t].flow_vol.fix(62.01)
+    else:
+        m.fs.solex.mscontactor.organic_inlet_state[t].flow_vol.fix(62.01)
+
+# m.fs.solex.mscontactor.organic_inlet_state[:].flow_vol.fix(62.01)
 
 m.fs.solex.mscontactor.aqueous[0, :].conc_mass_comp["H"].fix(10.75)
 m.fs.solex.mscontactor.aqueous[0, :].conc_mass_comp["SO4"].fix(100)
@@ -270,10 +356,78 @@ for e in Elements:
         -1
     )
 
-m.fs.control.gain_p.fix(1e-6)
-m.fs.control.gain_i.fix(1e-5)
-m.fs.control.gain_d.fix(1e-6)
-m.fs.control.setpoint.fix(0.5)
+m.fs.solex.mscontactor.aqueous_inlet_state[:].temperature.fix(305.15 * units.K)
+m.fs.solex.mscontactor.aqueous[:, :].temperature.fix(305.15 * units.K)
+
+m.H_generation_term = Var(m.fs.time, stage_number)
+
+
+@m.Constraint(m.fs.time, stage_number)
+def H_generation_rule(m, t, s):
+    return m.H_generation_term[t, s] == -3 * sum(
+        m.fs.solex.mscontactor.material_transfer_term[t, s, e]
+        for e in m.fs.solex.mscontactor.stream_component_interactions
+    )
+
+
+m.fs.solex.mscontactor.aqueous_inherent_reaction_constraint[
+    :, :, "liquid", "H"
+].deactivate()
+
+
+@m.Constraint(m.fs.time, stage_number)
+def H_reaction_rule(m, t, s):
+    return (
+        m.fs.solex.mscontactor.aqueous_inherent_reaction_generation[t, s, "liquid", "H"]
+        == m.fs.solex.mscontactor.aqueous_inherent_reaction_extent[t, s, "Ka2"]
+        + m.H_generation_term[t, s]
+    )
+
+
+m.fs.control.gain_p.fix(30)
+m.fs.control.gain_i.fix(10)
+# m.fs.control.gain_d.fix(0)
+for t in m.fs.time:
+    if t <= 10:
+        m.fs.control.setpoint[t].fix(0.6)
+    else:
+        m.fs.control.setpoint[t].fix(0.6)
+# m.fs.control.setpoint.fix(0.5)
 m.fs.control.mv_ref.fix(0)
+# m.fs.control.derivative_term[0].fix(1e-4)
+# m.fs.control.mv_eqn[:].deactivate()
+
+m.fs.valve.control_volume.properties_out[:].pressure.fix(101235 * units.Pa)
+m.fs.valve.control_volume.properties_out[:].temperature.fix(305.15 * units.K)
+m.fs.valve.control_volume.enthalpy_balances[:].deactivate()
+# m.fs.valve.control_volume.work[:].fix(0)
+m.fs.valve.valve_opening[:].unfix()
+# m.fs.valve.valve_opening[:].fix(0.8)
+
 
 print(dof(m))
+
+# initialize_by_time_element(m.fs, m.fs.time)
+solver = get_solver(solver="ipopt_v2")
+# solver.options["max_iter"] = 10000
+# solver.solve(m, tee=True)
+
+# report_scaling_factors(m, descend_into=True)
+
+# solver = get_solver(
+#     "ipopt_v2", writer_config={"linear_presolve": True, "scale_model": True}
+# )
+solver.options["max_iter"] = 10000
+solver.solve(m, tee=True)
+
+# result = petsc.petsc_dae_by_time_element(
+#     m,
+#     time=m.fs.time,
+#     ts_options={
+#         "--ts_type": "beuler",
+#         "--ts_dt": 0.1,
+#         "--ts_monitor": "",  # set initial step to 0.1
+#         "--ts_save_trajectory": 1,
+#     },
+# )
+# tj = result.trajectory  # trajectroy data

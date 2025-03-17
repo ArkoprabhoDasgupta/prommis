@@ -89,7 +89,7 @@ function of the parameter of partition coefficient defined by the user.
 """
 
 from pyomo.common.config import Bool, ConfigDict, ConfigValue, In
-from pyomo.environ import Constraint, Param, Block, Var
+from pyomo.environ import Constraint, Param, Block, Var, units
 from pyomo.network import Port
 
 from idaes.core import (
@@ -102,8 +102,6 @@ from idaes.core.util.config import is_physical_parameter_block
 from idaes.core.initialization import ModularInitializerBase
 
 from idaes.models.unit_models.mscontactor import MSContactor
-
-# from fake_mscontactor import MSContactor
 
 
 class SolventExtractionInitializer(ModularInitializerBase):
@@ -146,13 +144,16 @@ class SolventExtractionInitializer(ModularInitializerBase):
         Returns:
             None
         """
-        model.mscontactor.material_transfer_term.fix(1e-8)
+
+        model.mscontactor.heterogeneous_reaction_extent.fix(1e-8)
+        model.mscontactor.volume.fix(1)
+        model.mscontactor.volume_frac_stream[:, :, "aqueous"].fix(0.5)
 
         # Initialize MSContactor
         msc_init = model.mscontactor.default_initializer()
         msc_init.initialize(model.mscontactor)
 
-        model.mscontactor.material_transfer_term.unfix()
+        model.mscontactor.heterogeneous_reaction_extent.unfix()
 
         solver = self._get_solver()
         init_model = solver.solve(model)
@@ -254,8 +255,36 @@ class SolventExtractionData(UnitModelBlockData):
         ),
     )
 
+    CONFIG.declare(
+        "reaction_package",
+        ConfigValue(
+            # TODO: Add a domain validator for this
+            description="Heterogeneous reaction package for leaching.",
+        ),
+    )
+    CONFIG.declare(
+        "reaction_package_args",
+        ConfigValue(
+            default=None,
+            domain=dict,
+            description="Arguments for heterogeneous reaction package for leaching.",
+        ),
+    )
+
+    # CONFIG.declare(
+    #     "dosage",
+    #     ConfigValue(
+    #         domain=float,
+    #         description="Dosage of the extractant in the organic phase v/v ratio",
+    #     ),
+    # )
+
     def build(self):
         super().build()
+
+        # self.extractant_dosage = Param(
+        #     doc="Initial dosage of extractant",
+        #     initialize=1,mutable=True)
 
         streams_dict = {
             "aqueous": self.config.aqueous_stream,
@@ -264,111 +293,100 @@ class SolventExtractionData(UnitModelBlockData):
         self.mscontactor = MSContactor(
             streams=streams_dict,
             number_of_finite_elements=self.config.number_of_finite_elements,
+            heterogeneous_reactions=self.config.reaction_package,
+            heterogeneous_reactions_args=self.config.reaction_package_args,
+            has_holdup=self.config.has_holdup,
         )
 
-        working_set = set()
-        for e in ["Y", "Nd", "Dy", "Gd", "Sm", "Ce"]:
-            working_set.add(("aqueous", "organic", e))
+        distribution_set = [
+            ("Al", "Al_o"),
+            ("Ca", "Ca_o"),
+            ("Fe", "Fe_o"),
+            ("Sc", "Sc_o"),
+            ("Y", "Y_o"),
+            ("Gd", "Gd_o"),
+            ("Dy", "Dy_o"),
+            ("Sm", "Sm_o"),
+            ("La", "La_o"),
+            ("Pr", "Pr_o"),
+            ("Ce", "Ce_o"),
+            ("Nd", "Nd_o"),
+        ]
 
-        partition_based_set = (
-            self.mscontactor.stream_component_interactions - working_set
-        )
+        def distribution_ratio_rule(b, t, s, e, f):
+            return (
+                b.mscontactor.organic[t, s].conc_mol_comp[f]
+                == b.mscontactor.heterogeneous_reactions[t, s].distribution_coefficient[
+                    e
+                ]
+                * b.mscontactor.aqueous[t, s].conc_mol_comp[e]
+            )
 
-        distribution_based_set = (
-            self.mscontactor.stream_component_interactions - partition_based_set
-        )
-
-        self.partition_coefficient = Param(
-            self.mscontactor.elements,
-            partition_based_set,
-            initialize=1,
-            mutable=True,
-            doc="The fraction of component that goes from aqueous to organic phase",
-        )
-
-        self.distribution_coefficient = Var(
+        self.distribution_extent_constraint = Constraint(
             self.flowsheet().time,
             self.mscontactor.elements,
-            distribution_based_set,
-            doc="The ratios of the concentrations in the organic phase and aqueous phase",
+            distribution_set,
+            rule=distribution_ratio_rule,
+        )
+
+        self.cross_sec_area = Param(
+            self.mscontactor.elements,
+            units=units.m**2,
+            doc="Cross sectional area stage",
+            initialize=1,
+            mutable=True,
+        )
+
+        self.elevation = Param(
+            self.mscontactor.elements,
+            units=units.m,
+            doc="Elevation of each stage",
+            initialize=1,
+            mutable=True,
+        )
+
+        def pressure_calculation(b, t, s):
+            g = 9.8 * (units.m) / units.sec**2
+            P_atm = 101325 * units.Pa
+
+            rho_aq = sum(
+                b.mscontactor.aqueous[t, s].conc_mass_comp[p]
+                for p in getattr(b.mscontactor, "aqueous").component_list
+            )
+            rho_og = sum(
+                b.mscontactor.organic[t, s].conc_mass_comp[p]
+                for p in getattr(b.mscontactor, "organic").component_list
+            )
+            P_aq = units.convert(
+                (
+                    rho_aq
+                    * g
+                    * (
+                        b.mscontactor.volume[s]
+                        * b.mscontactor.volume_frac_stream[t, s, "aqueous"]
+                        / b.cross_sec_area[s]
+                        + b.elevation[s]
+                    )
+                ),
+                to_units=units.Pa,
+            )
+            P_org = units.convert(
+                (
+                    rho_og
+                    * g
+                    * b.mscontactor.volume[s]
+                    * b.mscontactor.volume_frac_stream[t, s, "organic"]
+                    / b.cross_sec_area[s]
+                ),
+                to_units=units.Pa,
+            )
+            return b.mscontactor.aqueous[t, s].pressure == P_aq + P_org + P_atm
+
+        self.pressure_constraint = Constraint(
+            self.flowsheet().time, self.mscontactor.elements, rule=pressure_calculation
         )
 
         self.aqueous_inlet = Port(extends=self.mscontactor.aqueous_inlet)
         self.aqueous_outlet = Port(extends=self.mscontactor.aqueous_outlet)
         self.organic_inlet = Port(extends=self.mscontactor.organic_inlet)
         self.organic_outlet = Port(extends=self.mscontactor.organic_outlet)
-
-        def mass_transfer_term(b, t, s, k, l, m):
-            if m not in ["Y", "Nd", "Dy", "Gd", "Sm", "Ce"]:
-                if self.config.aqueous_to_organic:
-                    stream_state = b.mscontactor.aqueous
-                    in_state = b.mscontactor.aqueous_inlet_state
-                    stream_name = self.config.aqueous_stream
-                    sign = -1
-                else:
-                    stream_state = b.mscontactor.organic
-                    in_state = b.mscontactor.organic_inlet_state
-                    stream_name = self.config.organic_stream
-                    sign = 1
-
-                if stream_name.flow_direction == FlowDirection.forward:
-                    if s == b.mscontactor.elements.first():
-                        state = in_state[t]
-                    else:
-                        state = stream_state[t, b.mscontactor.elements.prev(s)]
-                else:
-                    if s == b.mscontactor.elements.last():
-                        state = in_state[t]
-                    else:
-                        state = stream_state[t, b.mscontactor.elements.next(s)]
-
-                return (
-                    b.mscontactor.material_transfer_term[t, s, (k, l, m)]
-                    == sign
-                    * state.get_material_flow_terms(stream_state.phase_list, m)
-                    * b.partition_coefficient[s, (k, l, m)]
-                )
-            else:
-                return b.mscontactor.organic[t, s].get_material_density_terms(
-                    b.mscontactor.organic.phase_list, m
-                ) == b.distribution_coefficient[
-                    t, s, (k, l, m)
-                ] * b.mscontactor.aqueous[
-                    t, s
-                ].get_material_density_terms(
-                    b.mscontactor.aqueous.phase_list, m
-                )
-
-        self.mass_transfer_constraint = Constraint(
-            self.flowsheet().time,
-            self.mscontactor.elements,
-            self.mscontactor.stream_component_interactions,
-            rule=mass_transfer_term,
-        )
-
-        # self.H_generation_term = Var(self.flowsheet().time, self.mscontactor.elements)
-
-        # def H_generation_rule(b, t, s):
-        #     return b.H_generation_term[t, s] == 3 * sum(
-        #         b.mscontactor.material_transfer_term[t, s, e]
-        #         for e in b.mscontactor.stream_component_interactions
-        #     )
-
-        # self.H_generation_constraint = Constraint(
-        #     self.flowsheet().time, self.mscontactor.elements, rule=H_generation_rule
-        # )
-
-        # self.mscontactor.aqueous_inherent_reaction_constraint[
-        #     :, :, "liquid", "H"
-        # ].deactivate()
-
-        # def H_material_balance(b, t, s):
-        #     return (
-        #         b.mscontactor.aqueous_inherent_reaction_generation[t, s, "liquid", "H"]
-        #         == b.mscontactor.aqueous_inherent_reaction_extent[t, s, "Ka2"]
-        #         + b.H_generation_term[t, s]
-        #     )
-
-        # self.H_material_constraint = Constraint(
-        #     self.flowsheet().time, self.mscontactor.elements, rule=H_material_balance
-        # )
