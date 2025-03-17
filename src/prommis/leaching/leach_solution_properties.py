@@ -236,6 +236,14 @@ class LeachSolutionStateBlockData(StateBlockData):
             units=units.Pa,
         )
 
+        self.pH_phase = Var(
+            self.params.phase_list, domain=Reals, initialize=2, doc="pH of the solution"
+        )
+
+        @self.Constraint(self.phase_list)
+        def pH_constraint(b, p):
+            return 10 ** (-b.pH_phase[p]) == b.conc_mol_comp["H"] * units.L / units.mol
+
         # Concentration conversion constraint
         @self.Constraint(self.params.component_list)
         def molar_concentration_constraint(b, j):

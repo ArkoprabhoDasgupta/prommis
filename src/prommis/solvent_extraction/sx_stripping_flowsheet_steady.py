@@ -4,7 +4,7 @@
 # University of California, through Lawrence Berkeley National Laboratory, et al. All rights reserved.
 # Please see the files COPYRIGHT.md and LICENSE.md for full copyright and license information.
 #####################################################################################################
-""" 
+"""
 Demonstration flowsheet for steady state solvent extraction stripping process
 using parameters and data derived from West Kentucky No. 13 coal refuse.
 

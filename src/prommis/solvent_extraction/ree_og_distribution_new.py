@@ -57,20 +57,20 @@ class REESolExOgParameterData(PhysicalParameterBlock):
         self.DEHPA = Component()
 
         # Contaminants
-        self.Al = Component()
-        self.Ca = Component()
-        self.Fe = Component()
+        self.Al_o = Component()
+        self.Ca_o = Component()
+        self.Fe_o = Component()
 
         # REEs
-        self.Sc = Component()
-        self.Y = Component()
-        self.La = Component()
-        self.Ce = Component()
-        self.Pr = Component()
-        self.Nd = Component()
-        self.Sm = Component()
-        self.Gd = Component()
-        self.Dy = Component()
+        self.Sc_o = Component()
+        self.Y_o = Component()
+        self.La_o = Component()
+        self.Ce_o = Component()
+        self.Pr_o = Component()
+        self.Nd_o = Component()
+        self.Sm_o = Component()
+        self.Gd_o = Component()
+        self.Dy_o = Component()
 
         # self.dissolved_elements = Set(
         #     initialize=[
@@ -95,18 +95,18 @@ class REESolExOgParameterData(PhysicalParameterBlock):
             initialize={
                 "Kerosene": 170e-3,
                 "DEHPA": 322.431e-3,
-                "Sc": 44.946e-3,
-                "Y": 88.905e-3,
-                "La": 138.905e-3,
-                "Ce": 140.116e-3,
-                "Pr": 140.907e-3,
-                "Nd": 144.242e-3,
-                "Sm": 150.36e-3,
-                "Gd": 157.25e-3,
-                "Dy": 162.50e-3,
-                "Al": 26.982e-3,
-                "Ca": 40.078e-3,
-                "Fe": 55.845e-3,
+                "Sc_o": 44.946e-3,
+                "Y_o": 88.905e-3,
+                "La_o": 138.905e-3,
+                "Ce_o": 140.116e-3,
+                "Pr_o": 140.907e-3,
+                "Nd_o": 144.242e-3,
+                "Sm_o": 150.36e-3,
+                "Gd_o": 157.25e-3,
+                "Dy_o": 162.50e-3,
+                "Al_o": 26.982e-3,
+                "Ca_o": 40.078e-3,
+                "Fe_o": 55.845e-3,
             },
         )
 

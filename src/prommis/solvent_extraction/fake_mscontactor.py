@@ -1160,7 +1160,7 @@ def _inherent_reaction_rule(blk, t, s, p, j, stream, generation, extent):
                 sblock[t, s].params.inherent_reaction_stoichiometry[r, p, j]
                 * extent[t, s, r]
                 for r in sconfig.property_package.inherent_reaction_idx
-            ) #+ blk.modifier  # you will need to declare this variable somewhere before
+            )  # + blk.modifier  # you will need to declare this variable somewhere before
         )
     return Constraint.Skip
 
