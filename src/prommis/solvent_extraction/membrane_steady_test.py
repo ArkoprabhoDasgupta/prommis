@@ -15,8 +15,8 @@ from idaes.core.initialization import (
     BlockTriangularizationInitializer,
     SingleControlVolumeUnitInitializer,
 )
-from prommis.solvent_extraction.membrane_channel_property_package import (
-    MembraneSXChannelParameters,
+from prommis.solvent_extraction.membrane_module_property_package import (
+    MembraneSXModuleParameters,
 )
 from prommis.solvent_extraction.membrane_steady_state_model import (
     MembraneSolventExtraction,
@@ -31,9 +31,10 @@ m = ConcreteModel()
 
 m.fs = FlowsheetBlock(dynamic=False)
 
-m.fs.mem_prop = MembraneSXChannelParameters()
+m.fs.mem_prop = MembraneSXModuleParameters()
 m.fs.leach_soln = LeachSolutionParameters()
-m.fs.reaxn = ReactionParameterTestBlock(property_package=m.fs.leach_soln)
+# m.fs.reaxn = ReactionParameterTestBlock(property_package=m.fs.leach_soln)
+m.fs.mem_prop.extractant_dosage = 1
 
 m.fs.membrane_module = MembraneSolventExtraction(
     feed_phase={
@@ -48,26 +49,35 @@ m.fs.membrane_module = MembraneSolventExtraction(
         "material_balance_type": MaterialBalanceType.componentTotal,
         "energy_balance_type": EnergyBalanceType.none,
     },
+    membrane_phase={
+        "property_package": m.fs.mem_prop,
+    },
     finite_elements=1,
     transformation_method="dae.finite_difference",
     transformation_scheme="BACKWARD",
-    reaction_package=m.fs.reaxn,
+    tube_inner_radius=0.1,
+    tube_outer_radius=0.2,
+    shell_radius=0.7,
+    number_of_tubes=1,
+    # reaction_package=m.fs.reaxn,
 )
 
-m.fs.membrane_module.module_length.fix(1)
-m.fs.membrane_module.tube_inner_radius.fix(0.1)
-m.fs.membrane_module.tube_outer_radius.fix(0.2)
-m.fs.membrane_module.shell_radius.fix(0.7)
-m.fs.membrane_module.number_of_tubes.fix(5)
+m.fs.membrane_module.module_length.fix(1.0)
 
 m.fs.membrane_module.feed_phase_inlet.flow_vol.fix(100)
-m.fs.membrane_module.feed_phase_inlet.conc_mass_comp.fix(1e5)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp.fix(1e4)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "H"].fix(10.75)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "HSO4"].fix(1e3)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "SO4"].fix(100)
 m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "H2O"].fix(1e6)
 m.fs.membrane_module.feed_phase_inlet.temperature.fix(303)
 m.fs.membrane_module.feed_phase_inlet.pressure.fix(101325)
 
 m.fs.membrane_module.strip_phase_inlet.flow_vol.fix(100)
-m.fs.membrane_module.strip_phase_inlet.conc_mass_comp.fix(10)
+m.fs.membrane_module.strip_phase_inlet.conc_mass_comp.fix(1e-4)
+m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[0, "H"].fix(10.75)
+m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[0, "HSO4"].fix(1e3)
+m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[0, "SO4"].fix(100)
 m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[0, "H2O"].fix(1e6)
 m.fs.membrane_module.strip_phase_inlet.temperature.fix(303)
 m.fs.membrane_module.strip_phase_inlet.pressure.fix(101325)
@@ -77,10 +87,10 @@ m.fs.membrane_module.feed_phase.properties[:, :].pressure.fix(101325)
 m.fs.membrane_module.strip_phase.properties[:, :].temperature.fix(303)
 m.fs.membrane_module.strip_phase.properties[:, :].pressure.fix(101325)
 
-m.fs.membrane_module.feed_phase.mass_transfer_term.fix(-1)
-m.fs.membrane_module.feed_phase.mass_transfer_term[:, :, "liquid", "H2O"].fix(0)
-m.fs.membrane_module.strip_phase.mass_transfer_term.fix(1)
-m.fs.membrane_module.strip_phase.mass_transfer_term[:, :, "liquid", "H2O"].fix(0)
+# m.fs.membrane_module.feed_phase.mass_transfer_term.fix(-1)
+# m.fs.membrane_module.feed_phase.mass_transfer_term[:, :, "liquid", "H2O"].fix(0)
+# m.fs.membrane_module.strip_phase.mass_transfer_term.fix(1)
+# m.fs.membrane_module.strip_phase.mass_transfer_term[:, :, "liquid", "H2O"].fix(0)
 
 # initializer = BlockTriangularizationInitializer()
 # initializer.initialize(m)
@@ -89,5 +99,5 @@ print("Degrees of freedom:", dof(m))
 
 solver = get_solver("ipopt_v2")
 solver.options["max_iter"] = 10000
-# solver.options["tol"] = 1e-5
+# # solver.options["tol"] = 1e-5
 results = solver.solve(m, tee=True)

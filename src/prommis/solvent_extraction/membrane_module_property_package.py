@@ -18,6 +18,7 @@ from pyomo.environ import (
     units,
     PositiveReals,
     Reals,
+    log10,
 )
 
 from idaes.core import (
@@ -98,6 +99,118 @@ class MembraneSXModuleParameterData(PhysicalParameterBlock):
             },
         )
 
+        self.extractant_dosage = Param(
+            doc="Extractant dosage of the system", initialize=1, mutable=True
+        )
+
+        self.m0 = Param(
+            self.component_list,
+            initialize={
+                "Ce": 0.30916,
+                "Y": 1.63166,
+                "Gd": 1.0225,
+                "Dy": 1.70783,
+                "Sm": 0.81233,
+                "Nd": 0.31183,
+                "La": 0.54,
+                "Pr": 0.29,
+                "Sc": 0,
+                "Al": 0,
+                "Ca": 0,
+                "Fe": 0,
+            },
+        )
+
+        self.m1 = Param(
+            self.component_list,
+            initialize={
+                "Ce": 0.04816,
+                "Y": 0.15166,
+                "Gd": 0.0195,
+                "Dy": 0.06443,
+                "Sm": -0.02247,
+                "Nd": 0.03763,
+                "La": 0,
+                "Pr": 0,
+                "Sc": 0,
+                "Al": 0,
+                "Ca": 0,
+                "Fe": 0,
+            },
+        )
+
+        self.B0 = Param(
+            self.component_list,
+            initialize={
+                "Ce": -1.66021,
+                "Y": -2.12601,
+                "Gd": -2.24143,
+                "Dy": -2.42226,
+                "Sm": -2.12172,
+                "Nd": -1.62372,
+                "La": -1.93,
+                "Pr": -1.48,
+                "Sc": 0,
+                "Al": 0,
+                "Ca": 0,
+                "Fe": 0,
+            },
+        )
+
+        self.B1 = Param(
+            self.component_list,
+            initialize={
+                "Ce": -0.38599,
+                "Y": 0.26612,
+                "Gd": 0.03065,
+                "Dy": -0.02538,
+                "Sm": 0.17414,
+                "Nd": -0.38096,
+                "La": 0,
+                "Pr": 0,
+                "Sc": 0,
+                "Al": 0,
+                "Ca": 0,
+                "Fe": 0,
+            },
+        )
+
+        self.K1 = Param(
+            self.component_list,
+            initialize={
+                "Ce": 0,
+                "Y": 0,
+                "Gd": 0,
+                "Dy": 0,
+                "Sm": 0,
+                "Nd": 0,
+                "La": 0,
+                "Pr": 0,
+                "Sc": 632.4976,
+                "Al": 0.0531,
+                "Ca": 0.0658,
+                "Fe": 0.1496,
+            },
+        )
+
+        self.K_corr = Param(
+            self.component_list,
+            initialize={
+                "Ce": 0,
+                "Y": 0,
+                "Gd": 0,
+                "Dy": 0,
+                "Sm": 0,
+                "Nd": 0,
+                "La": 0,
+                "Pr": 0,
+                "Sc": 1,
+                "Al": 1,
+                "Ca": 1,
+                "Fe": 1,
+            },
+        )
+
         self._state_block_class = MembraneSXModuleStateBlock
 
     @classmethod
@@ -133,9 +246,9 @@ class _MembraneSXModuleStateBlock(StateBlock):
         fix_state_vars(self)
 
         # Deactivate inherent reactions
-        for sbd in self.values():
-            if not sbd.config.defined_state:
-                sbd.h2o_concentration.deactivate()
+        # for sbd in self.values():
+        #     if not sbd.config.defined_state:
+        #         sbd.h2o_concentration.deactivate()
 
 
 @declare_process_block_class(
@@ -151,12 +264,6 @@ class MembraneSXModuleStateBlockData(StateBlockData):
     def build(self):
         super().build()
 
-        self.membrane_flux = Var(
-            self.params.component_list,
-            units=units.mol / (units.sec * units.m**2),
-            bounds=(1e-20, None),
-        )
-
         self.conc_mol_comp = Var(
             self.params.component_list,
             units=units.mol / units.L,
@@ -164,41 +271,45 @@ class MembraneSXModuleStateBlockData(StateBlockData):
             bounds=(1e-20, None),
         )
 
-    def get_diffusive_transport_terms(self, p, j):
+        self.feed_distribution_coefficient = Var(
+            self.params.component_list,
+            initialize=1,
+        )
 
-        area = self.parent_block().area
-        # Note conversion to mol/hour
-        if j == "H2O":
-            # Assume constant density of 1 kg/L
-            return units.convert(
-                area * self.flow_velocity * self.params.dens_mass / self.params.mw[j],
-                to_units=units.mol / units.hour,
-            )
+        self.strip_distribution_coefficient = Var(
+            self.params.component_list,
+            initialize=1,
+        )
 
-        else:
-            # Need to convert from moles to mass
-            return units.convert(
-                area * self.flow_velocity * self.conc_mass_comp[j] / self.params.mw[j],
-                to_units=units.mol / units.hour,
-            )
+        def feed_distribution_eq(b, e):
+            feed_block = b.parent_block().feed_phase.properties[
+                b.index()[0], b.index()[1]
+            ]
 
-    def get_material_density_terms(self, p, j):
-        if j == "H2O":
-            return units.convert(
-                self.params.dens_mass / self.params.mw[j],
-                to_units=units.mol / units.m**3,
-            )
-        else:
-            return units.convert(
-                self.conc_mass_comp[j] / self.params.mw[j],
-                to_units=units.mol / units.m**3,
-            )
+            pH = feed_block.pH_phase["liquid"]
+            return (b.feed_distribution_coefficient[e]) == 10 ** (
+                (b.params.m0[e] + b.params.extractant_dosage * b.params.m1[e]) * pH
+                + (b.params.B0[e] + b.params.B1[e] * log10(b.params.extractant_dosage))
+            ) * (1 - b.params.K_corr[e]) + b.params.K_corr[e] * b.params.K1[e]
+
+        self.feed_distribution_constraint = Constraint(
+            self.params.component_list, rule=feed_distribution_eq
+        )
+
+        def strip_distribution_eq(b, e):
+            strip_block = b.parent_block().strip_phase.properties[
+                b.index()[0], b.index()[1]
+            ]
+
+            pH = strip_block.pH_phase["liquid"]
+            return (b.strip_distribution_coefficient[e]) == 10 ** (
+                (b.params.m0[e] + b.params.extractant_dosage * b.params.m1[e]) * pH
+                + (b.params.B0[e] + b.params.B1[e] * log10(b.params.extractant_dosage))
+            ) * (1 - b.params.K_corr[e]) + b.params.K_corr[e] * b.params.K1[e]
+
+        self.strip_distribution_constraint = Constraint(
+            self.params.component_list, rule=strip_distribution_eq
+        )
 
     def get_material_flow_basis(self):
         return MaterialFlowBasis.molar
-
-    def define_state_vars(self):
-        return {
-            "flow_velocity": self.flow_velocity,
-            "conc_mass_comp": self.conc_mass_comp,
-        }
