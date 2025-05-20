@@ -52,7 +52,7 @@ m.fs.membrane_module = MembraneSolventExtraction(
     membrane_phase={
         "property_package": m.fs.mem_prop,
     },
-    finite_elements=1,
+    finite_elements=10,
     transformation_method="dae.finite_difference",
     transformation_scheme="BACKWARD",
     tube_inner_radius=0.1,
@@ -62,11 +62,11 @@ m.fs.membrane_module = MembraneSolventExtraction(
     # reaction_package=m.fs.reaxn,
 )
 
-m.fs.membrane_module.module_length.fix(1.0)
+m.fs.membrane_module.module_length.fix(10.0)
 
 m.fs.membrane_module.feed_phase_inlet.flow_vol.fix(100)
-m.fs.membrane_module.feed_phase_inlet.conc_mass_comp.fix(1e4)
-m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "H"].fix(10.75)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp.fix(1e5)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "H"].fix(5.75)
 m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "HSO4"].fix(1e3)
 m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "SO4"].fix(100)
 m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "H2O"].fix(1e6)
@@ -74,7 +74,7 @@ m.fs.membrane_module.feed_phase_inlet.temperature.fix(303)
 m.fs.membrane_module.feed_phase_inlet.pressure.fix(101325)
 
 m.fs.membrane_module.strip_phase_inlet.flow_vol.fix(100)
-m.fs.membrane_module.strip_phase_inlet.conc_mass_comp.fix(1e-4)
+m.fs.membrane_module.strip_phase_inlet.conc_mass_comp.fix(1e-3)
 m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[0, "H"].fix(10.75)
 m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[0, "HSO4"].fix(1e3)
 m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[0, "SO4"].fix(100)

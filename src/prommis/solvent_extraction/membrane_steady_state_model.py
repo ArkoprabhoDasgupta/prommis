@@ -426,6 +426,8 @@ class MembraneSolventExtractionData(UnitModelBlockData):
             rule=shell_area,
         )
 
+        self.strip_phase.area.setlb(1e-5)
+
         self.add_inlet_port(name="strip_phase_inlet", block=self.strip_phase)
         self.add_outlet_port(name="strip_phase_outlet", block=self.strip_phase)
 
