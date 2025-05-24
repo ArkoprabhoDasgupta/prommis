@@ -9,6 +9,7 @@ from idaes.core import (
     FlowDirection,
     FlowsheetBlock,
 )
+from idaes.core.util import to_json
 
 from idaes.core.solvers import get_solver
 
@@ -132,3 +133,5 @@ if __name__ == "__main__":
 
     solver = get_solver(solver="ipopt_v2")
     solver.solve(m, tee=True)
+
+    to_json(m, fname="solvent_extraction.json", human_read=True)
