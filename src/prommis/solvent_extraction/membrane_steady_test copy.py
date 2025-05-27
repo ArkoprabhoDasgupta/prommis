@@ -55,29 +55,43 @@ m.fs.membrane_module = MembraneSolventExtraction(
     finite_elements=10,
     transformation_method="dae.finite_difference",
     transformation_scheme="BACKWARD",
-    tube_inner_radius=0.1,
-    tube_outer_radius=0.2,
-    shell_radius=0.7,
-    number_of_tubes=5,
+    tube_inner_radius=100 * 1e-6,
+    tube_outer_radius=150 * 1e-6,
+    shell_radius=67e-3,
+    number_of_tubes=6300,
     # reaction_package=m.fs.reaxn,
 )
 
-m.fs.membrane_module.module_length.fix(10.0)
+m.fs.membrane_module.module_length.fix(0.254)
 
-m.fs.membrane_module.feed_phase_inlet.flow_vol.fix(100)
-m.fs.membrane_module.feed_phase_inlet.conc_mass_comp.fix(1e5)
-m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "H"].fix(5.75)
-m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "HSO4"].fix(1e3)
-m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "SO4"].fix(100)
+m.fs.membrane_module.feed_phase_inlet.flow_vol.fix(6.3 * 60 / (6300 * 2820))
+# m.fs.membrane_module.feed_phase_inlet.conc_mass_comp.fix(1e5)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "Ca"].fix(664)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "Al"].fix(3140)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "Fe"].fix(109)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "La"].fix(1.73)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "Ce"].fix(3.94)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "Pr"].fix(0.54)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "Nd"].fix(2.31)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "Sm"].fix(0.566)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "Gd"].fix(0.654)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "Dy"].fix(0.64)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "Y"].fix(3.65)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "Sc"].fix(1)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "Cl"].fix(1e-5)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "H"].fix(0.186)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "HSO4"].fix(1e-5)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "SO4"].fix(8.938)
 m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "H2O"].fix(1e6)
 m.fs.membrane_module.feed_phase_inlet.temperature.fix(303)
 m.fs.membrane_module.feed_phase_inlet.pressure.fix(101325)
 
-m.fs.membrane_module.strip_phase_inlet.flow_vol.fix(100)
-m.fs.membrane_module.strip_phase_inlet.conc_mass_comp.fix(1e-3)
-m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[0, "H"].fix(10.75)
-m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[0, "HSO4"].fix(1e3)
-m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[0, "SO4"].fix(100)
+m.fs.membrane_module.strip_phase_inlet.flow_vol.fix(1.5 * 60 / 2820)
+m.fs.membrane_module.strip_phase_inlet.conc_mass_comp.fix(1e-5)
+m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[0, "H"].fix(0.5 * 1e3)
+m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[0, "Cl"].fix(0.5 * 35.5e3)
+# m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[0, "HSO4"].fix(1e3)
+# m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[0, "SO4"].fix(100)
 m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[0, "H2O"].fix(1e6)
 m.fs.membrane_module.strip_phase_inlet.temperature.fix(303)
 m.fs.membrane_module.strip_phase_inlet.pressure.fix(101325)
