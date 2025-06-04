@@ -1,0 +1,387 @@
+from pyomo.common.config import Bool, ConfigDict, ConfigValue, In
+from pyomo.environ import (
+    Constraint,
+    Param,
+    Block,
+    units,
+    RangeSet,
+    TransformationFactory,
+)
+from pyomo.network import Port, Arc
+
+from idaes.core import (
+    FlowDirection,
+    UnitModelBlockData,
+    declare_process_block_class,
+    useDefault,
+    ControlVolume1DBlock,
+    MaterialBalanceType,
+    EnergyBalanceType,
+    MomentumBalanceType,
+)
+from idaes.core.util.config import is_physical_parameter_block
+from idaes.core.util.constants import Constants
+from idaes.core.initialization import ModularInitializerBase
+
+from prommis.solvent_extraction.solvent_extraction import SolventExtraction
+
+Stream_Config = ConfigDict()
+
+
+Stream_Config.declare(
+    "property_package",
+    ConfigValue(
+        default=useDefault,
+        domain=is_physical_parameter_block,
+        description="Property package to use for given stream",
+        doc="""Property parameter object used to define property calculations for given stream,
+**default** - useDefault.
+**Valid values:** {
+**useDefault** - use default package from parent model or flowsheet,
+**PhysicalParameterObject** - a PhysicalParameterBlock object.}""",
+    ),
+)
+
+Stream_Config.declare(
+    "property_package_args",
+    ConfigDict(
+        implicit=True,
+        description="Dict of arguments to use for constructing property package",
+        doc="""A ConfigDict with arguments to be passed to property block(s)
+and used when constructing these,
+**default** - None.
+**Valid values:** {
+see property package for documentation.}""",
+    ),
+)
+
+Stream_Config.declare(
+    "flow_direction",
+    ConfigValue(
+        default=FlowDirection.forward,
+        domain=In(FlowDirection),
+        doc="Direction of flow for stream",
+        description="FlowDirection Enum indicating direction of "
+        "flow for given stream. Default=FlowDirection.forward.",
+    ),
+)
+
+Stream_Config.declare(
+    "has_energy_balance",
+    ConfigValue(
+        default=False,
+        domain=Bool,
+        doc="Bool indicating whether to include energy balance for stream. Default=False.",
+    ),
+)
+
+Stream_Config.declare(
+    "has_pressure_balance",
+    ConfigValue(
+        default=False,
+        domain=Bool,
+        doc="Bool indicating whether to include pressure balance for stream. Default=False.",
+    ),
+)
+
+
+@declare_process_block_class("CompoundSolventExtraction")
+class CompoundSolventExtractionData(UnitModelBlockData):
+
+    CONFIG = UnitModelBlockData.CONFIG()
+
+    CONFIG.declare(
+        "aqueous_stream",
+        Stream_Config(
+            description="Aqueous stream properties",
+        ),
+    )
+
+    CONFIG.declare(
+        "organic_stream",
+        Stream_Config(
+            description="Organic stream properties",
+        ),
+    )
+
+    CONFIG.declare(
+        "number_of_finite_elements",
+        ConfigValue(domain=int, description="Number of finite elements to use"),
+    )
+
+    CONFIG.declare(
+        "reaction_package",
+        ConfigValue(
+            description="Heterogeneous reaction package for leaching.",
+        ),
+    )
+    CONFIG.declare(
+        "reaction_package_args",
+        ConfigValue(
+            default=None,
+            domain=dict,
+            description="Arguments for heterogeneous reaction package for leaching.",
+        ),
+    )
+
+    CONFIG.declare(
+        "settler_finite_elements",
+        ConfigValue(
+            default=20,
+            domain=int,
+            description="Number of finite elements length domain",
+            doc="""Number of finite elements to use when discretizing length
+            domain (default=20)""",
+        ),
+    )
+
+    CONFIG.declare(
+        "settler_collocation_points",
+        ConfigValue(
+            default=5,
+            domain=int,
+            description="Number of collocation points per finite element",
+            doc="""Number of collocation points to use per finite element when
+            discretizing length domain (default=3)""",
+        ),
+    )
+
+    CONFIG.declare(
+        "settler_transformation_method",
+        ConfigValue(
+            default=useDefault,
+            description="Discretization method to use for DAE transformation",
+            doc="""Discretization method to use for DAE transformation. See
+        Pyomo documentation for supported transformations.""",
+        ),
+    )
+
+    CONFIG.declare(
+        "settler_transformation_scheme",
+        ConfigValue(
+            default=useDefault,
+            description="Discretization scheme to use for DAE transformation",
+            doc="""Discretization scheme to use when transformating domain. See
+        Pyomo documentation for supported schemes.""",
+        ),
+    )
+
+    def build(self):
+        super().build()
+
+        self.elements = RangeSet(
+            1,
+            self.config.number_of_finite_elements,
+            doc="Set of finite elements in cascade (1 to number of elements)",
+        )
+
+        # Declare the mixer tanks
+        for i in self.elements:
+            setattr(
+                self,
+                f"solvent_extraction_mixer_{i}",
+                SolventExtraction(
+                    number_of_finite_elements=1,
+                    aqueous_stream=self.config.aqueous_stream,
+                    organic_stream=self.config.organic_stream,
+                    reaction_package=self.config.reaction_package,
+                    reaction_package_args=self.config.reaction_package_args,
+                    has_holdup=self.config.has_holdup,
+                    dynamic=self.config.dynamic,
+                ),
+            )
+
+        # Declare aqueous settler tanks
+        for i in self.elements:
+            setattr(
+                self,
+                f"solvent_extraction_aqueous_settler_{i}",
+                ControlVolume1DBlock(
+                    dynamic=self.config.dynamic,
+                    has_holdup=self.config.has_holdup,
+                    property_package=self.config.aqueous_stream.property_package,
+                    property_package_args=self.config.aqueous_stream.property_package_args,
+                    transformation_method=self.config.settler_transformation_method,
+                    transformation_scheme=self.config.settler_transformation_scheme,
+                    finite_elements=self.config.settler_finite_elements,
+                    collocation_points=self.config.settler_collocation_points,
+                ),
+            )
+            getattr(self, f"solvent_extraction_aqueous_settler_{i}").add_geometry(
+                flow_direction=self.config.aqueous_stream.flow_direction,
+            )
+            getattr(self, f"solvent_extraction_aqueous_settler_{i}").add_state_blocks(
+                information_flow=self.config.aqueous_stream.flow_direction,
+                has_phase_equilibrium=False,
+            )
+            getattr(
+                self, f"solvent_extraction_aqueous_settler_{i}"
+            ).add_material_balances(
+                balance_type=MaterialBalanceType.componentTotal,
+                has_phase_equilibrium=False,
+                has_mass_transfer=False,
+            )
+            getattr(
+                self, f"solvent_extraction_aqueous_settler_{i}"
+            ).add_energy_balances(
+                balance_type=EnergyBalanceType.none,
+            )
+            getattr(
+                self, f"solvent_extraction_aqueous_settler_{i}"
+            ).apply_transformation()
+            self.add_inlet_port(
+                name=f"solvent_extraction_aqueous_settler_{i}_inlet",
+                block=getattr(self, f"solvent_extraction_aqueous_settler_{i}"),
+            )
+            self.add_outlet_port(
+                name=f"solvent_extraction_aqueous_settler_{i}_outlet",
+                block=getattr(self, f"solvent_extraction_aqueous_settler_{i}"),
+            )
+
+        # Declare organic settler tanks
+        for i in self.elements:
+            setattr(
+                self,
+                f"solvent_extraction_organic_settler_{i}",
+                ControlVolume1DBlock(
+                    dynamic=self.config.dynamic,
+                    has_holdup=self.config.has_holdup,
+                    property_package=self.config.organic_stream.property_package,
+                    property_package_args=self.config.organic_stream.property_package_args,
+                    transformation_method=self.config.settler_transformation_method,
+                    transformation_scheme=self.config.settler_transformation_scheme,
+                    finite_elements=self.config.settler_finite_elements,
+                    collocation_points=self.config.settler_collocation_points,
+                ),
+            )
+            getattr(self, f"solvent_extraction_organic_settler_{i}").add_geometry(
+                flow_direction=self.config.organic_stream.flow_direction,
+            )
+            getattr(self, f"solvent_extraction_organic_settler_{i}").add_state_blocks(
+                information_flow=self.config.organic_stream.flow_direction,
+                has_phase_equilibrium=False,
+            )
+            getattr(
+                self, f"solvent_extraction_organic_settler_{i}"
+            ).add_material_balances(
+                balance_type=MaterialBalanceType.componentTotal,
+                has_phase_equilibrium=False,
+                has_mass_transfer=False,
+            )
+            getattr(
+                self, f"solvent_extraction_organic_settler_{i}"
+            ).add_energy_balances(
+                balance_type=EnergyBalanceType.none,
+            )
+            getattr(
+                self, f"solvent_extraction_organic_settler_{i}"
+            ).apply_transformation()
+            self.add_inlet_port(
+                name=f"solvent_extraction_organic_settler_{i}_inlet",
+                block=getattr(self, f"solvent_extraction_organic_settler_{i}"),
+            )
+            self.add_outlet_port(
+                name=f"solvent_extraction_organic_settler_{i}_outlet",
+                block=getattr(self, f"solvent_extraction_organic_settler_{i}"),
+            )
+
+        # Declare the mixer settler arcs
+        for i in self.elements:
+            setattr(
+                self,
+                f"solvent_extraction_mixer_aqueous_settler_arc_{i}",
+                Arc(
+                    source=getattr(
+                        self, f"solvent_extraction_mixer_{i}"
+                    ).aqueous_outlet,
+                    destination=getattr(
+                        self, f"solvent_extraction_aqueous_settler_{i}_inlet"
+                    ),
+                ),
+            )
+            setattr(
+                self,
+                f"solvent_extraction_mixer_organic_settler_arc_{i}",
+                Arc(
+                    source=getattr(
+                        self, f"solvent_extraction_mixer_{i}"
+                    ).organic_outlet,
+                    destination=getattr(
+                        self, f"solvent_extraction_organic_settler_{i}_inlet"
+                    ),
+                ),
+            )
+
+        # Declare directional arcs between mixer-settler tanks
+        for i in self.elements:
+            for j in ["aqueous", "organic"]:
+                if (
+                    getattr(self.config, f"{j}_stream").flow_direction
+                    == FlowDirection.forward
+                ):
+                    if i != self.elements.first():
+                        setattr(
+                            self,
+                            f"solvent_extraction_{j}_settler_{i-1}_to_mixer_{i}_arc",
+                            Arc(
+                                source=getattr(
+                                    self, f"solvent_extraction_{j}_settler_{i-1}_outlet"
+                                ),
+                                destination=getattr(
+                                    getattr(self, f"solvent_extraction_mixer_{i}"),
+                                    f"{j}_inlet",
+                                ),
+                            ),
+                        )
+                    else:
+                        continue
+                else:
+                    if i != self.elements.last():
+                        setattr(
+                            self,
+                            f"solvent_extraction_{j}_settler_{i+1}_to_mixer_{i}_arc",
+                            Arc(
+                                source=getattr(
+                                    self, f"solvent_extraction_{j}_settler_{i+1}_outlet"
+                                ),
+                                destination=getattr(
+                                    getattr(self, f"solvent_extraction_mixer_{i}"),
+                                    f"{j}_inlet",
+                                ),
+                            ),
+                        )
+                    else:
+                        continue
+
+        TransformationFactory("network.expand_arcs").apply_to(self)
+
+        # define ports
+        for j in ["aqueous", "organic"]:
+            if (
+                getattr(self.config, f"{j}_stream").flow_direction
+                == FlowDirection.forward
+            ):
+                inlet_stage = self.elements.first()
+                outlet_stage = self.elements.last()
+            else:
+                inlet_stage = self.elements.last()
+                outlet_stage = self.elements.first()
+            setattr(
+                self,
+                f"{j}_inlet",
+                Port(
+                    extends=getattr(
+                        getattr(self, f"solvent_extraction_mixer_{inlet_stage}"),
+                        f"{j}_inlet",
+                    ),
+                ),
+            )
+            setattr(
+                self,
+                f"{j}_outlet",
+                Port(
+                    extends=getattr(
+                        self, f"solvent_extraction_{j}_settler_{outlet_stage}_outlet"
+                    ),
+                ),
+            )
