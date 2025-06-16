@@ -1,3 +1,4 @@
+from pydoc import doc
 from pyomo.common.config import ConfigValue, Bool, ListOf, ConfigDict, In
 from pyomo.dae import DerivativeVar, ContinuousSet
 from pyomo.environ import (
@@ -311,24 +312,24 @@ class MembraneSolventExtractionData(UnitModelBlockData):
         )
 
         self.tube_inner_radius = Param(
-            initialize=self.config.tube_inner_radius,
+            initialize=units.convert(self.config.tube_inner_radius, to_units=units.m),
             units=units.m,
-            mutable=False,
+            mutable=True,
             doc="Inner diameter of tube",
         )
 
         self.tube_outer_radius = Param(
-            initialize=self.config.tube_outer_radius,
+            initialize=units.convert(self.config.tube_outer_radius, to_units=units.m),
             units=units.m,
-            mutable=False,
-            doc="Inner diameter of tube",
+            mutable=True,
+            doc="Outer diameter of tube",
         )
 
         self.shell_radius = Param(
-            initialize=self.config.shell_radius,
+            initialize=units.convert(self.config.shell_radius, to_units=units.m),
             units=units.m,
-            mutable=False,
-            doc="Inner diameter of tube",
+            mutable=True,
+            doc="Shell diameter of tube",
         )
 
         # Feed phase
@@ -437,7 +438,8 @@ class MembraneSolventExtractionData(UnitModelBlockData):
             bounds=(
                 value(self.tube_inner_radius),
                 value(self.tube_outer_radius),
-            )
+            ),
+            doc="Radial domain for membrane phase",
         )
 
         # # Membrane phase
@@ -455,16 +457,18 @@ class MembraneSolventExtractionData(UnitModelBlockData):
         def membrane_concentration_profile(b, t, z, r, e):
             r_m = b.tube_outer_radius
             r_i = b.tube_inner_radius
-            CM = b.membrane_phase[t, z, r].conc_mol_comp[e]
-            CFDF = (
+            C_membrane = b.membrane_phase[t, z, r].conc_mol_comp[e]
+            C_mem_feed_int = (
                 b.feed_phase.properties[t, z].conc_mol_comp[e]
                 * b.membrane_phase[t, z, value(r_i)].feed_distribution_coefficient[e]
             )
-            CSDS = (
+            C_mem_strip_int = (
                 b.strip_phase.properties[t, z].conc_mol_comp[e]
                 * b.membrane_phase[t, z, value(r_m)].strip_distribution_coefficient[e]
             )
-            return (CM - CFDF) * log(r_m / r_i) == (CSDS - CFDF) * log(r / r_i)
+            return (C_membrane - C_mem_feed_int) * log(r_m / r_i) == (
+                C_mem_strip_int - C_mem_feed_int
+            ) * log(r * units.m / r_i)
 
         self.membrane_concentration_profile_rule = Constraint(
             self.flowsheet().time,
@@ -474,123 +478,20 @@ class MembraneSolventExtractionData(UnitModelBlockData):
             rule=membrane_concentration_profile,
         )
 
-        # def tube_REE_flux_formula(b, t, z, e):
-        #     r_m = b.tube_outer_radius
-        #     r_i = b.tube_inner_radius
-        #     # if e in ["H2O", "HSO4", "H", "SO4", "Cl"]:
-        #     #     return b.feed_phase.mass_transfer_term[t, z, "liquid", e] == 0
-        #     # else:
-        #     CFDF = (
-        #         b.feed_phase.properties[t, z].conc_mol_comp[e]
-        #         * b.membrane_phase[t, z, value(r_i)].feed_distribution_coefficient[e]
-        #     )
-        #     CSDS = (
-        #         b.strip_phase.properties[t, z].conc_mol_comp[e]
-        #         * b.membrane_phase[t, z, value(r_m)].strip_distribution_coefficient[e]
-        #     )
-
-        #     Diff_coeff = b.config.membrane_phase["property_package"].D_coeff[e]
-
-        #     return b.feed_phase.mass_transfer_term[t, z, "liquid", e] == -(
-        #         Diff_coeff * 2 * pi * (CFDF - CSDS) / log(r_m / r_i)
-        #     )
-
-        # self.tube_REE_flux_rule = Constraint(
-        #     self.flowsheet().time,
-        #     self.feed_phase.length_domain,
-        #     self.config.membrane_phase["property_package"].component_list,
-        #     rule=tube_REE_flux_formula,
-        # )
-
-        # def tube_non_REE_flux_formula(b, t, z, e):
-        #     if e in ["H2O", "HSO4", "SO4", "Cl"]:
-        #         return b.feed_phase.mass_transfer_term[t, z, "liquid", e] == 0
-        #     elif e == "H":
-        #         return b.feed_phase.mass_transfer_term[t, z, "liquid", e] == -3 * sum(
-        #             b.feed_phase.mass_transfer_term[t, z, "liquid", i]
-        #             for i in b.config.membrane_phase["property_package"].component_list
-        #         )
-        #     else:
-        #         return Constraint.Skip
-
-        # self.tube_non_REE_flux_rule = Constraint(
-        #     self.flowsheet().time,
-        #     self.feed_phase.length_domain,
-        #     self.config.feed_phase["property_package"].component_list,
-        #     rule=tube_non_REE_flux_formula,
-        # )
-
-        # # def shell_REE_flux_formula(b, t, z, e):
-        # #     r_m = b.tube_outer_radius
-        # #     r_i = b.tube_inner_radius
-        # #     n = b.config.number_of_tubes
-        # #     # if e in ["H2O", "HSO4", "H", "SO4", "Cl"]:
-        # #     #     return b.strip_phase.mass_transfer_term[t, z, "liquid", e] == 0
-        # #     # else:
-        # #     CFDF = (
-        # #         b.strip_phase.properties[t, z].conc_mol_comp[e]
-        # #         * b.membrane_phase[t, z, value(r_i)].feed_distribution_coefficient[
-        # #             e
-        # #         ]
-        # #     )
-        # #     CSDS = (
-        # #         b.strip_phase.properties[t, z].conc_mol_comp[e]
-        # #         * b.membrane_phase[t, z, value(r_m)].strip_distribution_coefficient[
-        # #             e
-        # #         ]
-        # #     )
-
-        # #     Diff_coeff = b.config.membrane_phase["property_package"].D_coeff[e]
-
-        # #     return b.strip_phase.mass_transfer_term[t, z, "liquid", e] == (
-        # #         Diff_coeff * 2 * pi * n * (CFDF - CSDS) / log(r_m / r_i)
-        # #     )
-
-        # def shell_REE_flux_formula(b, t, z, e):
-        #     n = b.config.number_of_tubes
-        #     return (
-        #         b.strip_phase.mass_transfer_term[t, z, "liquid", e]
-        #         == -b.feed_phase.mass_transfer_term[t, z, "liquid", e] * n
-        #     )
-
-        # self.shell_flux_rule = Constraint(
-        #     self.flowsheet().time,
-        #     self.strip_phase.length_domain,
-        #     self.config.membrane_phase["property_package"].component_list,
-        #     rule=shell_REE_flux_formula,
-        # )
-
-        # def shell_non_REE_flux_formula(b, t, z, e):
-        #     if e in ["H2O", "HSO4", "SO4", "Cl"]:
-        #         return b.strip_phase.mass_transfer_term[t, z, "liquid", e] == 0
-        #     elif e == "H":
-        #         return b.strip_phase.mass_transfer_term[t, z, "liquid", e] == -3 * sum(
-        #             b.strip_phase.mass_transfer_term[t, z, "liquid", i]
-        #             for i in b.config.membrane_phase["property_package"].component_list
-        #         )
-        #     else:
-        #         return Constraint.Skip
-
-        # self.shell_non_REE_flux_rule = Constraint(
-        #     self.flowsheet().time,
-        #     self.feed_phase.length_domain,
-        #     self.config.strip_phase["property_package"].component_list,
-        #     rule=shell_non_REE_flux_formula,
-        # )
-
         def tube_flux_formula(b, t, z, e):
             r_m = b.tube_outer_radius
             r_i = b.tube_inner_radius
+            n = b.config.number_of_tubes
             if e in ["H2O", "HSO4", "SO4", "Cl"]:
                 return b.feed_phase.mass_transfer_term[t, z, "liquid", e] == 0
             elif e in b.config.membrane_phase["property_package"].component_list:
-                CFDF = (
+                C_mem_feed_int = (
                     b.feed_phase.properties[t, z].conc_mol_comp[e]
                     * b.membrane_phase[t, z, value(r_i)].feed_distribution_coefficient[
                         e
                     ]
                 )
-                CSDS = (
+                C_mem_strip_int = (
                     b.strip_phase.properties[t, z].conc_mol_comp[e]
                     * b.membrane_phase[t, z, value(r_m)].strip_distribution_coefficient[
                         e
@@ -599,8 +500,18 @@ class MembraneSolventExtractionData(UnitModelBlockData):
 
                 Diff_coeff = b.config.membrane_phase["property_package"].D_coeff[e]
 
-                return b.feed_phase.mass_transfer_term[t, z, "liquid", e] == -(
-                    Diff_coeff * 2 * pi * (CFDF - CSDS) / log(r_m / r_i)
+                return b.feed_phase.mass_transfer_term[
+                    t, z, "liquid", e
+                ] == units.convert(
+                    -(
+                        Diff_coeff
+                        * 2
+                        * n
+                        * pi
+                        * (C_mem_feed_int - C_mem_strip_int)
+                        / log(r_m / r_i)
+                    ),
+                    to_units=units.mol / (units.hour * units.m),
                 )
             else:
                 return b.feed_phase.mass_transfer_term[t, z, "liquid", e] == -3 * sum(
@@ -615,55 +526,10 @@ class MembraneSolventExtractionData(UnitModelBlockData):
             rule=tube_flux_formula,
         )
 
-        # def tube_non_REE_flux_formula(b, t, z, e):
-        #     if e in ["H2O", "HSO4", "SO4", "Cl"]:
-        #         return b.feed_phase.mass_transfer_term[t, z, "liquid", e] == 0
-        #     elif e == "H":
-        #         return b.feed_phase.mass_transfer_term[t, z, "liquid", e] == -3 * sum(
-        #             b.feed_phase.mass_transfer_term[t, z, "liquid", i]
-        #             for i in b.config.membrane_phase["property_package"].component_list
-        #         )
-        #     else:
-        #         return Constraint.Skip
-
-        # self.tube_non_REE_flux_rule = Constraint(
-        #     self.flowsheet().time,
-        #     self.feed_phase.length_domain,
-        #     self.config.feed_phase["property_package"].component_list,
-        #     rule=tube_non_REE_flux_formula,
-        # )
-
-        # def shell_REE_flux_formula(b, t, z, e):
-        #     r_m = b.tube_outer_radius
-        #     r_i = b.tube_inner_radius
-        #     n = b.config.number_of_tubes
-        #     # if e in ["H2O", "HSO4", "H", "SO4", "Cl"]:
-        #     #     return b.strip_phase.mass_transfer_term[t, z, "liquid", e] == 0
-        #     # else:
-        #     CFDF = (
-        #         b.strip_phase.properties[t, z].conc_mol_comp[e]
-        #         * b.membrane_phase[t, z, value(r_i)].feed_distribution_coefficient[
-        #             e
-        #         ]
-        #     )
-        #     CSDS = (
-        #         b.strip_phase.properties[t, z].conc_mol_comp[e]
-        #         * b.membrane_phase[t, z, value(r_m)].strip_distribution_coefficient[
-        #             e
-        #         ]
-        #     )
-
-        #     Diff_coeff = b.config.membrane_phase["property_package"].D_coeff[e]
-
-        #     return b.strip_phase.mass_transfer_term[t, z, "liquid", e] == (
-        #         Diff_coeff * 2 * pi * n * (CFDF - CSDS) / log(r_m / r_i)
-        #     )
-
         def shell_flux_formula(b, t, z, e):
-            n = b.config.number_of_tubes
             return (
                 b.strip_phase.mass_transfer_term[t, z, "liquid", e]
-                == -b.feed_phase.mass_transfer_term[t, z, "liquid", e] * n
+                == -b.feed_phase.mass_transfer_term[t, z, "liquid", e]
             )
 
         self.shell_flux_rule = Constraint(

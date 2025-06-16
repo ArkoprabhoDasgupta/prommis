@@ -63,19 +63,20 @@ def set_inputs(m):
     University of Kentucky pilot plant study.
     """
     # Liquid feed state
-    m.fs.leach.liquid_inlet.flow_vol.fix(227.124 * units.L / units.hour)
+    m.fs.leach.liquid_inlet.temperature.fix(303.15 * units.K)
+    m.fs.leach.liquid_inlet.flow_vol.fix(227.12 * units.L / units.hour)
     m.fs.leach.liquid_inlet.conc_mass_comp.fix(1e-10 * units.mg / units.L)
 
     m.fs.leach.liquid_inlet.conc_mass_comp[0, "H"].fix(
-        0.05 * 2 * 1e3 * units.mg / units.L
+        0.075 * 2 * 1e3 * units.mg / units.L
     )
     m.fs.leach.liquid_inlet.conc_mass_comp[0, "HSO4"].fix(1e-8 * units.mg / units.L)
     m.fs.leach.liquid_inlet.conc_mass_comp[0, "SO4"].fix(
-        0.05 * 96 * 1e3 * units.mg / units.L
+        0.075 * 96 * 1e3 * units.mg / units.L
     )
 
     # Solid feed state
-    m.fs.leach.solid_inlet.flow_mass.fix(22.68 * 2 * units.kg / units.hour)
+    m.fs.leach.solid_inlet.flow_mass.fix(22.68 * 1.5 * units.kg / units.hour)
     m.fs.leach.solid_inlet.mass_frac_comp[0, "inerts"].fix(0.6952 * units.kg / units.kg)
     m.fs.leach.solid_inlet.mass_frac_comp[0, "Al2O3"].fix(0.237 * units.kg / units.kg)
     m.fs.leach.solid_inlet.mass_frac_comp[0, "Fe2O3"].fix(0.0642 * units.kg / units.kg)
@@ -109,6 +110,8 @@ def set_inputs(m):
     )
 
     m.fs.leach.volume.fix(100 * units.gallon)
+    m.fs.leach.mscontactor.liquid[0.0, 1].temperature.fix(303.15 * units.K)
+    m.fs.leach.mscontactor.liquid[0.0, 1].pressure.fix(101325 * units.Pa)
 
 
 def set_scaling(m):

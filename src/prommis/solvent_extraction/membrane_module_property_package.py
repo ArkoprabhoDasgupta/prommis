@@ -61,41 +61,22 @@ class MembraneSXModuleParameterData(PhysicalParameterBlock):
         self.Ca = Component()
         self.Fe = Component()
 
-        # self.mw = Param(
-        #     self.component_list,
-        #     units=units.kg / units.mol,
-        #     initialize={
-        #         "Sc": 44.946e-3,
-        #         "Y": 88.905e-3,
-        #         "La": 138.905e-3,
-        #         "Ce": 140.116e-3,
-        #         "Pr": 140.907e-3,
-        #         "Nd": 144.242e-3,
-        #         "Sm": 150.36e-3,
-        #         "Gd": 157.25e-3,
-        #         "Dy": 162.50e-3,
-        #         "Al": 26.982e-3,
-        #         "Ca": 40.078e-3,
-        #         "Fe": 55.845e-3,
-        #     },
-        # )
-
         self.D_coeff = Param(
             self.component_list,
             units=(units.m**2) / units.s,
             initialize={
-                "Sc": 10e-10,
-                "Y": 10e-10,
-                "La": 10e-10,
-                "Ce": 10e-10,
-                "Pr": 10e-10,
-                "Nd": 10e-10,
-                "Sm": 10e-10,
-                "Gd": 10e-10,
-                "Dy": 10e-10,
-                "Al": 10e-10,
-                "Ca": 10e-10,
-                "Fe": 10e-10,
+                "Sc": 1e-9,
+                "Y": 1e-9,
+                "La": 1e-9,
+                "Ce": 1e-9,
+                "Pr": 1e-9,
+                "Nd": 1e-9,
+                "Sm": 1e-9,
+                "Gd": 1e-9,
+                "Dy": 1e-9,
+                "Al": 1e-9,
+                "Ca": 1e-9,
+                "Fe": 1e-9,
             },
         )
 

@@ -179,7 +179,7 @@ dosage = 5
 number_of_stages = 3
 stage_number = np.arange(1, number_of_stages + 1)
 
-time_duration = 20
+time_duration = 12
 
 m = main(dosage, number_of_stages, time_duration)
 
@@ -188,7 +188,7 @@ for t in m.fs.time:
     if t <= perturb_time:
         m.fs.solex.mscontactor.aqueous_inlet_state[t].flow_vol.fix(62.01)
     else:
-        m.fs.solex.mscontactor.aqueous_inlet_state[t].flow_vol.set_value(72.01)
+        m.fs.solex.mscontactor.aqueous_inlet_state[t].flow_vol.fix(72.01)
 
 solver = get_solver(solver="ipopt_v2")
 solver.solve(m, tee=True)
@@ -211,6 +211,8 @@ for e in REE_set:
         * 100
         for t in m.fs.time
     ]
+
+
 for e in REE_set:
     plt.plot(m.fs.time, m.fs.solex.mscontactor.organic[:, 1].conc_mass_comp[f"{e}_o"]())
 plt.legend(REE_set)

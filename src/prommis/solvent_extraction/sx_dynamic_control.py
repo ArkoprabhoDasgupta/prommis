@@ -172,7 +172,7 @@ m.fs.solex.mscontactor.volume[:].fix(100 * units.L)
 # for t in m.fs.time:
 #     m.fs.solex.mscontactor.volume_frac_stream[t, :, "aqueous"].fix(0.5 + 0.3 * (t / 24))
 
-m.fs.solex.mscontactor.volume_frac_stream[0, :, "aqueous"].fix(0.3)
+m.fs.solex.mscontactor.volume_frac_stream[0, :, "aqueous"].fix(0.5)
 m.fs.solex.mscontactor.volume_frac_stream.setub(1)
 m.fs.solex.mscontactor.volume_frac_stream.setlb(0)
 
@@ -197,7 +197,13 @@ m.fs.solex.mscontactor.aqueous_inlet_state[:].conc_mass_comp["Sm"].fix(0.097)
 m.fs.solex.mscontactor.aqueous_inlet_state[:].conc_mass_comp["Gd"].fix(0.2584)
 m.fs.solex.mscontactor.aqueous_inlet_state[:].conc_mass_comp["Dy"].fix(0.047)
 
-m.fs.solex.mscontactor.aqueous_inlet_state[:].flow_vol.fix(62.01)
+for t in m.fs.time:
+    if t <= 8:
+        m.fs.solex.mscontactor.aqueous_inlet_state[t].flow_vol.fix(62.01)
+    else:
+        m.fs.solex.mscontactor.aqueous_inlet_state[t].flow_vol.fix(62.01 * 1.2)
+
+# m.fs.solex.mscontactor.aqueous_inlet_state[:].flow_vol.fix(62.01)
 
 m.fs.solex.mscontactor.organic_inlet_state[:].conc_mass_comp["Kerosene"].fix(820e3)
 m.fs.solex.mscontactor.organic_inlet_state[:].conc_mass_comp["DEHPA"].fix(
@@ -239,16 +245,16 @@ for e in m.fs.reaxn.element_list:
 m.fs.solex.mscontactor.aqueous_inlet_state[:].temperature.fix(305.15 * units.K)
 m.fs.solex.mscontactor.aqueous[:, :].temperature.fix(305.15 * units.K)
 
-m.fs.control.gain_p.fix(3)
-m.fs.control.gain_i.fix(1)
-for t in m.fs.time:
-    if 0 <= t <= 4:
-        m.fs.control.setpoint[t].fix(0.3)
-    elif 4 < t <= 15:
-        m.fs.control.setpoint[t].fix(0.5)
-    else:
-        m.fs.control.setpoint[t].fix(0.6)
-# m.fs.control.setpoint.fix(0.5)
+m.fs.control.gain_p.fix(-3)
+m.fs.control.gain_i.fix(-1)
+# for t in m.fs.time:
+#     if 0 <= t <= 4:
+#         m.fs.control.setpoint[t].fix(0.3)
+#     elif 4 < t <= 15:
+#         m.fs.control.setpoint[t].fix(0.5)
+#     else:
+#         m.fs.control.setpoint[t].fix(0.6)
+m.fs.control.setpoint.fix(0.5)
 m.fs.control.mv_ref.fix(0)
 # m.fs.control.derivative_term[0].fix(1e-4)
 # m.fs.control.mv_eqn[:].deactivate()

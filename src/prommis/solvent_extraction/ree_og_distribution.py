@@ -240,7 +240,7 @@ class REESolExOgStateBlockData(StateBlockData):
     def get_energy_density_terms(b, p):
         return (b.params.dens_mass / b.params.mw["Kerosene"]) * b.params.cp_mol * (
             b.temperature - b.params.temperature_ref
-        ) - b.pressure * b.params.mw["H2O"] / b.params.dens_mass
+        ) - b.pressure * b.params.mw["Kerosene"] / b.params.dens_mass
 
     def default_energy_balance_type(self):
         return EnergyBalanceType.enthalpyTotal

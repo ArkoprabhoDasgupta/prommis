@@ -204,10 +204,10 @@ class CompoundSolventExtractionData(UnitModelBlockData):
                 collocation_points=self.config.settler_collocation_points,
             )
             self.solvent_extraction_aqueous_settler[i].unit.add_geometry(
-                flow_direction=self.config.aqueous_stream.flow_direction,
+                flow_direction=FlowDirection.forward,
             )
             self.solvent_extraction_aqueous_settler[i].unit.add_state_blocks(
-                information_flow=self.config.aqueous_stream.flow_direction,
+                information_flow=FlowDirection.forward,
                 has_phase_equilibrium=False,
             )
             self.solvent_extraction_aqueous_settler[i].unit.add_material_balances(
@@ -216,7 +216,11 @@ class CompoundSolventExtractionData(UnitModelBlockData):
                 has_mass_transfer=False,
             )
             self.solvent_extraction_aqueous_settler[i].unit.add_energy_balances(
-                balance_type=EnergyBalanceType.none,
+                balance_type=EnergyBalanceType.useDefault,
+            )
+            self.solvent_extraction_aqueous_settler[i].unit.add_momentum_balances(
+                balance_type=MomentumBalanceType.pressureTotal,
+                has_pressure_change=False,
             )
             self.solvent_extraction_aqueous_settler[i].unit.apply_transformation()
             self.add_inlet_port(
@@ -242,10 +246,10 @@ class CompoundSolventExtractionData(UnitModelBlockData):
                 collocation_points=self.config.settler_collocation_points,
             )
             self.solvent_extraction_organic_settler[i].unit.add_geometry(
-                flow_direction=self.config.organic_stream.flow_direction,
+                flow_direction=FlowDirection.forward,
             )
             self.solvent_extraction_organic_settler[i].unit.add_state_blocks(
-                information_flow=self.config.organic_stream.flow_direction,
+                information_flow=FlowDirection.forward,
                 has_phase_equilibrium=False,
             )
             self.solvent_extraction_organic_settler[i].unit.add_material_balances(
@@ -254,7 +258,11 @@ class CompoundSolventExtractionData(UnitModelBlockData):
                 has_mass_transfer=False,
             )
             self.solvent_extraction_organic_settler[i].unit.add_energy_balances(
-                balance_type=EnergyBalanceType.none,
+                balance_type=EnergyBalanceType.useDefault,
+            )
+            self.solvent_extraction_organic_settler[i].unit.add_momentum_balances(
+                balance_type=MomentumBalanceType.pressureTotal,
+                has_pressure_change=False,
             )
             self.solvent_extraction_organic_settler[i].unit.apply_transformation()
             self.add_inlet_port(
@@ -274,10 +282,10 @@ class CompoundSolventExtractionData(UnitModelBlockData):
                     f"solvent_extraction_mixer_{j}_settler_arc_{i}",
                     Arc(
                         source=getattr(
-                            self, f"solvent_extraction_mixer[{i}].unit.{j}_outlet"
+                            self.solvent_extraction_mixer[i].unit, f"{j}_outlet"
                         ),
                         destination=getattr(
-                            self, f"solvent_extraction_{j}_settler[{i}].unit_outlet"
+                            self, f"solvent_extraction_{j}_settler[{i}].unit_inlet"
                         ),
                     ),
                 )
@@ -290,38 +298,30 @@ class CompoundSolventExtractionData(UnitModelBlockData):
                     == FlowDirection.forward
                 ):
                     if i != self.elements.first():
-                        setattr(
-                            self,
-                            f"solvent_extraction_{j}_settler_{i-1}_to_mixer_{i}_arc",
-                            Arc(
-                                source=getattr(
-                                    self, f"solvent_extraction_{j}_settler_{i-1}_outlet"
-                                ),
-                                destination=getattr(
-                                    getattr(self, f"solvent_extraction_mixer_{i}"),
-                                    f"{j}_inlet",
-                                ),
-                            ),
-                        )
+                        previous_stage = i - 1
+                        current_stage = i
                     else:
                         continue
                 else:
                     if i != self.elements.last():
-                        setattr(
-                            self,
-                            f"solvent_extraction_{j}_settler_{i+1}_to_mixer_{i}_arc",
-                            Arc(
-                                source=getattr(
-                                    self, f"solvent_extraction_{j}_settler_{i+1}_outlet"
-                                ),
-                                destination=getattr(
-                                    getattr(self, f"solvent_extraction_mixer_{i}"),
-                                    f"{j}_inlet",
-                                ),
-                            ),
-                        )
+                        previous_stage = i + 1
+                        current_stage = i
                     else:
                         continue
+                setattr(
+                    self,
+                    f"solvent_extraction_{j}_settler_{previous_stage}_to_mixer_{current_stage}_arc",
+                    Arc(
+                        source=getattr(
+                            self,
+                            f"solvent_extraction_{j}_settler[{previous_stage}].unit_outlet",
+                        ),
+                        destination=getattr(
+                            self.solvent_extraction_mixer[current_stage].unit,
+                            f"{j}_inlet",
+                        ),
+                    ),
+                )
 
         TransformationFactory("network.expand_arcs").apply_to(self)
 
@@ -341,7 +341,7 @@ class CompoundSolventExtractionData(UnitModelBlockData):
                 f"{j}_inlet",
                 Port(
                     extends=getattr(
-                        getattr(self, f"solvent_extraction_mixer_{inlet_stage}"),
+                        self.solvent_extraction_mixer[inlet_stage].unit,
                         f"{j}_inlet",
                     ),
                 ),
@@ -351,7 +351,8 @@ class CompoundSolventExtractionData(UnitModelBlockData):
                 f"{j}_outlet",
                 Port(
                     extends=getattr(
-                        self, f"solvent_extraction_{j}_settler_{outlet_stage}_outlet"
+                        self,
+                        f"solvent_extraction_{j}_settler[{outlet_stage}].unit_outlet",
                     ),
                 ),
             )
