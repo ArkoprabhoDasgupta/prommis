@@ -34,7 +34,7 @@ m.fs = FlowsheetBlock(dynamic=False)
 m.fs.mem_prop = MembraneSXModuleParameters()
 m.fs.leach_soln = LeachSolutionParameters()
 # m.fs.reaxn = ReactionParameterTestBlock(property_package=m.fs.leach_soln)
-m.fs.mem_prop.extractant_dosage = 10
+m.fs.mem_prop.extractant_dosage = 5
 
 m.fs.membrane_module = MembraneSolventExtraction(
     feed_phase={
@@ -52,7 +52,7 @@ m.fs.membrane_module = MembraneSolventExtraction(
     membrane_phase={
         "property_package": m.fs.mem_prop,
     },
-    finite_elements=2,
+    finite_elements=6,
     transformation_method="dae.finite_difference",
     transformation_scheme="BACKWARD",
     tube_inner_radius=100 * units.micrometer,
@@ -106,10 +106,10 @@ m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "Sc"].fix(
 m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "Cl"].fix(
     0.01 * 35.5 * units.gram / units.L
 )
-# m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "H"].fix(
-#     0.01 * 1 * units.gram / units.L
-# )
-m.fs.membrane_module.feed_phase.properties[0.0, 0.0].pH_phase["liquid"].fix(2.06)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "H"].fix(
+    10**-2.06 * units.gram / units.L
+)
+# m.fs.membrane_module.feed_phase.properties[0.0, 0.0].pH_phase["liquid"].fix(2.06)
 m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "HSO4"].fix(1e-2)
 m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "SO4"].fix(1e-2)
 m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "H2O"].fix(1e6)
