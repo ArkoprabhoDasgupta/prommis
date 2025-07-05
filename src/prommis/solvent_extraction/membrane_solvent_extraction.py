@@ -1,19 +1,17 @@
-from pydoc import doc
-from pyomo.common.config import ConfigValue, Bool, ListOf, ConfigDict, In
-from pyomo.dae import DerivativeVar, ContinuousSet
+from pyomo.common.config import ConfigValue, Bool, ConfigDict, In
+from pyomo.dae import ContinuousSet
 from pyomo.environ import (
     Constraint,
     Param,
     Block,
     units,
-    Set,
     Var,
-    Reals,
-    PositiveIntegers,
     PositiveReals,
     value,
     log,
 )
+from pyomo.dae.flatten import flatten_dae_components
+from pyomo.contrib.incidence_analysis import solve_strongly_connected_components
 from math import pi
 
 from idaes.core import (
@@ -26,14 +24,68 @@ from idaes.core import (
     MomentumBalanceType,
     ControlVolume1DBlock,
 )
-from idaes.core.util.config import is_physical_parameter_block, DefaultBool
-from idaes.core.util.constants import Constants
+from idaes.core.initialization import (
+    SingleControlVolumeUnitInitializer,
+)
+from idaes.core.util.config import is_physical_parameter_block
 
-from idaes.core.util.exceptions import ConfigurationError
-import idaes.core.util.scaling as iscale
-from idaes.core.solvers import get_solver
 
-import idaes.logger as idaeslog
+class MembraneSolventExtractionInitializer(SingleControlVolumeUnitInitializer):
+    """
+    This is a general purpose Initializer  for the Solvent Extraction unit model.
+
+    This routine calls the initializer for the internal MSContactor model.
+
+    """
+
+    def initialize_main_model(
+        self,
+        model: Block,
+        plugin_initializer_args: dict = None,
+        copy_inlet_state: bool = False,
+    ):
+        """
+        Initialization routine for 1D control volumes in membrane solvent extraction model.
+
+        Args:
+            model: model to be initialized
+
+        Returns:
+            None
+        """
+        for stream in ["feed", "strip"]:
+            target_model = getattr(model, f"{stream}_phase")
+            target_x = getattr(model, f"{stream}_phase").length_domain
+            regular_vars, length_vars = flatten_dae_components(
+                target_model,
+                target_x,
+                Var,
+                active=True,
+            )
+            for var in length_vars:
+                for x in target_x:
+                    if x == target_x.first():
+                        continue
+                    else:
+                        var[x].value = var[target_x.first()].value
+
+        solver = self._get_solver()
+        zero_model = solver.solve(model)
+
+        model.feed_phase.mass_transfer_term[:, :, "liquid", :].fix()
+        model.strip_phase.mass_transfer_term[:, :, "liquid", :].fix()
+
+        # Initialize MSX CV1Ds
+        self.initialize_control_volume(model.feed_phase)
+        self.initialize_control_volume(model.strip_phase)
+
+        model.feed_phase.mass_transfer_term[:, :, "liquid", :].unfix()
+        model.strip_phase.mass_transfer_term[:, :, "liquid", :].unfix()
+
+        init_model = solver.solve(model)
+
+        return init_model
+
 
 Stream_Config = ConfigDict()
 
@@ -285,22 +337,6 @@ class MembraneSolventExtractionData(UnitModelBlockData):
         ),
     )
 
-    # CONFIG.declare(
-    #     "reaction_package",
-    #     ConfigValue(
-    #         # TODO: Add a domain validator for this
-    #         description="Heterogeneous reaction package for leaching.",
-    #     ),
-    # )
-    # CONFIG.declare(
-    #     "reaction_package_args",
-    #     ConfigValue(
-    #         default=None,
-    #         domain=dict,
-    #         description="Arguments for heterogeneous reaction package for leaching.",
-    #     ),
-    # )
-
     def build(self):
         super().build()
 
@@ -339,8 +375,6 @@ class MembraneSolventExtractionData(UnitModelBlockData):
             has_holdup=self.config.has_holdup,
             property_package=self.config.feed_phase.property_package,
             property_package_args=self.config.feed_phase.property_package_args,
-            # reaction_package=self.config.reaction_package,
-            # reaction_package_args=self.config.reaction_package_args,
             transformation_method=self.config.transformation_method,
             transformation_scheme=self.config.transformation_scheme,
             finite_elements=self.config.finite_elements,
@@ -387,8 +421,6 @@ class MembraneSolventExtractionData(UnitModelBlockData):
             has_holdup=self.config.has_holdup,
             property_package=self.config.strip_phase.property_package,
             property_package_args=self.config.strip_phase.property_package_args,
-            # reaction_package=self.config.reaction_package,
-            # reaction_package_args=self.config.reaction_package_args,
             transformation_method=self.config.transformation_method,
             transformation_scheme=self.config.transformation_scheme,
             finite_elements=self.config.finite_elements,

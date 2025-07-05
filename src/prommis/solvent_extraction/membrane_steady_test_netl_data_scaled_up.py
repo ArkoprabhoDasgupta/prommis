@@ -1,8 +1,5 @@
-from pyomo.environ import (
-    ConcreteModel,
-    units,
-)
-import numpy as np
+from pyomo.environ import ConcreteModel, units
+
 from idaes.core import (
     FlowDirection,
     FlowsheetBlock,
@@ -11,19 +8,15 @@ from idaes.core import (
 )
 from idaes.core.solvers import get_solver
 from idaes.core.util.model_statistics import degrees_of_freedom as dof
-from idaes.core.initialization import (
-    BlockTriangularizationInitializer,
-    SingleControlVolumeUnitInitializer,
-)
+
 from prommis.solvent_extraction.membrane_module_property_package import (
     MembraneSXModuleParameters,
 )
-from prommis.solvent_extraction.membrane_steady_state_model import (
+from prommis.solvent_extraction.membrane_solvent_extraction import (
     MembraneSolventExtraction,
+    MembraneSolventExtractionInitializer,
 )
-from prommis.solvent_extraction.membrane_sx_transfer_package import (
-    ReactionParameterTestBlock,
-)
+
 from prommis.leaching.leach_solution_properties import LeachSolutionParameters
 
 
@@ -33,8 +26,7 @@ m.fs = FlowsheetBlock(dynamic=False)
 
 m.fs.mem_prop = MembraneSXModuleParameters()
 m.fs.leach_soln = LeachSolutionParameters()
-# m.fs.reaxn = ReactionParameterTestBlock(property_package=m.fs.leach_soln)
-m.fs.mem_prop.extractant_dosage = 5
+m.fs.mem_prop.extractant_dosage = 10
 
 m.fs.membrane_module = MembraneSolventExtraction(
     feed_phase={
@@ -55,18 +47,17 @@ m.fs.membrane_module = MembraneSolventExtraction(
     finite_elements=6,
     transformation_method="dae.finite_difference",
     transformation_scheme="BACKWARD",
-    tube_inner_radius=100 * units.micrometer,
-    tube_outer_radius=150 * units.micrometer,
-    shell_radius=(67 / 2) * units.mm,
+    tube_inner_radius=408.248 * units.micrometer,
+    tube_outer_radius=458.248 * units.micrometer,
+    shell_radius=132.908 * units.mm,
     number_of_tubes=6300,
-    # reaction_package=m.fs.reaxn,
 )
 
 m.fs.membrane_module.module_length.fix(0.254 * units.m)
 
 # Feed phase inlet conditions
 
-m.fs.membrane_module.feed_phase_inlet.flow_vol.fix(15 * units.mL / units.min)
+m.fs.membrane_module.feed_phase_inlet.flow_vol.fix(15 * units.L / units.hr)
 m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "Ca"].fix(
     1535976 * units.microgram / units.L
 )
@@ -107,18 +98,17 @@ m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "Cl"].fix(
     0.01 * 35.5 * units.gram / units.L
 )
 m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "H"].fix(
-    10**-2.06 * units.gram / units.L
+    10**-2.06 * 1 * units.gram / units.L
 )
-# m.fs.membrane_module.feed_phase.properties[0.0, 0.0].pH_phase["liquid"].fix(2.06)
-m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "HSO4"].fix(1e-2)
-m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "SO4"].fix(1e-2)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "HSO4"].fix(1e-5)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "SO4"].fix(1e-5)
 m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "H2O"].fix(1e6)
 m.fs.membrane_module.feed_phase_inlet.temperature.fix(303)
 m.fs.membrane_module.feed_phase_inlet.pressure.fix(101325)
 
 # Strip phase inlet conditions
 
-m.fs.membrane_module.strip_phase_inlet.flow_vol.fix(10 * units.mL / units.min)
+m.fs.membrane_module.strip_phase_inlet.flow_vol.fix(10 * units.L / units.hr)
 m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[0, "Ca"].fix(
     4081 * units.microgram / units.L
 )
@@ -162,7 +152,7 @@ m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[0, "H"].fix(
     3 * 1 * units.gram / units.L
 )
 m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[0, "HSO4"].fix(1e-5)
-m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[0, "SO4"].fix(1e-7)
+m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[0, "SO4"].fix(1e-5)
 m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[0, "H2O"].fix(1e6)
 m.fs.membrane_module.strip_phase_inlet.temperature.fix(303)
 m.fs.membrane_module.strip_phase_inlet.pressure.fix(101325)
@@ -172,17 +162,10 @@ m.fs.membrane_module.feed_phase.properties[:, :].pressure.fix(101325)
 m.fs.membrane_module.strip_phase.properties[:, :].temperature.fix(303)
 m.fs.membrane_module.strip_phase.properties[:, :].pressure.fix(101325)
 
-# m.fs.membrane_module.feed_phase.mass_transfer_term.fix(-1)
-# m.fs.membrane_module.feed_phase.mass_transfer_term[:, :, "liquid", "H2O"].fix(0)
-# m.fs.membrane_module.strip_phase.mass_transfer_term.fix(1)
-# m.fs.membrane_module.strip_phase.mass_transfer_term[:, :, "liquid", "H2O"].fix(0)
-
-# initializer = BlockTriangularizationInitializer()
-# initializer.initialize(m)
+initializer = MembraneSolventExtractionInitializer()
+initializer.initialize(m.fs.membrane_module)
 
 print("Degrees of freedom:", dof(m))
 
 solver = get_solver("ipopt_v2")
-solver.options["max_iter"] = 10000
-# # solver.options["tol"] = 1e-5
 results = solver.solve(m, tee=True)

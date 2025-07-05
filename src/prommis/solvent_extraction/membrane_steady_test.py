@@ -18,7 +18,7 @@ from idaes.core.initialization import (
 from prommis.solvent_extraction.membrane_module_property_package import (
     MembraneSXModuleParameters,
 )
-from prommis.solvent_extraction.membrane_steady_state_model import (
+from prommis.solvent_extraction.membrane_solvent_extraction import (
     MembraneSolventExtraction,
 )
 from prommis.solvent_extraction.membrane_sx_transfer_package import (
