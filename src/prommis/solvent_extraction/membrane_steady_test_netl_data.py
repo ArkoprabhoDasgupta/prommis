@@ -1,4 +1,4 @@
-from pyomo.environ import ConcreteModel, units
+from pyomo.environ import ConcreteModel, units, Suffix, TransformationFactory
 
 from idaes.core import (
     FlowDirection,
@@ -8,6 +8,7 @@ from idaes.core import (
 )
 from idaes.core.solvers import get_solver
 from idaes.core.util.model_statistics import degrees_of_freedom as dof
+from idaes.core.util.scaling import set_scaling_factor
 
 from prommis.solvent_extraction.membrane_module_property_package import (
     MembraneSXModuleParameters,
@@ -44,7 +45,7 @@ m.fs.membrane_module = MembraneSolventExtraction(
     membrane_phase={
         "property_package": m.fs.mem_prop,
     },
-    finite_elements=6,
+    finite_elements=15,
     transformation_method="dae.finite_difference",
     transformation_scheme="BACKWARD",
     tube_inner_radius=100 * units.micrometer,
@@ -53,7 +54,7 @@ m.fs.membrane_module = MembraneSolventExtraction(
     number_of_tubes=6300,
 )
 
-m.fs.membrane_module.module_length.fix(0.254 * 1 * units.m)
+m.fs.membrane_module.module_length.fix(0.254 * 2 * units.m)
 
 # Feed phase inlet conditions
 
@@ -162,10 +163,51 @@ m.fs.membrane_module.feed_phase.properties[:, :].pressure.fix(101325)
 m.fs.membrane_module.strip_phase.properties[:, :].temperature.fix(303)
 m.fs.membrane_module.strip_phase.properties[:, :].pressure.fix(101325)
 
-initializer = MembraneSolventExtractionInitializer()
-initializer.initialize(m.fs.membrane_module)
+m.scaling_factor = Suffix(direction=Suffix.EXPORT)
 
-print("Degrees of freedom:", dof(m))
+for t in m.fs.time:
+    for z in m.fs.membrane_module.feed_phase.length_domain:
+        set_scaling_factor(
+            m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp["H"],
+            1,
+        )
+        set_scaling_factor(
+            m.fs.membrane_module.feed_phase.properties[t, z].pH_constraint,
+            1,
+        )
+        for e in m.fs.mem_prop.component_list:
+            set_scaling_factor(
+                m.fs.membrane_module.feed_phase.properties[t, z].conc_mol_comp[e],
+                1e4,
+            )
+            set_scaling_factor(
+                m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp[e],
+                1,
+            )
+            set_scaling_factor(
+                m.fs.membrane_module.strip_phase.properties[t, z].conc_mol_comp[e],
+                1e4,
+            )
+            set_scaling_factor(
+                m.fs.membrane_module.strip_phase.properties[t, z].conc_mass_comp[e],
+                1,
+            )
+
+            for r in m.fs.membrane_module.r:
+                set_scaling_factor(
+                    m.fs.membrane_module.conc_mol_membrane_comp[t, z, r, e],
+                    1e4,
+                )
+
+scaling = TransformationFactory("core.scale_model")
+scaled_model = scaling.create_using(m, rename=False)
+
+initializer = MembraneSolventExtractionInitializer()
+initializer.initialize(scaled_model.fs.membrane_module)
+
+print("Degrees of freedom:", dof(scaled_model))
 
 solver = get_solver("ipopt_v2")
-results = solver.solve(m, tee=True)
+results = solver.solve(scaled_model, tee=True)
+
+scaling.propagate_solution(scaled_model, m)

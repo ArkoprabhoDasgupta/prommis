@@ -1,0 +1,251 @@
+#####################################################################################################
+# “PrOMMiS” was produced under the DOE Process Optimization and Modeling for Minerals Sustainability
+# (“PrOMMiS”) initiative, and is copyright (c) 2023-2025 by the software owners: The Regents of the
+# University of California, through Lawrence Berkeley National Laboratory, et al. All rights reserved.
+# Please see the files COPYRIGHT.md and LICENSE.md for full copyright and license information.
+#####################################################################################################
+"""
+Initial property package for membrane based solvent extraction channel.
+
+Authors: Arkoprabho Dasgupta
+"""
+
+from pyomo.environ import (
+    Constraint,
+    Param,
+    Set,
+    Var,
+    units,
+    PositiveReals,
+    Reals,
+    log10,
+)
+
+from idaes.core import (
+    Component,
+    MaterialFlowBasis,
+    Phase,
+    PhysicalParameterBlock,
+    StateBlock,
+    StateBlockData,
+    declare_process_block_class,
+    EnergyBalanceType,
+)
+from idaes.core.util.initialization import fix_state_vars
+from idaes.core.util.misc import add_object_reference
+
+
+# -----------------------------------------------------------------------------
+# Membrane solvent extraction property package
+@declare_process_block_class("MembraneSXChannelParameters")
+class MembraneSXChannelParameterData(PhysicalParameterBlock):
+    """
+
+    Includes the following components:
+
+    * Acid components: H2O, H, HSO4, SO4
+    * Rare Earths: Sc, Y, La, Ce, Pr, Nd, Sm, Gd, Dy
+    * Impurities: Al, Ca, Fe
+
+    First dissociation of H2SO4 is assumed to be complete.
+    Second dissociation governed by equilibrium (Ka2) - inherent reaction.
+
+    """
+
+    def build(self):
+        super().build()
+
+        self.liquid = Phase()
+
+        # Solvent
+        self.H2O = Component()
+
+        # Acid related species
+        self.H = Component()
+        # self.HSO4 = Component()
+        # self.SO4 = Component()
+        # self.Cl = Component()
+
+        # REEs
+        self.Sc = Component()
+        self.Y = Component()
+        self.La = Component()
+        self.Ce = Component()
+        self.Pr = Component()
+        self.Nd = Component()
+        self.Sm = Component()
+        self.Gd = Component()
+        self.Dy = Component()
+
+        # Contaminants
+        self.Al = Component()
+        self.Ca = Component()
+        self.Fe = Component()
+
+        self.mw = Param(
+            self.component_list,
+            units=units.kg / units.mol,
+            initialize={
+                "H2O": 18e-3,
+                "H": 1e-3,
+                # "HSO4": 97e-3,
+                # "SO4": 96e-3,
+                # "Cl": 35.453e-3,
+                "Sc": 44.946e-3,
+                "Y": 88.905e-3,
+                "La": 138.905e-3,
+                "Ce": 140.116e-3,
+                "Pr": 140.907e-3,
+                "Nd": 144.242e-3,
+                "Sm": 150.36e-3,
+                "Gd": 157.25e-3,
+                "Dy": 162.50e-3,
+                "Al": 26.982e-3,
+                "Ca": 40.078e-3,
+                "Fe": 55.845e-3,
+            },
+        )
+
+        # Assume dilute acid, density of pure water
+        self.dens_mass = Param(
+            initialize=1,
+            units=units.kg / units.litre,
+            mutable=True,
+        )
+
+        self._state_block_class = MembraneSXChannelStateBlock
+
+    @classmethod
+    def define_metadata(cls, obj):
+        obj.add_properties(
+            {
+                "flow_vol": {"method": None},
+                "conc_mass_comp": {"method": None},
+                "conc_mol_comp": {"method": None},
+                "dens_mass": {"method": "_dens_mass"},
+            }
+        )
+        obj.add_default_units(
+            {
+                "time": units.hour,
+                "length": units.m,
+                "mass": units.kg,
+                "amount": units.mol,
+                "temperature": units.K,
+            }
+        )
+
+
+class _MembraneSXChannelStateBlock(StateBlock):
+    def fix_initialization_states(self):
+        """
+        Fixes state variables for state blocks.
+
+        Returns:
+            None
+        """
+        # Fix state variables
+        fix_state_vars(self)
+
+        # Deactivate inherent reactions
+        for sbd in self.values():
+            if not sbd.config.defined_state:
+                sbd.h2o_concentration.deactivate()
+                # sbd.hso4_dissociation.deactivate()
+
+
+@declare_process_block_class(
+    "MembraneSXChannelStateBlock",
+    block_class=_MembraneSXChannelStateBlock,
+)
+class MembraneSXChannelStateBlockData(StateBlockData):
+    """
+    State block for leach solution of West Kentucky No. 13 coal by H2SO4.
+
+    """
+
+    def build(self):
+        super().build()
+
+        self.flow_vol = Var(
+            units=units.L / units.hr,
+            bounds=(1e-8, None),
+        )
+
+        self.conc_mass_comp = Var(
+            self.params.component_list,
+            units=units.mg / units.L,
+            initialize=1e-8,
+            bounds=(1e-20, None),
+        )
+
+        self.conc_mol_comp = Var(
+            self.params.component_list,
+            units=units.mol / units.L,
+            initialize=1e-8,
+            bounds=(1e-24, None),
+        )
+
+        self.pH_phase = Var(
+            domain=Reals, initialize=1, doc="pH of the solution", bounds=(-1, 4)
+        )
+
+        @self.Constraint()
+        def pH_constraint(b):
+            return 10 ** (-b.pH_phase) == (b.conc_mol_comp["H"] * units.L / units.mol)
+
+        # Concentration conversion constraint
+        @self.Constraint(self.params.component_list)
+        def molar_concentration_constraint(b, j):
+            return (
+                units.convert(
+                    b.conc_mol_comp[j] * b.params.mw[j], to_units=units.mg / units.litre
+                )
+                == b.conc_mass_comp[j]
+            )
+
+        if not self.config.defined_state:
+            # Concentration of H2O based on assumed density
+            self.h2o_concentration = Constraint(
+                expr=self.conc_mass_comp["H2O"] == 1e6 * units.mg / units.L
+            )
+
+    def _dens_mass(self):
+        add_object_reference(self, "dens_mass", self.params.dens_mass)
+
+    def get_material_flow_terms(self, p, j):
+
+        # Note conversion to mol/hour
+        if j == "H2O":
+            # Assume constant density of 1 kg/L
+            return units.convert(
+                self.flow_vol * self.params.dens_mass,
+                to_units=units.mg / units.hour,
+            )
+        else:
+            # Need to convert from moles to mass
+            return units.convert(
+                self.flow_vol * self.conc_mass_comp[j],
+                to_units=units.mg / units.hour,
+            )
+
+    def get_material_density_terms(self, p, j):
+        if j == "H2O":
+            return units.convert(
+                self.params.dens_mass,
+                to_units=units.mg / units.L,
+            )
+        else:
+            return units.convert(
+                self.conc_mass_comp[j],
+                to_units=units.mg / units.L,
+            )
+
+    def get_material_flow_basis(self):
+        return MaterialFlowBasis.mass
+
+    def define_state_vars(self):
+        return {
+            "flow_vol": self.flow_vol,
+            "conc_mass_comp": self.conc_mass_comp,
+        }
