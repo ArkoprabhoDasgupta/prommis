@@ -5,14 +5,9 @@
 # Please see the files COPYRIGHT.md and LICENSE.md for full copyright and license information.
 #####################################################################################################
 
-from pyomo.environ import (
-    ConcreteModel,
-    units,
-    TransformationFactory,
-    Var,
-)
+from pyomo.environ import ConcreteModel, units, TransformationFactory, Var, RangeSet
 from pyomo.dae.flatten import flatten_dae_components
-
+from pyomo.dae import DerivativeVar
 from idaes.core import (
     FlowDirection,
     FlowsheetBlock,
@@ -88,7 +83,7 @@ def discretization_scheme(m):
         None
     """
     m.discretizer = TransformationFactory("dae.collocation")
-    m.discretizer.apply_to(m, nfe=6, ncp=2, wrt=m.fs.time, scheme="LAGRANGE-RADAU")
+    m.discretizer.apply_to(m, nfe=12, ncp=2, wrt=m.fs.time, scheme="LAGRANGE-RADAU")
 
 
 def copy_first_steady_state(m):
@@ -129,7 +124,7 @@ def set_inputs(m, dosage, perturb_time):
     """
 
     m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "H2O"].fix(1e6)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "H"].fix(10.75)
+    # m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "H"].fix(10.75)
     m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "SO4"].fix(100)
     m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "HSO4"].fix(1e4)
     m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "Al"].fix(422.375)
@@ -151,6 +146,10 @@ def set_inputs(m, dosage, perturb_time):
             m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t].fix(62.01)
         else:
             m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t].fix(72.01)
+        if t <= perturb_time:
+            m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"].fix(10.75)
+        else:
+            m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"].fix(10.75)
 
     m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "Kerosene"].fix(820e3)
     m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "DEHPA"].fix(
@@ -267,6 +266,53 @@ def build_model_and_discretize(dosage, number_of_stages, time_duration):
     """
 
     m = build_model(dosage, number_of_stages, time_duration)
+
+    # m.recovery_Y_integral = Var(m.fs.time)
+    # m.differential_Y_recovery = DerivativeVar(m.recovery_Y_integral, wrt=m.fs.time)
+
+    # @m.Constraint(m.fs.time)
+    # def integral_recovery(m, t):
+    #     return (
+    #         m.differential_Y_recovery[t]
+    #         == (
+    #             1
+    #             - (
+    #                 m.fs.mixer_settler_ex.aqueous_outlet.conc_mass_comp[t, "Y"]
+    #                 * m.fs.mixer_settler_ex.aqueous_outlet.flow_vol[t]
+    #             )
+    #             / (
+    #                 m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "Y"]
+    #                 * m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t]
+    #             )
+    #         )
+    #         * 100
+    #     )
+
+    # m.recovery_Y_integral[0].fix(0)
+
+    # m.actual_recovery_Y = Var(m.fs.time)
+
+    # @m.Constraint(m.fs.time)
+    # def actual_recovery(m, t):
+    #     if t == 0:
+    #         return (
+    #             m.actual_recovery_Y[t]
+    #             == (
+    #                 1
+    #                 - (
+    #                     m.fs.mixer_settler_ex.aqueous_outlet.conc_mass_comp[0, "Y"]
+    #                     * m.fs.mixer_settler_ex.aqueous_outlet.flow_vol[0]
+    #                 )
+    #                 / (
+    #                     m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Y"]
+    #                     * m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[0]
+    #                 )
+    #             )
+    #             * 100
+    #         )
+    #     else:
+    #         return m.actual_recovery_Y[t] * t == m.recovery_Y_integral[t]
+
     discretization_scheme(m)
 
     return m
@@ -342,9 +388,8 @@ def main(dosage, number_of_stages, time_duration, perturb_time, path_name):
 
 dosage = 5
 number_of_stages = 3
-time_duration = 12
-perturb_time = 4
-
+time_duration = 24
+perturb_time = 8
 if __name__ == "__main__":
     m, results = main(
         dosage,
@@ -353,13 +398,6 @@ if __name__ == "__main__":
         perturb_time,
         path_name="mixer_settler_extraction.json",
     )
-
-plt.plot(
-    m.fs.time,
-    m.fs.mixer_settler_ex.mixer[1]
-    .unit.mscontactor.organic[:, :]
-    .conc_mass_comp["Y_o"](),
-)
 
 percentage_recovery = {}
 
@@ -380,3 +418,24 @@ for e in m.fs.leach_soln.component_list:
             * 100
             for t in m.fs.time
         ]
+
+REE_list = []
+for e in m.fs.leach_soln.component_list:
+    if e in ["Y", "Dy", "Gd", "La"]:
+        REE_list.append(e)
+        plt.plot(
+            m.fs.time,
+            percentage_recovery[e],
+        )
+plt.legend(REE_list)
+
+plt.show()
+
+for s in RangeSet(number_of_stages):
+    plt.plot(
+        m.fs.time,
+        m.fs.mixer_settler_ex.mixer[s]
+        .unit.mscontactor.organic[:, 1]
+        .conc_mass_comp["Y_o"](),
+    )
+plt.legend(["stage 1", "stage 2", "stage 3"])
