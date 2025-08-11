@@ -145,11 +145,11 @@ def set_inputs(m, dosage, perturb_time):
         if t <= perturb_time:
             m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t].fix(62.01)
         else:
-            m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t].fix(72.01)
+            m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t].fix(62.01)
         if t <= perturb_time:
             m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"].fix(10.75)
         else:
-            m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"].fix(10.75)
+            m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"].fix(5.75)
 
     m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "Kerosene"].fix(820e3)
     m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "DEHPA"].fix(
