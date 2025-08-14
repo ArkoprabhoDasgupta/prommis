@@ -5,7 +5,14 @@
 # Please see the files COPYRIGHT.md and LICENSE.md for full copyright and license information.
 #####################################################################################################
 
-from pyomo.environ import ConcreteModel, units, TransformationFactory, Var, RangeSet
+from pyomo.environ import (
+    ConcreteModel,
+    units,
+    TransformationFactory,
+    Var,
+    RangeSet,
+    log10,
+)
 from pyomo.dae.flatten import flatten_dae_components
 from pyomo.dae import DerivativeVar
 from idaes.core import (
@@ -145,11 +152,11 @@ def set_inputs(m, dosage, perturb_time):
         if t <= perturb_time:
             m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t].fix(62.01)
         else:
-            m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t].fix(62.01)
+            m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t].fix(72.01)
         if t <= perturb_time:
             m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"].fix(10.75)
         else:
-            m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"].fix(5.75)
+            m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"].fix(10.75)
 
     m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "Kerosene"].fix(820e3)
     m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "DEHPA"].fix(
@@ -185,8 +192,8 @@ def set_inputs(m, dosage, perturb_time):
 
     m.fs.mixer_settler_ex.organic_settler[:].unit.area.fix(1)
     m.fs.mixer_settler_ex.aqueous_settler[:].unit.area.fix(1)
-    m.fs.mixer_settler_ex.aqueous_settler[:].unit.length.fix(1)
-    m.fs.mixer_settler_ex.organic_settler[:].unit.length.fix(1)
+    m.fs.mixer_settler_ex.aqueous_settler[:].unit.length.fix(0.1)
+    m.fs.mixer_settler_ex.organic_settler[:].unit.length.fix(0.1)
 
 
 def set_initial_conditions(m):
@@ -389,7 +396,7 @@ def main(dosage, number_of_stages, time_duration, perturb_time, path_name):
 dosage = 5
 number_of_stages = 3
 time_duration = 24
-perturb_time = 8
+perturb_time = 4
 if __name__ == "__main__":
     m, results = main(
         dosage,
@@ -419,23 +426,127 @@ for e in m.fs.leach_soln.component_list:
             for t in m.fs.time
         ]
 
-REE_list = []
-for e in m.fs.leach_soln.component_list:
-    if e in ["Y", "Dy", "Gd", "La"]:
-        REE_list.append(e)
-        plt.plot(
-            m.fs.time,
-            percentage_recovery[e],
-        )
-plt.legend(REE_list)
+# REE_list = []
+# for e in m.fs.leach_soln.component_list:
+#     if e in ["Y", "Dy", "Gd", "La"]:
+#         REE_list.append(e)
+#         plt.plot(
+#             m.fs.time,
+#             percentage_recovery[e],
+#         )
+# plt.legend(REE_list)
+
+# plt.show()
+
+# for s in RangeSet(number_of_stages):
+#     plt.plot(
+#         m.fs.time,
+#         m.fs.mixer_settler_ex.mixer[s]
+#         .unit.mscontactor.organic[:, 1]
+#         .conc_mass_comp["Y_o"](),
+#     )
+# plt.legend(["stage 1", "stage 2", "stage 3"])
+
+
+fig, ax = plt.subplots(3, figsize=(7, 9))
+
+fig.suptitle("pH perturbation effect on Gd")
+ax[0].plot(
+    m.fs.time,
+    [
+        -log10(m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"]() / 1000)
+        for t in m.fs.time
+    ],
+    linewidth=3,
+)
+ax[0].set_xlabel("Time, hrs")
+ax[0].set_ylabel("pH")
+ax[0].set_title("Aqueous feed pH")
+ax[0].axvline(4, linestyle="--", color="green", linewidth=2)
+ax[1].plot(
+    m.fs.time,
+    m.fs.mixer_settler_ex.organic_settler[1]
+    .unit.properties[:, 1]
+    .conc_mass_comp["Gd_o"](),
+    linewidth=3,
+    label="stage 1",
+)
+ax[1].set_xlabel("Time, hrs")
+ax[1].set_ylabel("Stage 1, Concentration, mg/L")
+ax2 = ax[1].twinx()
+ax2.plot(
+    m.fs.time,
+    m.fs.mixer_settler_ex.mixer[3]
+    .unit.mscontactor.organic[:, 1]
+    .conc_mass_comp["Gd_o"](),
+    linewidth=3,
+    color="red",
+    label="stage 3",
+)
+ax[1].axvline(4, linestyle="--", color="green", linewidth=2)
+ax2.set_ylabel("Stage 3, Concentration, mg/L")
+ax[1].set_title("Stage 1 and 3 organic settler outlet concentration profile")
+ax[1].ticklabel_format(style="sci", axis="y", scilimits=(0, 0))
+ax2.ticklabel_format(style="sci", axis="y", scilimits=(0, 0))
+handles1, labels1 = ax[1].get_legend_handles_labels()
+handles2, labels2 = ax2.get_legend_handles_labels()
+all_handles = handles1 + handles2
+all_labels = labels1 + labels2
+ax[1].legend(all_handles, all_labels, loc="upper left")
+ax[2].plot(m.fs.time, percentage_recovery["Gd"], linewidth=3)
+ax[2].axvline(4, linestyle="--", color="green", linewidth=2)
+ax[2].set_xlabel("Time, hrs")
+ax[2].set_ylabel("Recovery %")
+ax[2].set_title("Percentage recovery profile")
+plt.tight_layout()
 
 plt.show()
 
-for s in RangeSet(number_of_stages):
-    plt.plot(
-        m.fs.time,
-        m.fs.mixer_settler_ex.mixer[s]
-        .unit.mscontactor.organic[:, 1]
-        .conc_mass_comp["Y_o"](),
-    )
-plt.legend(["stage 1", "stage 2", "stage 3"])
+fig, ax = plt.subplots(3, figsize=(7, 9))
+
+fig.suptitle("Aqueous feed flowrate perturbation effect on Gd")
+ax[0].plot(
+    m.fs.time,
+    m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[:](),
+    linewidth=3,
+)
+ax[0].axvline(4, linestyle="--", color="green", linewidth=2)
+ax[0].set_xlabel("Time, hrs")
+ax[0].set_ylabel("Flowrate L/hr")
+ax[0].set_title("Aqueous feed flowrate")
+ax[1].plot(
+    m.fs.time,
+    m.fs.mixer_settler_ex.organic_settler[1]
+    .unit.properties[:, 1]
+    .conc_mass_comp["Gd_o"](),
+    linewidth=3,
+    label="stage 1",
+)
+ax[1].axvline(4, linestyle="--", color="green", linewidth=2)
+ax[1].set_xlabel("Time, hrs")
+ax[1].set_ylabel("Stage 1, Concentration, mg/L")
+ax2 = ax[1].twinx()
+ax2.plot(
+    m.fs.time,
+    m.fs.mixer_settler_ex.mixer[3]
+    .unit.mscontactor.organic[:, 1]
+    .conc_mass_comp["Gd_o"](),
+    linewidth=3,
+    color="red",
+    label="stage 3",
+)
+ax2.set_ylabel("Stage 3, Concentration, mg/L")
+ax[1].set_title("Stage 1 and 3 organic settler outlet concentration profile")
+handles1, labels1 = ax[1].get_legend_handles_labels()
+handles2, labels2 = ax2.get_legend_handles_labels()
+all_handles = handles1 + handles2
+all_labels = labels1 + labels2
+ax[1].legend(all_handles, all_labels, loc="upper left")
+ax[1].ticklabel_format(style="sci", axis="y", scilimits=(0, 0))
+ax2.ticklabel_format(style="sci", axis="y", scilimits=(0, 0))
+ax[2].plot(m.fs.time, percentage_recovery["Gd"], linewidth=3)
+ax[2].axvline(4, linestyle="--", color="green", linewidth=2)
+ax[2].set_xlabel("Time, hrs")
+ax[2].set_ylabel("Recovery %")
+ax[2].set_title("Percentage recovery profile")
+plt.tight_layout()
