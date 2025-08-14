@@ -1,3 +1,4 @@
+import numpy as np
 from pyomo.common.config import ConfigValue, Bool, ConfigDict, In
 from pyomo.dae import ContinuousSet
 from pyomo.environ import (
@@ -9,7 +10,11 @@ from pyomo.environ import (
     PositiveReals,
     value,
     log,
+    TransformationFactory,
+    Set,
+    RangeSet,
 )
+from pyomo.dae import DerivativeVar
 from pyomo.dae.flatten import flatten_dae_components
 from pyomo.contrib.incidence_analysis import solve_strongly_connected_components
 from math import pi
@@ -62,12 +67,19 @@ class MembraneSolventExtractionInitializer(SingleControlVolumeUnitInitializer):
                 Var,
                 active=True,
             )
+            if (
+                getattr(model.config, f"{stream}_phase").flow_direction
+                == FlowDirection.forward
+            ):
+                first_point = target_x.first()
+            else:
+                first_point = target_x.last()
             for var in length_vars:
                 for x in target_x:
-                    if x == target_x.first():
+                    if x == first_point:
                         continue
                     else:
-                        var[x].value = var[target_x.first()].value
+                        var[x].value = var[first_point].value
 
         solver = self._get_solver()
         zero_model = solver.solve(model)
@@ -466,13 +478,32 @@ class MembraneSolventExtractionData(UnitModelBlockData):
 
         # Membrane phase
 
-        self.r = ContinuousSet(
-            bounds=(
-                value(self.tube_inner_radius),
-                value(self.tube_outer_radius),
-            ),
-            doc="Radial domain for membrane phase",
+        # r_points = float(
+        #     np.linspace(value(self.tube_inner_radius), value(self.tube_outer_radius), 3)
+        # )
+
+        r_points = RangeSet(
+            value(self.tube_inner_radius),
+            value(self.tube_outer_radius),
+            (value(self.tube_outer_radius) - value(self.tube_inner_radius)) / 5,
         )
+        self.r = Set(initialize=r_points, ordered=True)
+
+        self.eff = Var(
+            self.config.membrane_phase["property_package"].component_list,
+            initialize=1,
+            bounds=(0, 1),
+        )
+
+        # self.r = ContinuousSet(
+        #     bounds=(
+        #         value(self.tube_inner_radius),
+        #         value(self.tube_outer_radius),
+        #     ),
+        #     doc="Radial domain for membrane phase",
+        # )
+
+        # TransformationFactory("dae.finite_difference").apply_to(self, wrt=self.r, nfe=5)
 
         # # Membrane phase
 
@@ -481,26 +512,38 @@ class MembraneSolventExtractionData(UnitModelBlockData):
         ].build_state_block(
             self.flowsheet().time,
             self.feed_phase.length_domain,
-            self.r,
+            # self.r,
             doc="Feed phase state block",
             **self.config.membrane_phase["property_package_args"],
+        )
+
+        self.conc_mol_membrane_comp = Var(
+            self.flowsheet().time,
+            self.feed_phase.length_domain,
+            self.r,
+            self.config.membrane_phase["property_package"].component_list,
+            units=units.mol / units.L,
+            initialize=1e-5,
+            bounds=(1e-24, None),
         )
 
         def membrane_concentration_profile(b, t, z, r, e):
             r_m = b.tube_outer_radius
             r_i = b.tube_inner_radius
-            C_membrane = b.membrane_phase[t, z, r].conc_mol_comp[e]
+            C_membrane = b.conc_mol_membrane_comp[t, z, r, e]
             C_mem_feed_int = (
                 b.feed_phase.properties[t, z].conc_mol_comp[e]
-                * b.membrane_phase[t, z, value(r_i)].feed_distribution_coefficient[e]
+                * b.membrane_phase[t, z].feed_distribution_coefficient[e]
+                * b.eff[e]
             )
             C_mem_strip_int = (
                 b.strip_phase.properties[t, z].conc_mol_comp[e]
-                * b.membrane_phase[t, z, value(r_m)].strip_distribution_coefficient[e]
+                * b.membrane_phase[t, z].strip_distribution_coefficient[e]
+                * b.eff[e]
             )
-            return (C_membrane - C_mem_feed_int) * log(r_m / r_i) == (
+            return (C_membrane - C_mem_feed_int) * log(value(r_m) / value(r_i)) == (
                 C_mem_strip_int - C_mem_feed_int
-            ) * log(r * units.m / r_i)
+            ) * log(r / value(r_i))
 
         self.membrane_concentration_profile_rule = Constraint(
             self.flowsheet().time,
@@ -514,20 +557,17 @@ class MembraneSolventExtractionData(UnitModelBlockData):
             r_m = b.tube_outer_radius
             r_i = b.tube_inner_radius
             n = b.config.number_of_tubes
-            if e in ["H2O", "HSO4", "SO4", "Cl"]:
-                return b.feed_phase.mass_transfer_term[t, z, "liquid", e] == 0
-            elif e in b.config.membrane_phase["property_package"].component_list:
+
+            if e in b.config.membrane_phase["property_package"].component_list:
                 C_mem_feed_int = (
                     b.feed_phase.properties[t, z].conc_mol_comp[e]
-                    * b.membrane_phase[t, z, value(r_i)].feed_distribution_coefficient[
-                        e
-                    ]
+                    * b.membrane_phase[t, z].feed_distribution_coefficient[e]
+                    * b.eff[e]
                 )
                 C_mem_strip_int = (
                     b.strip_phase.properties[t, z].conc_mol_comp[e]
-                    * b.membrane_phase[t, z, value(r_m)].strip_distribution_coefficient[
-                        e
-                    ]
+                    * b.membrane_phase[t, z].strip_distribution_coefficient[e]
+                    * b.eff[e]
                 )
 
                 Diff_coeff = b.config.membrane_phase["property_package"].D_coeff[e]
@@ -546,10 +586,7 @@ class MembraneSolventExtractionData(UnitModelBlockData):
                     to_units=units.mol / (units.hour * units.m),
                 )
             else:
-                return b.feed_phase.mass_transfer_term[t, z, "liquid", e] == -3 * sum(
-                    b.feed_phase.mass_transfer_term[t, z, "liquid", i]
-                    for i in b.config.membrane_phase["property_package"].component_list
-                )
+                return b.feed_phase.mass_transfer_term[t, z, "liquid", e] == 0
 
         self.tube_flux_rule = Constraint(
             self.flowsheet().time,
@@ -570,3 +607,35 @@ class MembraneSolventExtractionData(UnitModelBlockData):
             self.config.strip_phase["property_package"].component_list,
             rule=shell_flux_formula,
         )
+
+        # self.dCMdr = Var(
+        #     self.flowsheet().time,
+        #     self.feed_phase.length_domain,
+        #     self.r,
+        #     self.config.membrane_phase["property_package"].component_list,
+        #     units=units.mole / (units.L * units.m),
+        # )
+
+        # def CM_gradient_expression(b, t, z, r, e):
+        #     r_m = b.tube_outer_radius
+        #     r_i = b.tube_inner_radius
+        #     C_mem_feed_int = (
+        #         b.feed_phase.properties[t, z].conc_mol_comp[e]
+        #         * b.membrane_phase[t, z].feed_distribution_coefficient[e]
+        #     )
+        #     C_mem_strip_int = (
+        #         b.strip_phase.properties[t, z].conc_mol_comp[e]
+        #         * b.membrane_phase[t, z].strip_distribution_coefficient[e]
+        #     )
+        #     return b.dCMdr[t, z, r, e] == units.convert(
+        #         ((C_mem_strip_int - C_mem_feed_int) / (r * units.m * log(r_m / r_i))),
+        #         to_units=units.mole / (units.L * units.m),
+        #     )
+
+        # self.CM_gradient_expression_rule = Constraint(
+        #     self.flowsheet().time,
+        #     self.feed_phase.length_domain,
+        #     self.r,
+        #     self.config.membrane_phase["property_package"].component_list,
+        #     rule=CM_gradient_expression,
+        # )

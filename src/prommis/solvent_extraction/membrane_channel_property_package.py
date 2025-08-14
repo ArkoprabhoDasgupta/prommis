@@ -18,6 +18,7 @@ from pyomo.environ import (
     units,
     PositiveReals,
     Reals,
+    log10,
 )
 
 from idaes.core import (
@@ -105,34 +106,6 @@ class MembraneSXChannelParameterData(PhysicalParameterBlock):
             },
         )
 
-        # Inherent reaction for partial dissociation of HSO4
-        # self._has_inherent_reactions = True
-        # self.inherent_reaction_idx = Set(initialize=["Ka2"])
-        # self.inherent_reaction_stoichiometry = {
-        #     ("Ka2", "liquid", "H"): 1,
-        #     ("Ka2", "liquid", "HSO4"): -1,
-        #     ("Ka2", "liquid", "SO4"): 1,
-        #     ("Ka2", "liquid", "H2O"): 0,
-        #     ("Ka2", "liquid", "Cl"): 0,
-        #     ("Ka2", "liquid", "Sc"): 0,
-        #     ("Ka2", "liquid", "Y"): 0,
-        #     ("Ka2", "liquid", "La"): 0,
-        #     ("Ka2", "liquid", "Ce"): 0,
-        #     ("Ka2", "liquid", "Pr"): 0,
-        #     ("Ka2", "liquid", "Nd"): 0,
-        #     ("Ka2", "liquid", "Sm"): 0,
-        #     ("Ka2", "liquid", "Gd"): 0,
-        #     ("Ka2", "liquid", "Dy"): 0,
-        #     ("Ka2", "liquid", "Al"): 0,
-        #     ("Ka2", "liquid", "Ca"): 0,
-        #     ("Ka2", "liquid", "Fe"): 0,
-        # }
-        # self.Ka2 = Param(
-        #     initialize=10**-1.99,
-        #     mutable=True,
-        #     units=units.mol / units.L,
-        # )
-
         # Assume dilute acid, density of pure water
         self.dens_mass = Param(
             initialize=1,
@@ -194,32 +167,33 @@ class MembraneSXChannelStateBlockData(StateBlockData):
     def build(self):
         super().build()
 
-        self.flow_velocity = Var(
-            units=units.m / units.sec,
+        self.flow_vol = Var(
+            units=units.L / units.hr,
+            initialize=1e-6,
             bounds=(1e-8, None),
         )
 
         self.conc_mass_comp = Var(
             self.params.component_list,
             units=units.mg / units.L,
-            initialize=1e-8,
+            initialize=1e-20,
             bounds=(1e-20, None),
         )
 
         self.conc_mol_comp = Var(
             self.params.component_list,
             units=units.mol / units.L,
-            initialize=1e-5,
-            bounds=(1e-20, None),
+            initialize=1e-20,
+            bounds=(1e-24, None),
         )
 
         self.pH_phase = Var(
-            self.params.phase_list, domain=Reals, initialize=2, doc="pH of the solution"
+            domain=Reals, initialize=1, doc="pH of the solution", bounds=(-1, 4)
         )
 
-        @self.Constraint(self.phase_list)
-        def pH_constraint(b, p):
-            return 10 ** (-b.pH_phase[p]) == b.conc_mol_comp["H"] * units.L / units.mol
+        @self.Constraint()
+        def pH_constraint(b):
+            return 10 ** (-b.pH_phase) == (b.conc_mol_comp["H"] * units.L / units.mol)
 
         # Concentration conversion constraint
         @self.Constraint(self.params.component_list)
@@ -236,30 +210,23 @@ class MembraneSXChannelStateBlockData(StateBlockData):
             self.h2o_concentration = Constraint(
                 expr=self.conc_mass_comp["H2O"] == 1e6 * units.mg / units.L
             )
-            # Equilibrium for partial dissociation of HSO4
-            # self.hso4_dissociation = Constraint(
-            #     expr=self.conc_mol_comp["HSO4"] * self.params.Ka2
-            #     == self.conc_mol_comp["H"] * self.conc_mol_comp["SO4"]
-            # )
 
     def _dens_mass(self):
         add_object_reference(self, "dens_mass", self.params.dens_mass)
 
     def get_material_flow_terms(self, p, j):
 
-        area = self.parent_block().area
         # Note conversion to mol/hour
         if j == "H2O":
             # Assume constant density of 1 kg/L
             return units.convert(
-                area * self.flow_velocity * self.params.dens_mass / self.params.mw[j],
+                self.flow_vol * self.params.dens_mass / self.params.mw[j],
                 to_units=units.mol / units.hour,
             )
-
         else:
             # Need to convert from moles to mass
             return units.convert(
-                area * self.flow_velocity * self.conc_mass_comp[j] / self.params.mw[j],
+                self.flow_vol * self.conc_mass_comp[j] / self.params.mw[j],
                 to_units=units.mol / units.hour,
             )
 
@@ -267,12 +234,12 @@ class MembraneSXChannelStateBlockData(StateBlockData):
         if j == "H2O":
             return units.convert(
                 self.params.dens_mass / self.params.mw[j],
-                to_units=units.mol / units.m**3,
+                to_units=units.mol / units.L,
             )
         else:
             return units.convert(
                 self.conc_mass_comp[j] / self.params.mw[j],
-                to_units=units.mol / units.m**3,
+                to_units=units.mol / units.L,
             )
 
     def get_material_flow_basis(self):
@@ -280,6 +247,6 @@ class MembraneSXChannelStateBlockData(StateBlockData):
 
     def define_state_vars(self):
         return {
-            "flow_velocity": self.flow_velocity,
+            "flow_vol": self.flow_vol,
             "conc_mass_comp": self.conc_mass_comp,
         }

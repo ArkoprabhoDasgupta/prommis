@@ -20,6 +20,7 @@ from pyomo.environ import (
     Reals,
     log10,
 )
+from pyomo.dae import DerivativeVar
 
 from idaes.core import (
     Component,
@@ -245,13 +246,6 @@ class MembraneSXModuleStateBlockData(StateBlockData):
     def build(self):
         super().build()
 
-        self.conc_mol_comp = Var(
-            self.params.component_list,
-            units=units.mol / units.L,
-            initialize=1e-5,
-            bounds=(1e-20, None),
-        )
-
         self.feed_distribution_coefficient = Var(
             self.params.component_list,
             initialize=1,
@@ -267,7 +261,7 @@ class MembraneSXModuleStateBlockData(StateBlockData):
                 b.index()[0], b.index()[1]
             ]
 
-            pH = feed_block.pH_phase["liquid"]
+            pH = feed_block.pH_phase
             return (b.feed_distribution_coefficient[e]) == 10 ** (
                 (b.params.m0[e] + b.params.extractant_dosage * b.params.m1[e]) * pH
                 + (b.params.B0[e] + b.params.B1[e] * log10(b.params.extractant_dosage))
@@ -282,7 +276,7 @@ class MembraneSXModuleStateBlockData(StateBlockData):
                 b.index()[0], b.index()[1]
             ]
 
-            pH = strip_block.pH_phase["liquid"]
+            pH = strip_block.pH_phase
             return (b.strip_distribution_coefficient[e]) == 10 ** (
                 (b.params.m0[e] + b.params.extractant_dosage * b.params.m1[e]) * pH
                 + (b.params.B0[e] + b.params.B1[e] * log10(b.params.extractant_dosage))
