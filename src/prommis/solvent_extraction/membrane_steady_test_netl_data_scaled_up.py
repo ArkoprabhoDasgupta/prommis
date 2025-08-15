@@ -1,4 +1,4 @@
-from pyomo.environ import ConcreteModel, units
+from pyomo.environ import ConcreteModel, units, Var
 
 from idaes.core import (
     FlowDirection,
@@ -18,7 +18,7 @@ from prommis.solvent_extraction.membrane_solvent_extraction import (
 )
 
 from prommis.leaching.leach_solution_properties import LeachSolutionParameters
-
+from pyomo.dae.flatten import flatten_dae_components
 
 m = ConcreteModel()
 
@@ -37,7 +37,7 @@ m.fs.membrane_module = MembraneSolventExtraction(
     },
     strip_phase={
         "property_package": m.fs.leach_soln,
-        "flow_direction": FlowDirection.forward,
+        "flow_direction": FlowDirection.backward,
         "material_balance_type": MaterialBalanceType.componentTotal,
         "energy_balance_type": EnergyBalanceType.none,
     },
@@ -53,7 +53,7 @@ m.fs.membrane_module = MembraneSolventExtraction(
     number_of_tubes=6300,
 )
 
-m.fs.membrane_module.module_length.fix(0.254 * units.m)
+m.fs.membrane_module.module_length.fix(0.254 * 2 * units.m)
 
 # Feed phase inlet conditions
 
@@ -166,6 +166,27 @@ initializer = MembraneSolventExtractionInitializer()
 initializer.initialize(m.fs.membrane_module)
 
 print("Degrees of freedom:", dof(m))
+
+# model = m.fs.membrane_module
+# for stream in ["feed", "strip"]:
+#     target_model = getattr(model, f"{stream}_phase")
+#     target_x = getattr(model, f"{stream}_phase").length_domain
+#     if getattr(model.config, f"{stream}_phase").flow_direction == FlowDirection.forward:
+#         starting_x = target_x.first()
+#     else:
+#         starting_x = target_x.last()
+#     regular_vars, length_vars = flatten_dae_components(
+#         target_model,
+#         target_x,
+#         Var,
+#         active=True,
+#     )
+#     for var in length_vars:
+#         for x in target_x:
+#             if x == starting_x:
+#                 continue
+#             else:
+#                 var[x].value = var[starting_x].value
 
 solver = get_solver("ipopt_v2")
 results = solver.solve(m, tee=True)

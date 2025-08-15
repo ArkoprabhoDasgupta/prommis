@@ -67,6 +67,7 @@ m.fs.membrane_module = MembraneSolventExtraction(
 )
 
 m.fs.membrane_module.module_length.fix(0.254 * 2 * units.m)
+m.fs.membrane_module.module_length.fix(0.254 * 2 * units.m)
 
 # Feed phase inlet conditions
 
