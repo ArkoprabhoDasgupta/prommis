@@ -5,6 +5,7 @@ from pyomo.environ import (
     TransformationFactory,
     Var,
     minimize,
+    log10,
 )
 
 from idaes.core import (
@@ -27,9 +28,7 @@ from prommis.solvent_extraction.membrane_channel_property_package import (
     MembraneSXChannelParameters,
 )
 
-# from prommis.solvent_extraction.membrane_channel_property_package_mass_flow import (
-#     MembraneSXChannelParameters,
-# )
+import matplotlib.pyplot as plt
 from prommis.solvent_extraction.membrane_solvent_extraction import (
     MembraneSolventExtraction,
     MembraneSolventExtractionInitializer,
@@ -45,7 +44,7 @@ m.fs = FlowsheetBlock(dynamic=False)
 m.fs.mem_prop = MembraneSXModuleParameters()
 m.fs.mem_channel = MembraneSXChannelParameters()
 # m.fs.leach_soln = LeachSolutionParameters()
-m.fs.mem_prop.extractant_dosage = 10
+m.fs.mem_prop.extractant_dosage = 5
 
 m.fs.membrane_module = MembraneSolventExtraction(
     feed_phase={
@@ -185,48 +184,48 @@ m.fs.membrane_module.eff["Y"].fix(7.42e-7)
 
 m.fs.membrane_module.eff["Sc"].fix(0.4)
 
-# m.scaling_factor = Suffix(direction=Suffix.EXPORT)
+m.scaling_factor = Suffix(direction=Suffix.EXPORT)
 
-# for t in m.fs.time:
-#     for z in m.fs.membrane_module.feed_phase.length_domain:
-#         set_scaling_factor(
-#             m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp["H"],
-#             1e2,
-#         )
-#         set_scaling_factor(
-#             m.fs.membrane_module.feed_phase.properties[t, z].pH_constraint,
-#             1e2,
-#         )
-#         for e in m.fs.mem_prop.component_list:
-#             set_scaling_factor(
-#                 m.fs.membrane_module.feed_phase.properties[t, z].conc_mol_comp[e],
-#                 1e2,
-#             )
-#             set_scaling_factor(
-#                 m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp[e],
-#                 1,
-#             )
-#             set_scaling_factor(
-#                 m.fs.membrane_module.strip_phase.properties[t, z].conc_mol_comp[e],
-#                 1e2,
-#             )
-#             set_scaling_factor(
-#                 m.fs.membrane_module.strip_phase.properties[t, z].conc_mass_comp[e],
-#                 1,
-#             )
+for t in m.fs.time:
+    for z in m.fs.membrane_module.feed_phase.length_domain:
+        set_scaling_factor(
+            m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp["H"],
+            1e2,
+        )
+        set_scaling_factor(
+            m.fs.membrane_module.feed_phase.properties[t, z].pH_constraint,
+            1e2,
+        )
+        for e in m.fs.mem_prop.component_list:
+            set_scaling_factor(
+                m.fs.membrane_module.feed_phase.properties[t, z].conc_mol_comp[e],
+                1e2,
+            )
+            set_scaling_factor(
+                m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp[e],
+                1,
+            )
+            set_scaling_factor(
+                m.fs.membrane_module.strip_phase.properties[t, z].conc_mol_comp[e],
+                1e2,
+            )
+            set_scaling_factor(
+                m.fs.membrane_module.strip_phase.properties[t, z].conc_mass_comp[e],
+                1,
+            )
 
-#             for r in m.fs.membrane_module.r:
-#                 set_scaling_factor(
-#                     m.fs.membrane_module.conc_mol_membrane_comp[t, z, r, e],
-#                     1e2,
-#                 )
+            for r in m.fs.membrane_module.r:
+                set_scaling_factor(
+                    m.fs.membrane_module.conc_mol_membrane_comp[t, z, r, e],
+                    1e2,
+                )
 
-# scaling = TransformationFactory("core.scale_model")
-# scaled_model = scaling.create_using(m, rename=False)
+scaling = TransformationFactory("core.scale_model")
+scaled_model = scaling.create_using(m, rename=False)
 
-# initializer = MembraneSolventExtractionInitializer()
-# initializer.initialize(scaled_model.fs.membrane_module)
-# # initializer.initialize(m.fs.membrane_module)
+initializer = MembraneSolventExtractionInitializer()
+initializer.initialize(scaled_model.fs.membrane_module)
+# initializer.initialize(m.fs.membrane_module)
 
 print("Degrees of freedom:", dof(m))
 
@@ -291,21 +290,39 @@ print("Degrees of freedom:", dof(m))
 
 solver = get_solver("ipopt_v2")
 solver.options["max_iter"] = 2000
-results = solver.solve(m, tee=True)
-# results = solver.solve(scaled_model, tee=True)
+# results = solver.solve(m, tee=True)
+results = solver.solve(scaled_model, tee=True)
 
-# scaling.propagate_solution(scaled_model, m)
+scaling.propagate_solution(scaled_model, m)
 
 feed_percentage_recovery = {}
 strip_percentage_recovery = {}
 
+# for e in m.fs.mem_prop.component_list:
+#     feed_percentage_recovery[e] = [
+#         (
+#             1
+#             - (
+#                 m.fs.membrane_module.feed_phase.properties[0, z].conc_mass_comp[e]()
+#                 * m.fs.membrane_module.feed_phase.properties[0, z].flow_vol()
+#             )
+#             / (
+#                 m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, e]()
+#                 * m.fs.membrane_module.feed_phase_inlet.flow_vol[0]()
+#             )
+#         )
+#         * 100
+#         for z in m.fs.membrane_module.feed_phase.length_domain
+#     ]
+
 for e in m.fs.mem_prop.component_list:
     feed_percentage_recovery[e] = [
         (
-            1
-            - (
-                m.fs.membrane_module.feed_phase.properties[0, z].conc_mass_comp[e]()
-                * m.fs.membrane_module.feed_phase.properties[0, z].flow_vol()
+            (
+                m.fs.membrane_module.strip_phase.properties[0, z].conc_mass_comp[e]()
+                * m.fs.membrane_module.strip_phase.properties[0, z].flow_vol()
+                - m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[0, e]()
+                * m.fs.membrane_module.strip_phase_inlet.flow_vol[0]()
             )
             / (
                 m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, e]()
@@ -332,3 +349,27 @@ for e in m.fs.mem_prop.component_list:
         * 100
         for z in m.fs.membrane_module.strip_phase.length_domain
     ]
+
+fig, ax = plt.subplots(2, figsize=(6, 8))
+fig.suptitle("Steady state counter-current MSX profiles for 5% DEHPA")
+for s in ["Ce", "Nd", "Gd", "Sm"]:
+    ax[0].plot(
+        m.fs.membrane_module.feed_phase.length_domain,
+        feed_percentage_recovery[s],
+        linewidth=3,
+    )
+ax[0].legend(["Ce", "Nd", "Gd", "Sm"])
+ax[0].set_xlabel("Normalized length")
+ax[0].set_ylabel("Recovery %")
+ax[0].set_title("Feed phase recovery percentage")
+for s in ["Ce", "Nd", "Gd", "Sm"]:
+    ax[1].plot(
+        m.fs.membrane_module.strip_phase.length_domain,
+        m.fs.membrane_module.strip_phase.properties[0, :].conc_mass_comp[s](),
+        linewidth=3,
+    )
+ax[1].legend(["Ce", "Nd", "Gd", "Sm"])
+ax[1].set_xlabel("Normalized length")
+ax[1].set_ylabel("Concentration, mg/L")
+ax[1].set_title("Strip phase concentration profile")
+plt.tight_layout()
