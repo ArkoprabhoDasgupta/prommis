@@ -408,14 +408,33 @@ if __name__ == "__main__":
 
 percentage_recovery = {}
 
+# for e in m.fs.leach_soln.component_list:
+#     if e not in ["H2O", "H", "SO4", "HSO4", "Cl"]:
+#         percentage_recovery[e] = [
+#             (
+#                 1
+#                 - (
+#                     m.fs.mixer_settler_ex.aqueous_outlet.conc_mass_comp[t, e]()
+#                     * m.fs.mixer_settler_ex.aqueous_outlet.flow_vol[t]()
+#                 )
+#                 / (
+#                     m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, e]()
+#                     * m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t]()
+#                 )
+#             )
+#             * 100
+#             for t in m.fs.time
+#         ]
+
 for e in m.fs.leach_soln.component_list:
     if e not in ["H2O", "H", "SO4", "HSO4", "Cl"]:
         percentage_recovery[e] = [
             (
-                1
-                - (
-                    m.fs.mixer_settler_ex.aqueous_outlet.conc_mass_comp[t, e]()
-                    * m.fs.mixer_settler_ex.aqueous_outlet.flow_vol[t]()
+                (
+                    m.fs.mixer_settler_ex.organic_outlet.conc_mass_comp[t, f"{e}_o"]()
+                    * m.fs.mixer_settler_ex.organic_outlet.flow_vol[t]()
+                    - m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[t, f"{e}_o"]()
+                    * m.fs.mixer_settler_ex.organic_inlet.flow_vol[t]()
                 )
                 / (
                     m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, e]()
@@ -476,8 +495,8 @@ ax[1].set_ylabel("Stage 1, Concentration, mg/L")
 ax2 = ax[1].twinx()
 ax2.plot(
     m.fs.time,
-    m.fs.mixer_settler_ex.mixer[3]
-    .unit.mscontactor.organic[:, 1]
+    m.fs.mixer_settler_ex.organic_settler[3]
+    .unit.properties[:, 1]
     .conc_mass_comp["Gd_o"](),
     linewidth=3,
     color="red",
@@ -528,8 +547,8 @@ ax[1].set_ylabel("Stage 1, Concentration, mg/L")
 ax2 = ax[1].twinx()
 ax2.plot(
     m.fs.time,
-    m.fs.mixer_settler_ex.mixer[3]
-    .unit.mscontactor.organic[:, 1]
+    m.fs.mixer_settler_ex.organic_settler[3]
+    .unit.properties[:, 1]
     .conc_mass_comp["Gd_o"](),
     linewidth=3,
     color="red",
