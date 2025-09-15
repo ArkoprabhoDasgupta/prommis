@@ -6,7 +6,7 @@
 #####################################################################################################
 
 from pyomo.environ import ConcreteModel, units, TransformationFactory
-
+import pandas as pd
 from idaes.core import (
     FlowDirection,
     FlowsheetBlock,
@@ -22,7 +22,7 @@ from prommis.solvent_extraction.ree_og_distribution import REESolExOgParameters
 from prommis.solvent_extraction.mixer_settler_extraction import (
     MixerSettlerExtraction,
 )
-from prommis.solvent_extraction.solvent_extraction_reaction_package_new import (
+from prommis.solvent_extraction.solvent_extraction_reaction_package import (
     SolventExtractionReactions,
 )
 

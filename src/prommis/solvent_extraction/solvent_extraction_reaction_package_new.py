@@ -125,12 +125,12 @@ class SolventExtractionReactionsData(
         self.m0 = Param(
             self.element_list,
             initialize={
-                "Ce": 0.3697,
-                "Y": 1.72753,
-                "Gd": 1.123233,
-                "Dy": 1.56586,
-                "Sm": 0.720133,
-                "Nd": 0.31183,
+                "Ce": 0.452,
+                "Y": 1.923,
+                "Gd": 1.1414,
+                "Dy": 1.689,
+                "Sm": 0.764,
+                "Nd": 0.406,
                 "La": 0.54,
                 "Pr": 0.29,
                 "Sc": 0,
@@ -143,12 +143,12 @@ class SolventExtractionReactionsData(
         self.m1 = Param(
             self.element_list,
             initialize={
-                "Ce": 0.0523,
-                "Y": 0.122233,
-                "Gd": 0.003133,
-                "Dy": 0.093567,
-                "Sm": 0.034133,
-                "Nd": 0.021033,
+                "Ce": 0.0148,
+                "Y": 0.0748,
+                "Gd": 1.93e-6,
+                "Dy": 0.05774,
+                "Sm": 0.0218,
+                "Nd": 3.38e-7,
                 "La": 0,
                 "Pr": 0,
                 "Sc": 0,
@@ -161,12 +161,12 @@ class SolventExtractionReactionsData(
         self.B0 = Param(
             self.element_list,
             initialize={
-                "Ce": -1.83424,
-                "Y": -1.87288,
-                "Gd": -2.40477,
-                "Dy": -2.19094,
-                "Sm": -2.01754,
-                "Nd": -1.72289,
+                "Ce": -1.920,
+                "Y": -2.186,
+                "Gd": -2.407,
+                "Dy": -2.354,
+                "Sm": -2.153,
+                "Nd": -1.82,
                 "La": -1.93,
                 "Pr": -1.48,
                 "Sc": 0,
@@ -179,12 +179,12 @@ class SolventExtractionReactionsData(
         self.B1 = Param(
             self.element_list,
             initialize={
-                "Ce": -0.321405,
-                "Y": -0.637533,
-                "Gd": 0.290244,
-                "Dy": -0.350304,
-                "Sm": 0.2234005,
-                "Nd": -0.253807,
+                "Ce": 9.48e-7,
+                "Y": 6.28e-7,
+                "Gd": 0.296,
+                "Dy": 1.09e-6,
+                "Sm": 0.0084,
+                "Nd": 1.78e-6,
                 "La": 0,
                 "Pr": 0,
                 "Sc": 0,
@@ -313,10 +313,12 @@ class SolventExtractionReactionsData(ProcessBlockData):
 
         def distribution_expression(b, e):
             aq_block = b.parent_block().aqueous[b.index()]
+            org_block = b.parent_block().organic[b.index()]
             org_feed_block = b.parent_block().organic_inlet_state[b.index()[0]]
 
             pH = aq_block.pH_phase["liquid"]
-            dosage = org_feed_block.extractant_dosage
+            dosage = org_block.extractant_dosage
+            # dosage = org_feed_block.extractant_dosage
             return (b.distribution_coefficient[e]) == 10 ** (
                 (b.params.m0[e] + dosage * b.params.m1[e]) * pH
                 + (b.params.B0[e] + b.params.B1[e] * log10(dosage))
