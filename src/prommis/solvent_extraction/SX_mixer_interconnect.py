@@ -5,6 +5,8 @@ from pyomo.environ import (
     TransformationFactory,
     Var,
     maximize,
+    Param,
+    value,
 )
 from pyomo.network import Arc
 
@@ -132,13 +134,15 @@ m.fs.mixer_settler_sx[1].aqueous_inlet.conc_mass_comp[0, "Dy"].fix(0.047)
 
 m.fs.mixer_settler_sx[1].aqueous_inlet.flow_vol.fix(62.01)
 
-m.fs.mixer_settler_sx[number_of_stages].organic_inlet.extractant_dosage.fix(5)
+# m.fs.mixer_settler_sx[number_of_stages].organic_inlet.extractant_dosage.fix(
+#     5
+# )  # decision variable
 m.fs.mixer_settler_sx[number_of_stages].organic_inlet.conc_mass_comp[0, "Kerosene"].fix(
     820e3
 )
-m.fs.mixer_settler_sx[number_of_stages].organic_inlet.conc_mass_comp[0, "DEHPA"].fix(
-    975e3 * 5 / 100
-)
+# m.fs.mixer_settler_sx[number_of_stages].organic_inlet.conc_mass_comp[0, "DEHPA"].fix(
+#     975e3 * 5 / 100
+# )
 m.fs.mixer_settler_sx[number_of_stages].organic_inlet.conc_mass_comp[0, "Al_o"].fix(
     1.267e-5
 )
@@ -192,9 +196,9 @@ m.fs.mixer_settler_sx[:].aqueous_settler[:].unit.area.fix(1e-2)
 m.fs.mixer_settler_sx[:].aqueous_settler[:].unit.length.fix(1e-2)
 m.fs.mixer_settler_sx[:].organic_settler[:].unit.length.fix(1e-2)
 
-m.fs.interstage_mixer[1].feed.extractant_dosage.fix(1)  # decision variable
+# m.fs.interstage_mixer[1].feed.extractant_dosage.fix(1)  # decision variable
 m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Kerosene"].fix(820e3)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "DEHPA"].fix(975.8e3 * dosage / 100)
+# m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "DEHPA"].fix(975.8e3 * 1 / 100)
 m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Al_o"].fix(1e-9)
 m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Ca_o"].fix(1e-9)
 m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Fe_o"].fix(1e-9)
@@ -207,7 +211,7 @@ m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Nd_o"].fix(1e-9)
 m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Sm_o"].fix(1e-9)
 m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Gd_o"].fix(1e-9)
 m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Dy_o"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.flow_vol.fix(1e-5)
+m.fs.interstage_mixer[1].feed.flow_vol.fix(10)
 
 m.fs.interstage_mixer[1].mixed_state[0.0].temperature.fix(305.15 * units.K)
 m.fs.interstage_mixer[1].mixed_state[0.0].pressure.fix(1e5 * units.Pa)
@@ -250,31 +254,43 @@ C_organic_max = {
     "Sm": 0.0241,
     "Y": 0.123,
 }
-# @m.Constraint()
-# def inlet_constraint(m):
-#     return (
-#         m.fs.mixer_settler_sx[1].aqueous_inlet.conc_mass_comp[0, "H"]
-#         >= 0.1 * units.mg / units.L
-#     )
 
 
-# @m.Constraint()
-# def Dy_constraint(m):
-#     return m.percentage_recovery["Dy"] <= 35
+@m.Constraint()
+def inlet_constraint(m):
+    return (
+        m.fs.mixer_settler_sx[1].aqueous_inlet.conc_mass_comp[0, "H"]
+        >= 0.1 * units.mg / units.L
+    )
+
+
+@m.Constraint()
+def Dy_constraint(m):
+    return m.percentage_recovery["Dy"] <= 35
 
 
 # @m.Constraint()
 # def Gd_constraint(m):
 #     return m.percentage_recovery["Gd"] <= 50
 
+m.rho = Param(initialize=20)
 
-# @m.Objective(sense=maximize)
-# def objective_function(m):
-#     return m.percentage_recovery["Gd"]
+
+@m.Objective(sense=maximize)
+def objective_function(m):
+    return (
+        m.percentage_recovery["Gd"]
+        + m.rho
+        * (
+            m.fs.mixer_settler_sx[1].organic_outlet.conc_mass_comp[0, "Dy_o"]
+            - C_organic_max["Dy"]
+        )
+        ** 2
+    )
 
 
 print(degrees_of_freedom(m))
 
 solver = get_solver("ipopt_v2")
-solver.options["max_iter"] = 1000
+solver.options["max_iter"] = 10000
 solver.solve(m, tee=True)

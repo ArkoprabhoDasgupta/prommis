@@ -5,17 +5,16 @@
 # Please see the files COPYRIGHT.md and LICENSE.md for full copyright and license information.
 #####################################################################################################
 
-from pyomo.environ import ConcreteModel, units, TransformationFactory, RangeSet
-import pandas as pd
+from pyomo.environ import ConcreteModel, units, Set, TransformationFactory
+import matplotlib.pyplot as plt
 from idaes.core import (
     FlowDirection,
     FlowsheetBlock,
 )
 from idaes.core.util import to_json
-import matplotlib.pyplot as plt
+
 from idaes.core.util.scaling import set_scaling_factor
 from idaes.core.solvers import get_solver
-from idaes.core.util.model_statistics import degrees_of_freedom
 
 from prommis.leaching.leach_solution_properties import LeachSolutionParameters
 from prommis.solvent_extraction.ree_og_distribution_new import REESolExOgParameters
@@ -44,15 +43,15 @@ def build_model(dosage, number_of_stages):
 
     m.fs.prop_o = REESolExOgParameters()
     m.fs.leach_soln = LeachSolutionParameters()
-    m.fs.leach_soln._has_inherent_reactions = False
     m.fs.reaxn = SolventExtractionReactions()
 
-    m.fs.reaxn.extractant_dosage = dosage
+    # m.fs.reaxn.extractant_dosage = dosage
 
-    m.system = RangeSet(1, 8)
+    m.scenario = Set(initialize=[1, 2, 3, 4])
+    stage_number = {1: 1, 2: 2, 3: 3, 4: 4}
 
     m.fs.mixer_settler_ex = MixerSettlerExtraction(
-        m.system,
+        m.scenario,
         number_of_stages=number_of_stages,
         aqueous_stream={
             "property_package": m.fs.leach_soln,
@@ -88,56 +87,61 @@ def set_inputs(m, dosage):
 
     """
     pH_set = {
-        1: 0.235,
-        2: 0.54,
-        3: 0.82,
-        4: 1.18,
-        5: 1.53,
-        6: 1.75,
-        7: 1.996,
-        8: 4,
-    }
-    dosage_set = {
-        1: 2,
-        2: 2,
-        3: 2,
-        4: 2,
-        5: 2,
-        6: 2,
-        7: 2,
-        8: 2,
+        "P1D1": 1.02,
+        "P2D1": 1.9,
+        "P3D1": 2.4,
+        # "P1D2": 1.5,
+        # "P2D2": 2,
+        # "P3D2": 2.5,
     }
 
-    for s in m.system:
+    dosage_set = {
+        "P1D1": 5,
+        "P2D1": 5,
+        "P3D1": 5,
+        # "P1D2": 10,
+        # "P2D2": 10,
+        # "P3D2": 10,
+    }
+
+    for s in m.scenario:
         m.fs.mixer_settler_ex[s].aqueous_inlet.conc_mass_comp[0, "H"].fix(
             10 ** -pH_set[s] * 1e3
         )
-        m.fs.mixer_settler_ex[s].aqueous_inlet.conc_mass_comp[0, "Cl"].fix(
-            10 ** -pH_set[s] * 35e3
+        m.fs.mixer_settler_ex[s].aqueous_inlet.conc_mass_comp[0, "SO4"].fix(
+            10 ** -pH_set[s] * 96e3
         )
+        m.fs.mixer_settler_ex[s].organic_inlet.extractant_dosage.fix(dosage_set[s])
         m.fs.mixer_settler_ex[s].organic_inlet.conc_mass_comp[0, "DEHPA"].fix(
             975.8e3 * dosage_set[s] / 100
         )
 
+    # pH = 1.5
     m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "H2O"].fix(1e6)
-    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "SO4"].fix(1e-10)
-    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "HSO4"].fix(1e-10)
-    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Al"].fix(1e-10)
-    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Ca"].fix(1e-10)
-    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Fe"].fix(1e-10)
-    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Sc"].fix(1e-10)
-    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Y"].fix(225)
-    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "La"].fix(5)
-    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Ce"].fix(50)
-    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Pr"].fix(12.5)
-    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Nd"].fix(75)
-    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Sm"].fix(45)
-    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Gd"].fix(80)
-    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Dy"].fix(60)
+    # m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "H"].fix(10**-pH * 1e3)
+    # m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "SO4"].fix(10**-pH * 96e3)
+    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "HSO4"].fix(1e-8)
+    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Al"].fix(1e-8)
+    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Ca"].fix(1e-8)
+    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Cl"].fix(1e-7)
+    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Fe"].fix(1e-7)
+    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Sc"].fix(0.277)
+    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Y"].fix(0.346)
+    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "La"].fix(2.091)
+    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Ce"].fix(5.013)
+    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Pr"].fix(0.734)
+    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Nd"].fix(2.106)
+    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Sm"].fix(0.235)
+    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Gd"].fix(0.567)
+    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Dy"].fix(0.096)
 
-    m.fs.mixer_settler_ex[:].aqueous_inlet.flow_vol.fix(62.01)
+    m.fs.mixer_settler_ex[:].aqueous_inlet.flow_vol.fix(60.01)
 
+    # m.fs.mixer_settler_ex[:].organic_inlet.extractant_dosage.fix(dosage)
     m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Kerosene"].fix(820e3)
+    # m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "DEHPA"].fix(
+    #     975.8e3 * dosage / 100
+    # )
     m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Al_o"].fix(1e-10)
     m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Ca_o"].fix(1e-10)
     m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Fe_o"].fix(1e-10)
@@ -151,7 +155,7 @@ def set_inputs(m, dosage):
     m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Gd_o"].fix(1e-10)
     m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Dy_o"].fix(1e-10)
 
-    m.fs.mixer_settler_ex[:].organic_inlet.flow_vol.fix(62.01)
+    m.fs.mixer_settler_ex[:].organic_inlet.flow_vol.fix(60.01)
 
     m.fs.mixer_settler_ex[:].mixer[:].unit.mscontactor.aqueous[:, :].temperature.fix(
         305.15 * units.K
@@ -160,12 +164,12 @@ def set_inputs(m, dosage):
         305.15 * units.K
     )
 
-    m.fs.mixer_settler_ex[:].mixer[:].unit.mscontactor.volume[:].fix(1e-4 * units.m**3)
+    m.fs.mixer_settler_ex[:].mixer[:].unit.mscontactor.volume[:].fix(0.4 * units.m**3)
 
-    m.fs.mixer_settler_ex[:].organic_settler[:].unit.area.fix(1e-2)
-    m.fs.mixer_settler_ex[:].aqueous_settler[:].unit.area.fix(1e-2)
-    m.fs.mixer_settler_ex[:].aqueous_settler[:].unit.length.fix(1e-2)
-    m.fs.mixer_settler_ex[:].organic_settler[:].unit.length.fix(1e-2)
+    m.fs.mixer_settler_ex[:].organic_settler[:].unit.area.fix(1)
+    m.fs.mixer_settler_ex[:].aqueous_settler[:].unit.area.fix(1)
+    m.fs.mixer_settler_ex[:].aqueous_settler[:].unit.length.fix(1)
+    m.fs.mixer_settler_ex[:].organic_settler[:].unit.length.fix(1)
 
 
 def model_buildup_and_set_inputs(dosage, number_of_stages):
@@ -242,22 +246,10 @@ def main(dosage, number_of_stages):
     return m, results
 
 
-dosage = 2
-number_of_stages = 1
+dosage = 5
+number_of_stages = 2
 
 m = model_buildup_and_set_inputs(dosage, number_of_stages)
-
-m.fs.mixer_settler_ex[:].mixer[1].unit.mscontactor.aqueous[
-    0.0, 1
-].hso4_dissociation.deactivate()
-
-for s in m.system:
-    for z in m.fs.mixer_settler_ex[s].aqueous_settler[1].unit.length_domain:
-        if z != 0:
-            m.fs.mixer_settler_ex[s].aqueous_settler[1].unit.properties[
-                0.0, z
-            ].hso4_dissociation.deactivate()
-
 
 for e in ["Al", "Ca", "Fe", "Sc"]:
     m.fs.mixer_settler_ex[:].mixer[1].unit.mscontactor.heterogeneous_reaction_extent[
@@ -267,57 +259,84 @@ for e in ["Al", "Ca", "Fe", "Sc"]:
         0, 1, e
     ].deactivate()
 
+# for s in m.scenario:
+#     MixerSettlerExtractionInitializer().initialize(m.fs.mixer_settler_ex[s])
 
-print(degrees_of_freedom(m))
+for s in m.scenario:
+    for e in ["La", "Ce", "Nd"]:
+        # set_scaling_factor(
+        #     m.fs.mixer_settler_ex[8]
+        #     .mixer[1]
+        #     .unit.mscontactor.heterogeneous_reactions[0.0, 1]
+        #     .distribution_expression_constraint[e],
+        #     1e-1,
+        # )
 
-# for s in m.system:
-#     # set_scaling_factor(
-#     #     m.fs.mixer_settler_ex[s]
-#     #     .mixer[1]
-#     #     .unit.mscontactor.aqueous_inlet_state[0.0]
-#     #     .pH_constraint["liquid"],
-#     #     1e-1,
-#     # )
+        set_scaling_factor(
+            m.fs.mixer_settler_ex[s]
+            .mixer[1]
+            .unit.distribution_extent_constraint[0.0, 1, e],
+            1e-2,
+        )
 
-for e in ["La", "Ce", "Pr", "Nd", "Sm"]:
-    # set_scaling_factor(
-    #     m.fs.mixer_settler_ex[8]
-    #     .mixer[1]
-    #     .unit.mscontactor.heterogeneous_reactions[0.0, 1]
-    #     .distribution_expression_constraint[e],
-    #     1e-1,
-    # )
+        # set_scaling_factor(
+        #     m.fs.mixer_settler_ex[s]
+        #     .mixer[2]
+        #     .unit.distribution_extent_constraint[0.0, 1, e],
+        #     1e1,
+        # )
 
-    set_scaling_factor(
-        m.fs.mixer_settler_ex[8]
-        .mixer[1]
-        .unit.distribution_extent_constraint[0.0, 1, e],
-        1e1,
-    )
+        set_scaling_factor(
+            m.fs.mixer_settler_ex[s]
+            .mixer[1]
+            .unit.mscontactor.aqueous[0.0, 1]
+            .hso4_dissociation,
+            1e-2,
+        )
 
-# # set_scaling_factor(m.fs.mixer_settler_ex[:].mixer[1].unit.mscontactor.aqueous[0.0,1].conc_mol_comp['HSO4'])
+        set_scaling_factor(
+            m.fs.mixer_settler_ex[s]
+            .mixer[2]
+            .unit.mscontactor.aqueous[0.0, 1]
+            .hso4_dissociation,
+            1e-2,
+        )
+
+        set_scaling_factor(
+            m.fs.mixer_settler_ex[s]
+            .mixer[1]
+            .unit.mscontactor.aqueous[0.0, 1]
+            .pH_constraint["liquid"],
+            1e2,
+        )
+
+        set_scaling_factor(
+            m.fs.mixer_settler_ex[s]
+            .mixer[2]
+            .unit.mscontactor.aqueous[0.0, 1]
+            .pH_constraint["liquid"],
+            1e2,
+        )
 
 scaling = TransformationFactory("core.scale_model")
 scaled_model = scaling.create_using(m, rename=False)
 
-# MixerSettlerExtractionInitializer().initialize(scaled_model.fs.mixer_settler_ex[8])
-
-# solve_model(m)
-
-# # initialize_steady_model(m)
 solve_model(scaled_model)
 
 # for s in m.system:
 #     MixerSettlerExtractionInitializer().initialize(m.fs.mixer_settler_ex[s])
 
-
 scaling.propagate_solution(scaled_model, m)
 
-# # if __name__ == "__main__":
-# #     m, results = main(dosage, number_of_stages)
+# solver = get_solver("ipopt_v2")
+# results = solver.solve(m, tee=True)
+
+# if __name__ == "__main__":
+#     m, results = main(dosage, number_of_stages)
 
 percentage_extraction = {}
 
+# for s in m.scenario:
 for e in m.fs.leach_soln.component_list:
     if e not in ["H2O", "H", "HSO4", "SO4", "Cl", "Al", "Ca", "Fe", "Sc"]:
         percentage_extraction[e] = [
@@ -338,33 +357,48 @@ for e in m.fs.leach_soln.component_list:
                 )
             )
             * 100
-            for s in m.system
+            for s in m.scenario
         ]
 
-# # print(
-# #     m.fs.mixer_settler_ex[:]
-# #     .mixer[1]
-# #     .unit.mscontactor.aqueous[0.0, 1]
-# #     .pH_phase["liquid"]()
-# # )
-# # percentage_extraction
-
-df = pd.read_excel("data for parmest.xlsx", sheet_name="model validation")
-
-element_list = ["Y", "Dy", "Gd", "Sm", "Nd", "Ce"]
-colors = {"Y": "r", "Dy": "g", "Gd": "b", "Sm": "c", "Nd": "m", "Ce": "y"}
-pH_list = [
-    m.fs.mixer_settler_ex[s]
-    .mixer[1]
-    .unit.mscontactor.aqueous[0.0, 1]
-    .pH_phase["liquid"]()
-    for s in m.system
+percentage_extraction["TREE"] = [
+    (
+        (
+            sum(
+                m.fs.mixer_settler_ex[s].organic_outlet.conc_mass_comp[0, f"{e}_o"]()
+                for e in m.fs.leach_soln.component_list
+                if e not in ["H2O", "H", "HSO4", "SO4", "Cl", "Al", "Ca", "Fe", "Sc"]
+            )
+            * m.fs.mixer_settler_ex[s].organic_outlet.flow_vol[0]()
+            - sum(
+                m.fs.mixer_settler_ex[s].organic_inlet.conc_mass_comp[0, f"{e}_o"]()
+                for e in m.fs.leach_soln.component_list
+                if e not in ["H2O", "H", "HSO4", "SO4", "Cl", "Al", "Ca", "Fe", "Sc"]
+            )
+            * m.fs.mixer_settler_ex[s].organic_inlet.flow_vol[0]()
+        )
+        / (
+            sum(
+                m.fs.mixer_settler_ex[s].aqueous_inlet.conc_mass_comp[0, e]()
+                for e in m.fs.leach_soln.component_list
+                if e not in ["H2O", "H", "HSO4", "SO4", "Cl", "Al", "Ca", "Fe", "Sc"]
+            )
+            * m.fs.mixer_settler_ex[s].aqueous_inlet.flow_vol[0]()
+        )
+    )
+    * 100
+    for s in m.scenario
 ]
 
-for e in element_list:
-    plt.scatter(df["pH"], df[e], marker="o", color=colors[e])
-    plt.plot(pH_list, percentage_extraction[e], marker="v", color=colors[e], label=e)
+pH_list = [
+    m.fs.mixer_settler_ex[s]
+    .mixer[2]
+    .unit.mscontactor.aqueous[0.0, 1]
+    .pH_phase["liquid"]()
+    for s in m.scenario
+]
+plt.scatter([1.5, 2, 2.5], [10, 22, 29], marker="o", color="red")
+plt.plot(pH_list, percentage_extraction["TREE"], marker="v", color="black")
 plt.xlabel("pH")
 plt.ylabel("Extraction %")
-plt.title(f"Extraction % comparison for 2% DEHPA 10% TBP")
+plt.title(f"Extraction % comparison for 5% DEHPA 10% TBP")
 plt.legend()

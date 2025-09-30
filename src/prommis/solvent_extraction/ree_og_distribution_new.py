@@ -192,7 +192,7 @@ class REESolExOgStateBlockData(StateBlockData):
         self.extractant_dosage = Var(
             domain=Reals,
             initialize=1.0,
-            bounds=(1, 100),
+            bounds=(1, 10),
             doc="Extractant dosage v/v%",
             units=units.dimensionless,
         )
@@ -207,23 +207,17 @@ class REESolExOgStateBlockData(StateBlockData):
                 == b.conc_mass_comp[j]
             )
 
-        # @self.Constraint()
-        # def dosage_calculation(b):
-        #     return (
-        #         b.extractant_dosage
-        #         == (b.conc_mass_comp["DEHPA"] / (975.8e3 * units.mg / units.L)) * 100
-        #     )
+        @self.Constraint()
+        def dosage_calculation(b):
+            return (
+                b.extractant_dosage
+                == (b.conc_mass_comp["DEHPA"] / (975.8e3 * units.mg / units.L)) * 100
+            )
 
         if not self.config.defined_state:
             # Concentration of kerosene based on assumed density
             self.kerosene_concentration = Constraint(
                 expr=self.conc_mass_comp["Kerosene"] == 8.2e5 * units.mg / units.L
-            )
-
-            # Dosage calculation constraint
-            self.dosage_calculation = Constraint(
-                expr=self.extractant_dosage
-                == (self.conc_mass_comp["DEHPA"] / (975.8e3 * units.mg / units.L)) * 100
             )
 
     def get_material_flow_basis(self):
@@ -259,5 +253,4 @@ class REESolExOgStateBlockData(StateBlockData):
             "conc_mass_comp": self.conc_mass_comp,
             "temperature": self.temperature,
             "pressure": self.pressure,
-            "extractant_dosage": self.extractant_dosage,
         }

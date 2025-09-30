@@ -104,7 +104,7 @@ m.fs.mixer_settler_sx[:].aqueous_inlet.conc_mass_comp[0, "Dy"].fix(0.047)
 
 m.fs.mixer_settler_sx[:].aqueous_inlet.flow_vol.fix(62.01)
 
-m.fs.mixer_settler_sx[:].organic_inlet.extractant_dosage.fix(5)
+# m.fs.mixer_settler_sx[:].organic_inlet.extractant_dosage.fix(5)
 m.fs.mixer_settler_sx[:].organic_inlet.conc_mass_comp[0, "Kerosene"].fix(820e3)
 m.fs.mixer_settler_sx[:].organic_inlet.conc_mass_comp[0, "DEHPA"].fix(975e3 * 5 / 100)
 m.fs.mixer_settler_sx[:].organic_inlet.conc_mass_comp[0, "Al_o"].fix(1.267e-5)
@@ -170,7 +170,7 @@ for i in stage_list:
 
 TransformationFactory("network.expand_arcs").apply_to(m)
 
-m.fs.interstage_mixer[1].feed.extractant_dosage.fix(1)  # decision variable
+# m.fs.interstage_mixer[1].feed.extractant_dosage.fix(1)  # decision variable
 m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Kerosene"].fix(820e3)
 m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "DEHPA"].fix(975.8e3 * dosage / 100)
 m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Al_o"].fix(1e-9)

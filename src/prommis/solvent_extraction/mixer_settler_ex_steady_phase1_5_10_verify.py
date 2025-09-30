@@ -116,7 +116,7 @@ def set_inputs(m, dosage):
         m.fs.mixer_settler_ex[s].organic_inlet.conc_mass_comp[0, "DEHPA"].fix(
             975.8e3 * dosage_set[s] / 100
         )
-        m.fs.mixer_settler_ex[s].organic_inlet.extractant_dosage.fix(dosage_set[s])
+        # m.fs.mixer_settler_ex[s].organic_inlet.extractant_dosage.fix(dosage_set[s])
 
     m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "H2O"].fix(1e6)
     # m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "H"].fix(10**-pH * 1e3)
@@ -367,8 +367,14 @@ pH_list = [
 ]
 
 for e in element_list:
-    plt.scatter(df["pH"], df[e], marker="o", color=colors[e])
-    plt.plot(pH_list, percentage_extraction[e], marker="v", color=colors[e], label=e)
+    plt.scatter(df["pH"], df[e], marker="o", color=colors[e], label=f"{e}_exp")
+    plt.plot(
+        pH_list,
+        percentage_extraction[e],
+        marker="v",
+        color=colors[e],
+        label=f"{e}_model",
+    )
 plt.xlabel("pH")
 plt.ylabel("Extraction %")
 plt.title(f"Extraction % comparison for 5% DEHPA 10% TBP")
