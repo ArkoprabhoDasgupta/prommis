@@ -44,7 +44,7 @@ m.fs = FlowsheetBlock(dynamic=False)
 m.fs.mem_prop = MembraneSXModuleParameters()
 m.fs.mem_channel = MembraneSXChannelParameters()
 # m.fs.leach_soln = LeachSolutionParameters()
-m.fs.mem_prop.extractant_dosage = 10
+m.fs.mem_prop.extractant_dosage = 5
 
 m.fs.membrane_module = MembraneSolventExtraction(
     feed_phase={
@@ -62,7 +62,7 @@ m.fs.membrane_module = MembraneSolventExtraction(
     membrane_phase={
         "property_package": m.fs.mem_prop,
     },
-    finite_elements=20,
+    finite_elements=25,
     transformation_method="dae.finite_difference",
     transformation_scheme="BACKWARD",
     # collocation_points=2,
@@ -113,12 +113,12 @@ m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "Y"].fix(
 m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "Sc"].fix(
     20 * units.microgram / units.L
 )
-# m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "H"].fix(
-#     10**-2.06 * 1 * units.gram / units.L
-# )
 m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "H"].fix(
-    0.01 * units.gram / units.L
+    10**-2.06 * 1 * units.gram / units.L
 )
+# m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "H"].fix(
+#     0.01 * units.gram / units.L
+# )
 m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, "H2O"].fix(1e6)
 
 # Strip phase inlet conditions
@@ -172,16 +172,17 @@ m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[0, "H2O"].fix(1e6)
 
 m.fs.membrane_module.eff["Al"].fix(3.246e-4)
 m.fs.membrane_module.eff["Ca"].fix(1.765e-3)
-m.fs.membrane_module.eff["Ce"].fix(0.0305)
-m.fs.membrane_module.eff["Dy"].fix(1.156e-3)
+m.fs.membrane_module.eff["Ce"].fix(0.02709)
+m.fs.membrane_module.eff["Dy"].fix(1.156e-4)
 m.fs.membrane_module.eff["Fe"].fix(7.773e-4)
-m.fs.membrane_module.eff["Gd"].fix(0.013)
-m.fs.membrane_module.eff["La"].fix(0.032)
-m.fs.membrane_module.eff["Nd"].fix(0.059)
-m.fs.membrane_module.eff["Pr"].fix(0.105)
-m.fs.membrane_module.eff["Sm"].fix(0.15)
-m.fs.membrane_module.eff["Y"].fix(3e-6)
-m.fs.membrane_module.eff["Sc"].fix(1.5e-5)
+m.fs.membrane_module.eff["Gd"].fix(0.00998)
+m.fs.membrane_module.eff["La"].fix(0.0291)
+m.fs.membrane_module.eff["Nd"].fix(0.05226)
+m.fs.membrane_module.eff["Pr"].fix(0.0993)
+m.fs.membrane_module.eff["Sm"].fix(0.124)
+m.fs.membrane_module.eff["Y"].fix(7.42e-7)
+
+m.fs.membrane_module.eff["Sc"].fix(0.4)
 
 m.scaling_factor = Suffix(direction=Suffix.EXPORT)
 
@@ -193,12 +194,6 @@ for t in m.fs.time:
         )
         set_scaling_factor(
             m.fs.membrane_module.feed_phase.properties[t, z].pH_constraint,
-            1e2,
-        )
-        set_scaling_factor(
-            m.fs.membrane_module.feed_phase.material_flow_linking_constraints[
-                t, z, "liquid", "H"
-            ],
             1e2,
         )
         for e in m.fs.mem_prop.component_list:

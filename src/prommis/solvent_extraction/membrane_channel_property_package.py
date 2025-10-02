@@ -169,27 +169,25 @@ class MembraneSXChannelStateBlockData(StateBlockData):
 
         self.flow_vol = Var(
             units=units.L / units.hr,
-            initialize=1e-6,
+            initialize=1e-5,
             bounds=(1e-8, None),
         )
 
         self.conc_mass_comp = Var(
             self.params.component_list,
             units=units.mg / units.L,
-            initialize=1e-20,
-            bounds=(1e-20, None),
+            initialize=1e-8,
+            bounds=(1e-24, None),
         )
 
         self.conc_mol_comp = Var(
             self.params.component_list,
             units=units.mol / units.L,
-            initialize=1e-20,
+            initialize=1e-8,
             bounds=(1e-24, None),
         )
 
-        self.pH_phase = Var(
-            domain=Reals, initialize=1, doc="pH of the solution", bounds=(-1, 4)
-        )
+        self.pH_phase = Var(domain=Reals, initialize=1, doc="pH of the solution")
 
         @self.Constraint()
         def pH_constraint(b):
@@ -234,12 +232,12 @@ class MembraneSXChannelStateBlockData(StateBlockData):
         if j == "H2O":
             return units.convert(
                 self.params.dens_mass / self.params.mw[j],
-                to_units=units.mol / units.L,
+                to_units=units.mol / units.m**3,
             )
         else:
             return units.convert(
                 self.conc_mass_comp[j] / self.params.mw[j],
-                to_units=units.mol / units.L,
+                to_units=units.mol / units.m**3,
             )
 
     def get_material_flow_basis(self):

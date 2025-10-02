@@ -30,10 +30,8 @@ from idaes.core.util import from_json
 
 from prommis.solvent_extraction.membrane_solvent_extraction import (
     MembraneSolventExtraction,
-    MembraneSolventExtractionInitializer,
 )
 
-from prommis.leaching.leach_solution_properties import LeachSolutionParameters
 from idaes.core.util import DiagnosticsToolbox
 
 m = ConcreteModel()
@@ -81,24 +79,24 @@ m.discretizer = TransformationFactory("dae.finite_difference")
 m.discretizer.apply_to(m, nfe=5, wrt=m.fs.time, scheme="BACKWARD")
 
 
-# def copy_first_steady_state(m):
-#     """
-#     Function that propagates initial steady state guess to future time points.
-#     This function is used to initialize all the time discrete variables to the
-#     initial steady state value.
-#     """
-#     regular_vars, time_vars = flatten_dae_components(m, m.fs.time, Var, active=True)
-#     # Copy initial conditions forward
-#     for var in time_vars:
-#         for t in m.fs.time:
-#             if t == m.fs.time.first():
-#                 continue
-#             else:
-#                 var[t].value = var[m.fs.time.first()].value
+def copy_first_steady_state(m):
+    """
+    Function that propagates initial steady state guess to future time points.
+    This function is used to initialize all the time discrete variables to the
+    initial steady state value.
+    """
+    regular_vars, time_vars = flatten_dae_components(m, m.fs.time, Var, active=True)
+    # Copy initial conditions forward
+    for var in time_vars:
+        for t in m.fs.time:
+            if t == m.fs.time.first():
+                continue
+            else:
+                var[t].value = var[m.fs.time.first()].value
 
 
-# from_json(m, fname="membrane_solvent_extraction.json")
-# copy_first_steady_state(m)
+from_json(m, fname="membrane_solvent_extraction.json")
+copy_first_steady_state(m)
 
 # Feed phase inlet conditions
 
@@ -142,14 +140,23 @@ m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[:, "Sc"].fix(
 m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[:, "H"].fix(
     10**-2.06 * 1 * units.gram / units.L
 )
-# m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[:, "H"].fix(
-#     0.01 * units.gram / units.L
-# )
-m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[:, "H2O"].fix(1e6)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[:, "H2O"].fix(
+    1e6 * units.gram / units.L
+)
 
 # Strip phase inlet conditions
 
-m.fs.membrane_module.strip_phase_inlet.flow_vol.fix(54 * units.mL / units.min)
+for t in m.fs.time:
+    if t <= 6:
+        m.fs.membrane_module.strip_phase_inlet.flow_vol[t].fix(
+            54 * units.mL / units.min
+        )
+    else:
+        m.fs.membrane_module.strip_phase_inlet.flow_vol[t].fix(
+            54 * units.mL / units.min
+        )
+
+# m.fs.membrane_module.strip_phase_inlet.flow_vol.fix(54 * units.mL / units.min)
 m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "Ca"].fix(
     4081 * units.microgram / units.L
 )
@@ -189,21 +196,32 @@ m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "Sc"].fix(
 m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "H"].fix(
     3 * 1 * units.gram / units.L
 )
-# m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "H"].fix(
-#     0.5 * units.gram / units.L
-# )
-m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "H2O"].fix(1e6)
+
+m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "H2O"].fix(
+    1e6 * units.mg / units.L
+)
+
+m.fs.membrane_module.eff["Al"].fix(3.246e-4)
+m.fs.membrane_module.eff["Ca"].fix(1.765e-3)
+m.fs.membrane_module.eff["Ce"].fix(0.0305)
+m.fs.membrane_module.eff["Dy"].fix(1.156e-3)
+m.fs.membrane_module.eff["Fe"].fix(7.773e-4)
+m.fs.membrane_module.eff["Gd"].fix(0.013)
+m.fs.membrane_module.eff["La"].fix(0.032)
+m.fs.membrane_module.eff["Nd"].fix(0.059)
+m.fs.membrane_module.eff["Pr"].fix(0.105)
+m.fs.membrane_module.eff["Sm"].fix(0.15)
+m.fs.membrane_module.eff["Y"].fix(3e-6)
+m.fs.membrane_module.eff["Sc"].fix(1.5e-5)
 
 for e in m.fs.mem_channel.component_list:
     if e not in ["H2O"]:
-        m.fs.membrane_module.feed_phase.properties[0.0, :].conc_mass_comp[e].fix(1e-10)
-        m.fs.membrane_module.feed_phase.properties[0.0, :].flow_vol.fix(17)
+        m.fs.membrane_module.feed_phase.properties[0.0, :].conc_mass_comp[e].fix()
+        m.fs.membrane_module.feed_phase.properties[0.0, :].flow_vol.fix()
 
-        m.fs.membrane_module.strip_phase.properties[0.0, :].conc_mass_comp[e].fix(1e-10)
-        m.fs.membrane_module.strip_phase.properties[0.0, :].flow_vol.fix(54)
+        m.fs.membrane_module.strip_phase.properties[0.0, :].conc_mass_comp[e].fix()
+        m.fs.membrane_module.strip_phase.properties[0.0, :].flow_vol.fix()
 
-# for e in m.fs.mem_prop.component_list:
-#     m.fs.membrane_module.conc_mol_membrane_comp[0, 0.0, :, e].fix()
 
 print("Degrees of freedom:", dof(m))
 
@@ -213,16 +231,22 @@ for t in m.fs.time:
     for z in m.fs.membrane_module.feed_phase.length_domain:
         set_scaling_factor(
             m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp["H"],
-            1,
+            1e2,
         )
         set_scaling_factor(
             m.fs.membrane_module.feed_phase.properties[t, z].pH_constraint,
-            1,
+            1e2,
+        )
+        set_scaling_factor(
+            m.fs.membrane_module.feed_phase.material_flow_linking_constraints[
+                t, z, "liquid", "H"
+            ],
+            1e2,
         )
         for e in m.fs.mem_prop.component_list:
             set_scaling_factor(
                 m.fs.membrane_module.feed_phase.properties[t, z].conc_mol_comp[e],
-                1e4,
+                1e2,
             )
             set_scaling_factor(
                 m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp[e],
@@ -230,7 +254,7 @@ for t in m.fs.time:
             )
             set_scaling_factor(
                 m.fs.membrane_module.strip_phase.properties[t, z].conc_mol_comp[e],
-                1e4,
+                1e2,
             )
             set_scaling_factor(
                 m.fs.membrane_module.strip_phase.properties[t, z].conc_mass_comp[e],
@@ -240,76 +264,16 @@ for t in m.fs.time:
             for r in m.fs.membrane_module.r:
                 set_scaling_factor(
                     m.fs.membrane_module.conc_mol_membrane_comp[t, z, r, e],
-                    1e4,
+                    1e2,
                 )
+
 
 scaling = TransformationFactory("core.scale_model")
 scaled_model = scaling.create_using(m, rename=False)
-
-# # initializer = MembraneSolventExtractionInitializer()
-# # initializer.initialize(scaled_model.fs.membrane_module)
-# # # initializer.initialize(m.fs.membrane_module)
 
 solver = get_solver("ipopt_v2")
 solver.options["max_iter"] = 10000
 # results = solver.solve(m, tee=True)
 results = solver.solve(scaled_model, tee=True)
 
-# # dt = DiagnosticsToolbox(scaled_model)
-
-# scaling.propagate_solution(scaled_model, m)
-
-# # import pandas as pd
-
-# # index_list = []
-# # for e in m.fs.mem_channel.component_list:
-# #     if e == "H2O":
-# #         pass
-# #     elif e == "H":
-# #         index_list.append(f"{e}_feed")
-# #         index_list.append("pH_feed")
-# #         index_list.append("model_pH_feed")
-# #         index_list.append(f"{e}_strip")
-# #         index_list.append("pH_strip")
-# #         index_list.append("model_pH_strip")
-# #     else:
-# #         index_list.append(f"{e}_feed")
-# #         index_list.append(f"{e}_strip")
-
-# # df = pd.DataFrame(
-# #     index=index_list,
-# #     columns=m.fs.membrane_module.feed_phase.length_domain,
-# # )
-
-# # for z in m.fs.membrane_module.feed_phase.length_domain:
-# #     for e in m.fs.mem_channel.component_list:
-# #         if e == "H":
-# #             df.loc[f"{e}_feed", z] = m.fs.membrane_module.feed_phase.properties[
-# #                 0, z
-# #             ].conc_mol_comp[e]()
-# #             df.loc[f"{e}_strip", z] = m.fs.membrane_module.strip_phase.properties[
-# #                 0, z
-# #             ].conc_mol_comp[e]()
-# #             df.loc[f"pH_feed", z] = -log10(
-# #                 m.fs.membrane_module.feed_phase.properties[0, z].conc_mol_comp[e]()
-# #             )
-# #             df.loc[f"pH_strip", z] = -log10(
-# #                 m.fs.membrane_module.strip_phase.properties[0, z].conc_mol_comp[e]()
-# #             )
-# #             df.loc[f"model_pH_feed", z] = m.fs.membrane_module.feed_phase.properties[
-# #                 0, z
-# #             ].pH_phase()
-# #             df.loc[f"model_pH_strip", z] = m.fs.membrane_module.strip_phase.properties[
-# #                 0, z
-# #             ].pH_phase()
-# #         elif e == "H2O":
-# #             pass
-# #         else:
-# #             df.loc[f"{e}_feed", z] = m.fs.membrane_module.feed_phase.properties[
-# #                 0, z
-# #             ].conc_mol_comp[e]()
-# #             df.loc[f"{e}_strip", z] = m.fs.membrane_module.strip_phase.properties[
-# #                 0, z
-# #             ].conc_mol_comp[e]()
-
-# # df.to_excel("msx_netl_data_steady_profile.xlsx")
+scaling.propagate_solution(scaled_model, m)

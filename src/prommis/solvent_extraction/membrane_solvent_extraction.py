@@ -43,6 +43,10 @@ class MembraneSolventExtractionInitializer(SingleControlVolumeUnitInitializer):
 
     """
 
+    CONFIG = SingleControlVolumeUnitInitializer.CONFIG()
+
+    CONFIG["always_estimate_states"] = True
+
     def initialize_main_model(
         self,
         model: Block,
@@ -58,45 +62,42 @@ class MembraneSolventExtractionInitializer(SingleControlVolumeUnitInitializer):
         Returns:
             None
         """
-        for stream in ["feed", "strip"]:
-            target_model = getattr(model, f"{stream}_phase")
-            target_x = getattr(model, f"{stream}_phase").length_domain
-            regular_vars, length_vars = flatten_dae_components(
-                target_model,
-                target_x,
-                Var,
-                active=True,
-            )
-            if (
-                getattr(model.config, f"{stream}_phase").flow_direction
-                == FlowDirection.forward
-            ):
-                first_point = target_x.first()
-            else:
-                first_point = target_x.last()
-            for var in length_vars:
-                for x in target_x:
-                    if x == first_point:
-                        continue
-                    else:
-                        var[x].value = var[first_point].value
-
+        # for stream in ["feed", "strip"]:
+        #     target_model = getattr(model, f"{stream}_phase")
+        #     target_x = getattr(model, f"{stream}_phase").length_domain
+        #     regular_vars, length_vars = flatten_dae_components(
+        #         target_model,
+        #         target_x,
+        #         Var,
+        #         active=True,
+        #     )
+        #     if (
+        #         getattr(model.config, f"{stream}_phase").flow_direction
+        #         == FlowDirection.forward
+        #     ):
+        #         first_point = target_x.first()
+        #     else:
+        #         first_point = target_x.last()
+        #     for var in length_vars:
+        #         for x in target_x:
+        #             if x == first_point:
+        #                 continue
+        #             else:
+        #                 var[x].value = var[first_point].value
+        print("check 1")
         solver = self._get_solver()
-        zero_model = solver.solve(model)
-
-        model.feed_phase.mass_transfer_term[:, :, "liquid", :].fix()
-        model.strip_phase.mass_transfer_term[:, :, "liquid", :].fix()
 
         # Initialize MSX CV1Ds
         self.initialize_control_volume(model.feed_phase)
         self.initialize_control_volume(model.strip_phase)
+        print("check 2")
+        from idaes.core.util.model_statistics import degrees_of_freedom as dof
 
-        model.feed_phase.mass_transfer_term[:, :, "liquid", :].unfix()
-        model.strip_phase.mass_transfer_term[:, :, "liquid", :].unfix()
+        print(dof(model))
 
-        init_model = solver.solve(model)
+        res = solver.solve(model, tee=True)
 
-        return init_model
+        return res
 
 
 Stream_Config = ConfigDict()
@@ -522,7 +523,7 @@ class MembraneSolventExtractionData(UnitModelBlockData):
             self.feed_phase.length_domain,
             self.r,
             self.config.membrane_phase["property_package"].component_list,
-            units=units.mol / units.L,
+            units=units.mol / units.m**3,
             initialize=1e-5,
             bounds=(1e-24, None),
         )
