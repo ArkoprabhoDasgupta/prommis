@@ -29,6 +29,7 @@ from prommis.solvent_extraction.mixer_settler_extraction import (
 from prommis.solvent_extraction.solvent_extraction_reaction_package import (
     SolventExtractionReactions,
 )
+import matplotlib.pyplot as plt
 
 time_duration = 12
 
@@ -340,7 +341,7 @@ def main(dosage, number_of_stages, time_duration, perturb_time, path_name):
 
 
 dosage = 5
-number_of_stages = 3
+number_of_stages = 20
 time_duration = 12
 perturb_time = 4
 
@@ -352,3 +353,16 @@ if __name__ == "__main__":
         perturb_time,
         path_name="mixer_settler_extraction.json",
     )
+
+fig, ax = plt.subplots(4, 5)
+
+for i in range(4):
+    for j in range(5):
+        ax[i, j].plot(
+            m.fs.time,
+            m.fs.mixer_settler_ex.organic_settler[i * 5 + j + 1]
+            .unit.properties[:, 1]
+            .conc_mass_comp["Dy_o"](),
+        )
+        ax[i, j].set_title(f"{i*5+j+1}")
+        ax[i, j].set(xlabel="Time (hr)", ylabel="organic Dy (mg/L)")
