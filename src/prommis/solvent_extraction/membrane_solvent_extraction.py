@@ -523,7 +523,7 @@ class MembraneSolventExtractionData(UnitModelBlockData):
             self.feed_phase.length_domain,
             self.r,
             self.config.membrane_phase["property_package"].component_list,
-            units=units.mol / units.m**3,
+            units=units.mol / units.L,
             initialize=1e-5,
             bounds=(1e-24, None),
         )

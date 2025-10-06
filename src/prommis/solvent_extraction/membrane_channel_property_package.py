@@ -232,12 +232,12 @@ class MembraneSXChannelStateBlockData(StateBlockData):
         if j == "H2O":
             return units.convert(
                 self.params.dens_mass / self.params.mw[j],
-                to_units=units.mol / units.m**3,
+                to_units=units.mol / units.L,
             )
         else:
             return units.convert(
                 self.conc_mass_comp[j] / self.params.mw[j],
-                to_units=units.mol / units.m**3,
+                to_units=units.mol / units.L,
             )
 
     def get_material_flow_basis(self):

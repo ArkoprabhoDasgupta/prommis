@@ -36,7 +36,7 @@ from idaes.core.util import DiagnosticsToolbox
 
 m = ConcreteModel()
 
-time_duration = 12
+time_duration = 6
 
 m.fs = FlowsheetBlock(dynamic=True, time_set=[0, time_duration], time_units=units.hour)
 
@@ -63,7 +63,7 @@ m.fs.membrane_module = MembraneSolventExtraction(
     membrane_phase={
         "property_package": m.fs.mem_prop,
     },
-    finite_elements=5,
+    finite_elements=20,
     transformation_method="dae.finite_difference",
     transformation_scheme="BACKWARD",
     # collocation_points=2,
@@ -76,7 +76,7 @@ m.fs.membrane_module = MembraneSolventExtraction(
 m.fs.membrane_module.module_length.fix(0.254 * 2 * units.m)
 
 m.discretizer = TransformationFactory("dae.finite_difference")
-m.discretizer.apply_to(m, nfe=5, wrt=m.fs.time, scheme="BACKWARD")
+m.discretizer.apply_to(m, nfe=10, wrt=m.fs.time, scheme="BACKWARD")
 
 
 def copy_first_steady_state(m):
@@ -141,19 +141,19 @@ m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[:, "H"].fix(
     10**-2.06 * 1 * units.gram / units.L
 )
 m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[:, "H2O"].fix(
-    1e6 * units.gram / units.L
+    1e6 * units.mg / units.L
 )
 
 # Strip phase inlet conditions
 
 for t in m.fs.time:
-    if t <= 6:
+    if t <= 2:
         m.fs.membrane_module.strip_phase_inlet.flow_vol[t].fix(
             54 * units.mL / units.min
         )
     else:
         m.fs.membrane_module.strip_phase_inlet.flow_vol[t].fix(
-            54 * units.mL / units.min
+            54 * 1.5 * units.mL / units.min
         )
 
 # m.fs.membrane_module.strip_phase_inlet.flow_vol.fix(54 * units.mL / units.min)
@@ -277,3 +277,27 @@ solver.options["max_iter"] = 10000
 results = solver.solve(scaled_model, tee=True)
 
 scaling.propagate_solution(scaled_model, m)
+
+strip_outlet_recovery = {}
+
+for e in m.fs.mem_prop.component_list:
+    strip_outlet_recovery[e] = [
+        (
+            (
+                (
+                    m.fs.membrane_module.strip_phase_outlet.conc_mass_comp[t, e]()
+                    * m.fs.membrane_module.strip_phase_outlet.flow_vol[t]()
+                )
+                - (
+                    m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[t, e]()
+                    * m.fs.membrane_module.strip_phase_inlet.flow_vol[t]()
+                )
+            )
+            / (
+                m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[t, e]()
+                * m.fs.membrane_module.feed_phase_inlet.flow_vol[t]()
+            )
+        )
+        * 100
+        for t in m.fs.time
+    ]
