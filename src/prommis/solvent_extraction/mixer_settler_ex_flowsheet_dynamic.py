@@ -31,7 +31,7 @@ from prommis.solvent_extraction.solvent_extraction_reaction_package import (
 )
 import matplotlib.pyplot as plt
 
-time_duration = 12
+# time_duration = 24
 
 
 def build_model(dosage, number_of_stages, time_duration):
@@ -186,8 +186,8 @@ def set_inputs(m, dosage, perturb_time):
 
     m.fs.mixer_settler_ex.organic_settler[:].unit.area.fix(1)
     m.fs.mixer_settler_ex.aqueous_settler[:].unit.area.fix(1)
-    m.fs.mixer_settler_ex.aqueous_settler[:].unit.length.fix(0.4)
-    m.fs.mixer_settler_ex.organic_settler[:].unit.length.fix(0.4)
+    m.fs.mixer_settler_ex.aqueous_settler[:].unit.length.fix(0.2)
+    m.fs.mixer_settler_ex.organic_settler[:].unit.length.fix(0.2)
 
 
 def set_initial_conditions(m):
@@ -342,7 +342,7 @@ def main(dosage, number_of_stages, time_duration, perturb_time, path_name):
 
 dosage = 5
 number_of_stages = 20
-time_duration = 12
+time_duration = 48
 perturb_time = 4
 
 if __name__ == "__main__":
@@ -354,7 +354,7 @@ if __name__ == "__main__":
         path_name="mixer_settler_extraction.json",
     )
 
-fig, ax = plt.subplots(4, 5)
+fig, ax = plt.subplots(4, 5, figsize=(16, 12))
 
 for i in range(4):
     for j in range(5):
@@ -364,5 +364,6 @@ for i in range(4):
             .unit.properties[:, 1]
             .conc_mass_comp["Dy_o"](),
         )
-        ax[i, j].set_title(f"{i*5+j+1}")
+        ax[i, j].set_title(f"tank {i*5+j+1} organic settler")
         ax[i, j].set(xlabel="Time (hr)", ylabel="organic Dy (mg/L)")
+plt.tight_layout()

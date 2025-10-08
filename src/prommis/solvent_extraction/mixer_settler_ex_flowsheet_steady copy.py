@@ -81,11 +81,11 @@ def set_inputs(m, dosage):
         None
 
     """
-
+    pH = 1.6
     m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "H2O"].fix(1e6)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "H"].fix(10.75)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "SO4"].fix(100)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "HSO4"].fix(1e4)
+    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "H"].fix((10**-pH) * 1e3)
+    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "SO4"].fix((10**-pH) * 96e3)
+    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "HSO4"].fix(1e-4)
     m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Al"].fix(422.375)
     m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Ca"].fix(109.542)
     m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Cl"].fix(1e-7)
@@ -210,7 +210,7 @@ def main(dosage, number_of_stages):
     return m, results
 
 
-dosage = 6
+dosage = 4
 number_of_stages = 3
 
 if __name__ == "__main__":
