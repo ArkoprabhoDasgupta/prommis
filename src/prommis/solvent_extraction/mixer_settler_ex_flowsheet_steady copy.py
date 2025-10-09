@@ -81,7 +81,7 @@ def set_inputs(m, dosage):
         None
 
     """
-    pH = 1.6
+    pH = 1.2
     m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "H2O"].fix(1e6)
     m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "H"].fix((10**-pH) * 1e3)
     m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "SO4"].fix((10**-pH) * 96e3)
@@ -210,8 +210,8 @@ def main(dosage, number_of_stages):
     return m, results
 
 
-dosage = 4
-number_of_stages = 3
+dosage = 5
+number_of_stages = 20
 
 if __name__ == "__main__":
     m, results = main(dosage, number_of_stages)
