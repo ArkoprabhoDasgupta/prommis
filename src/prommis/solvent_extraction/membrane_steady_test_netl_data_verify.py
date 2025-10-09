@@ -274,25 +274,6 @@ final_ext_value = {
 
 print("Degrees of freedom:", dof(m))
 
-# @m.Objective(sense=minimize)
-# def objective_function(m):
-
-#     return (
-#         sum(
-#             (m.final_extraction_value[e] - final_ext_value[e]) ** 2
-#             for e in m.fs.mem_prop.component_list
-#         )
-#     ) ** 0.5
-
-
-# @m.Objective(sense=minimize)
-# def objective_function(m):
-
-#     return (((m.final_extraction_value["Sc"] - final_ext_value["Sc"]) ** 2)) ** 0.5
-
-# initializer = MembraneSolventExtractionInitializer()
-# initializer.initialize(m.fs.membrane_module)
-
 solver = get_solver("ipopt_v2")
 solver.options["max_iter"] = 2000
 # results = solver.solve(m, tee=True)
@@ -302,23 +283,6 @@ scaling.propagate_solution(scaled_model, m)
 
 feed_percentage_recovery = {}
 strip_percentage_recovery = {}
-
-# for e in m.fs.mem_prop.component_list:
-#     feed_percentage_recovery[e] = [
-#         (
-#             1
-#             - (
-#                 m.fs.membrane_module.feed_phase.properties[0, z].conc_mass_comp[e]()
-#                 * m.fs.membrane_module.feed_phase.properties[0, z].flow_vol()
-#             )
-#             / (
-#                 m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, e]()
-#                 * m.fs.membrane_module.feed_phase_inlet.flow_vol[0]()
-#             )
-#         )
-#         * 100
-#         for z in m.fs.membrane_module.feed_phase.length_domain
-#     ]
 
 for e in m.fs.mem_prop.component_list:
     feed_percentage_recovery[e] = [

@@ -301,3 +301,16 @@ for e in m.fs.mem_prop.component_list:
         * 100
         for t in m.fs.time
     ]
+
+import matplotlib.pyplot as plt
+
+fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+ax[0].plot(m.fs.time, m.fs.membrane_module.strip_phase_inlet.flow_vol[:]())
+ax[0].set_xlabel("Time, hrs")
+ax[0].set_ylabel("Strip inlet flowrate, L/hr")
+ax[0].set_title("Change in strip inlet flowrate")
+ax[1].plot(m.fs.time, strip_outlet_recovery["Pr"])
+ax[1].set_xlabel("Time, hrs")
+ax[1].set_ylabel("Pr strip outlet recovery %")
+ax[1].set_title("Change in Pr strip outlet recovery %")
+plt.tight_layout()

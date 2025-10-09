@@ -81,7 +81,7 @@ m.fs.membrane_module = MembraneSolventExtraction(
     membrane_phase={
         "property_package": m.fs.mem_prop,
     },
-    finite_elements=5,
+    finite_elements=20,
     transformation_method="dae.finite_difference",
     transformation_scheme="BACKWARD",
     # collocation_points=2,
@@ -412,3 +412,26 @@ for e in m.fs.mem_prop.component_list:
         * 100
         for t in m.fs.time
     ]
+
+import matplotlib.pyplot as plt
+
+fig, ax = plt.subplots(2, 2, figsize=(10, 7))
+ax[0, 0].plot(m.fs.time, m.fs.membrane_module.feed_phase_inlet.flow_vol[:]())
+ax[0, 0].set_xlabel("Time, mins")
+ax[0, 0].set_ylabel("Feed inlet flowrate, L/hr")
+ax[0, 0].set_title("Change in feed inlet flowrate")
+ax[0, 1].plot(m.fs.time, m.fs.membrane_module.strip_phase_inlet.flow_vol[:]())
+ax[0, 1].set_xlabel("Time, mins")
+ax[0, 1].set_ylabel("Strip inlet flowrate, L/hr")
+ax[0, 1].set_title("Change in strip inlet flowrate")
+ax[1, 0].plot(
+    m.fs.time, m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[:, "Pr"]()
+)
+ax[1, 0].set_xlabel("Time, mins")
+ax[1, 0].set_ylabel("Pr feed inlet concentration, mg/L")
+ax[1, 0].set_title("Change in Pr feed inlet concentration")
+ax[1, 1].plot(m.fs.time, strip_outlet_recovery["Pr"])
+ax[1, 1].set_xlabel("Time, mins")
+ax[1, 1].set_ylabel("Pr strip outlet recovery %")
+ax[1, 1].set_title("Change in Pr strip outlet recovery %")
+plt.tight_layout()
