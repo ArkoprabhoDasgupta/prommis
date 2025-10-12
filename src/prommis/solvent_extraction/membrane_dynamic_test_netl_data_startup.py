@@ -36,7 +36,7 @@ from idaes.core.util import DiagnosticsToolbox
 
 m = ConcreteModel()
 
-time_duration = 3
+time_duration = 2
 
 m.fs = FlowsheetBlock(dynamic=True, time_set=[0, time_duration], time_units=units.hour)
 
@@ -63,7 +63,7 @@ m.fs.membrane_module = MembraneSolventExtraction(
     membrane_phase={
         "property_package": m.fs.mem_prop,
     },
-    finite_elements=20,
+    finite_elements=8,
     transformation_method="dae.finite_difference",
     transformation_scheme="BACKWARD",
     # collocation_points=2,
@@ -95,19 +95,12 @@ def copy_first_steady_state(m):
                 var[t].value = var[m.fs.time.first()].value
 
 
-from_json(m, fname="membrane_solvent_extraction.json")
-copy_first_steady_state(m)
+# from_json(m, fname="membrane_solvent_extraction.json")
+
 
 # Feed phase inlet conditions
 
-for t in m.fs.time:
-    if t <= 1:
-        m.fs.membrane_module.feed_phase_inlet.flow_vol[t].fix(17 * units.mL / units.min)
-    else:
-        m.fs.membrane_module.feed_phase_inlet.flow_vol[t].fix(17 * units.mL / units.min)
-
-
-# m.fs.membrane_module.feed_phase_inlet.flow_vol.fix(17 * units.mL / units.min)
+m.fs.membrane_module.feed_phase_inlet.flow_vol.fix(17 * units.mL / units.min)
 m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[:, "Ca"].fix(
     1535976 * units.microgram / units.L
 )
@@ -144,27 +137,17 @@ m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[:, "Y"].fix(
 m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[:, "Sc"].fix(
     20 * units.microgram / units.L
 )
-# m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[:, "H"].fix(
-#     10**-2.06 * 1 * units.gram / units.L
-# )
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[:, "H"].fix(
+    10**-2.06 * 1 * units.gram / units.L
+)
 m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[:, "H2O"].fix(
     1e6 * units.mg / units.L
 )
 
-for t in m.fs.time:
-    if t <= 1:
-        m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[t, "H"].fix(
-            10**-2.06 * 1 * units.gram / units.L
-        )
-    else:
-        m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[t, "H"].fix(
-            10**-1.9 * 1 * units.gram / units.L
-        )
-
 # Strip phase inlet conditions
 
 for t in m.fs.time:
-    if t <= 1:
+    if t <= 2:
         m.fs.membrane_module.strip_phase_inlet.flow_vol[t].fix(
             54 * units.mL / units.min
         )
@@ -232,13 +215,21 @@ m.fs.membrane_module.eff["Y"].fix(3e-6)
 m.fs.membrane_module.eff["Sc"].fix(1.5e-5)
 
 for e in m.fs.mem_channel.component_list:
-    if e not in ["H2O"]:
-        m.fs.membrane_module.feed_phase.properties[0.0, :].conc_mass_comp[e].fix()
-        m.fs.membrane_module.feed_phase.properties[0.0, :].flow_vol.fix()
+    if e not in ["H2O", "H"]:
+        m.fs.membrane_module.feed_phase.properties[0.0, :].conc_mass_comp[e].fix(1e-7)
+        m.fs.membrane_module.feed_phase.properties[0.0, :].flow_vol.fix(
+            17 * units.mL / units.min
+        )
 
-        m.fs.membrane_module.strip_phase.properties[0.0, :].conc_mass_comp[e].fix()
-        m.fs.membrane_module.strip_phase.properties[0.0, :].flow_vol.fix()
+        m.fs.membrane_module.strip_phase.properties[0.0, :].conc_mass_comp[e].fix(1e-7)
+        m.fs.membrane_module.strip_phase.properties[0.0, :].flow_vol.fix(
+            54 * units.mL / units.min
+        )
 
+m.fs.membrane_module.feed_phase.properties[0.0, :].conc_mass_comp["H"].fix(10)
+m.fs.membrane_module.strip_phase.properties[0.0, :].conc_mass_comp["H"].fix(10)
+
+# copy_first_steady_state(m)
 
 print("Degrees of freedom:", dof(m))
 
@@ -248,42 +239,36 @@ for t in m.fs.time:
     for z in m.fs.membrane_module.feed_phase.length_domain:
         set_scaling_factor(
             m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp["H"],
-            1e2,
+            1,
         )
         set_scaling_factor(
             m.fs.membrane_module.feed_phase.properties[t, z].pH_constraint,
-            1e2,
+            1,
         )
         set_scaling_factor(
             m.fs.membrane_module.feed_phase.material_flow_linking_constraints[
                 t, z, "liquid", "H"
             ],
-            1e2,
+            1,
         )
         set_scaling_factor(
-            m.fs.membrane_module.feed_phase.material_holdup_calculation[
+            m.fs.membrane_module.strip_phase.properties[t, z].conc_mass_comp["H"],
+            1,
+        )
+        set_scaling_factor(
+            m.fs.membrane_module.strip_phase.properties[t, z].pH_constraint,
+            1,
+        )
+        set_scaling_factor(
+            m.fs.membrane_module.strip_phase.material_flow_linking_constraints[
                 t, z, "liquid", "H"
             ],
-            1e2,
+            1,
         )
-        if t != 0:
-            set_scaling_factor(
-                m.fs.membrane_module.feed_phase.material_accumulation_disc_eq[
-                    t, z, "liquid", "H"
-                ],
-                1e2,
-            )
-        if z != 0:
-            set_scaling_factor(
-                m.fs.membrane_module.feed_phase.material_flow_dx_disc_eq[
-                    t, z, "liquid", "H"
-                ],
-                1e2,
-            )
         for e in m.fs.mem_prop.component_list:
             set_scaling_factor(
                 m.fs.membrane_module.feed_phase.properties[t, z].conc_mol_comp[e],
-                1e2,
+                1,
             )
             set_scaling_factor(
                 m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp[e],
@@ -291,7 +276,7 @@ for t in m.fs.time:
             )
             set_scaling_factor(
                 m.fs.membrane_module.strip_phase.properties[t, z].conc_mol_comp[e],
-                1e2,
+                1,
             )
             set_scaling_factor(
                 m.fs.membrane_module.strip_phase.properties[t, z].conc_mass_comp[e],
@@ -301,48 +286,8 @@ for t in m.fs.time:
             for r in m.fs.membrane_module.r:
                 set_scaling_factor(
                     m.fs.membrane_module.conc_mol_membrane_comp[t, z, r, e],
-                    1e2,
+                    1,
                 )
-
-# for t in m.fs.time:
-#     for z in m.fs.membrane_module.feed_phase.length_domain:
-#         set_scaling_factor(
-#             m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp["H"],
-#             1e2,
-#         )
-#         set_scaling_factor(
-#             m.fs.membrane_module.feed_phase.properties[t, z].pH_constraint,
-#             1e2,
-#         )
-#         set_scaling_factor(
-#             m.fs.membrane_module.feed_phase.material_flow_linking_constraints[
-#                 t, z, "liquid", "H"
-#             ],
-#             1e2,
-#         )
-#         for e in m.fs.mem_prop.component_list:
-#             set_scaling_factor(
-#                 m.fs.membrane_module.feed_phase.properties[t, z].conc_mol_comp[e],
-#                 1e2,
-#             )
-#             set_scaling_factor(
-#                 m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp[e],
-#                 1,
-#             )
-#             set_scaling_factor(
-#                 m.fs.membrane_module.strip_phase.properties[t, z].conc_mol_comp[e],
-#                 1e2,
-#             )
-#             set_scaling_factor(
-#                 m.fs.membrane_module.strip_phase.properties[t, z].conc_mass_comp[e],
-#                 1,
-#             )
-
-#             for r in m.fs.membrane_module.r:
-#                 set_scaling_factor(
-#                     m.fs.membrane_module.conc_mol_membrane_comp[t, z, r, e],
-#                     1e2,
-#                 )
 
 
 scaling = TransformationFactory("core.scale_model")
@@ -381,18 +326,7 @@ for e in m.fs.mem_prop.component_list:
 
 import matplotlib.pyplot as plt
 
-# fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-# ax[0].plot(m.fs.time, m.fs.membrane_module.feed_phase_inlet.flow_vol[:]())
-# ax[0].set_xlabel("Time, hrs")
-# ax[0].set_ylabel("Feed inlet flowrate, L/hr")
-# ax[0].set_title("Change in feed inlet flowrate")
-# ax[1].plot(m.fs.time, strip_outlet_recovery["Pr"])
-# ax[1].set_xlabel("Time, hrs")
-# ax[1].set_ylabel("Pr strip outlet recovery %")
-# ax[1].set_title("Change in Pr strip outlet recovery %")
-# plt.tight_layout()
-
-fig, ax = plt.subplots(2, figsize=(7, 7))
+fig, ax = plt.subplots(1, 2, figsize=(10, 5))
 ax[0].plot(m.fs.time, m.fs.membrane_module.strip_phase_inlet.flow_vol[:]())
 ax[0].set_xlabel("Time, hrs")
 ax[0].set_ylabel("Strip inlet flowrate, L/hr")
