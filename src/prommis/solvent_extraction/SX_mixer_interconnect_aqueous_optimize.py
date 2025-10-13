@@ -43,9 +43,9 @@ m.fs.prop_o = REESolExOgParameters()
 m.fs.leach_soln = LeachSolutionParameters()
 m.fs.reaxn = SolventExtractionReactions()
 
-dosage = 5
+dosage = 4
 
-number_of_stages = 2
+number_of_stages = 4
 number_of_interstage_mixers = number_of_stages - 1
 
 stage_list = RangeSet(1, number_of_stages)
@@ -83,11 +83,11 @@ m.fs.interstage_mixer = Mixer(
     momentum_mixing_type=MomentumMixingType.none,
 )
 
-pH = 1.2
+pH = 1.6
 m.fs.mixer_settler_sx[1].aqueous_inlet.conc_mass_comp[0, "H2O"].fix(1e6)
-# m.fs.mixer_settler_sx[1].aqueous_inlet.conc_mass_comp[0, "H"].fix(
-#     10 ** (-pH) * 1e3
-# )  # decision variable
+m.fs.mixer_settler_sx[1].aqueous_inlet.conc_mass_comp[0, "H"].fix(
+    10 ** (-pH) * 1e3
+)  # decision variable
 m.fs.mixer_settler_sx[1].aqueous_inlet.conc_mass_comp[0, "SO4"].fix(10 ** (-pH) * 96e3)
 m.fs.mixer_settler_sx[1].aqueous_inlet.conc_mass_comp[0, "HSO4"].fix(1e-5)
 m.fs.mixer_settler_sx[1].aqueous_inlet.conc_mass_comp[0, "Al"].fix(422.375)
@@ -194,48 +194,86 @@ for i in stage_list:
 
 TransformationFactory("network.expand_arcs").apply_to(m)
 
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "H2O"].fix(1e6)
-# m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "H"].fix(10 ** (-pH) * 1e3)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "SO4"].fix(10 ** (-pH) * 96e3)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "HSO4"].fix(1e-5)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Al"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Cl"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Ca"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Fe"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Sc"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Y"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "La"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Ce"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Pr"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Nd"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Sm"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Gd"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Dy"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.flow_vol.fix(10)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "H2O"].fix(1e6)
+# m.fs.interstage_mixer[3].feed.conc_mass_comp[0, "H"].fix(10 ** (-pH) * 1e3)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "SO4"].fix(10 ** (-2) * 96e3)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "HSO4"].fix(1e-5)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "Al"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "Cl"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "Ca"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "Fe"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "Sc"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "Y"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "La"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "Ce"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "Pr"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "Nd"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "Sm"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "Gd"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "Dy"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.flow_vol.fix(3)
 
-m.fs.interstage_mixer[1].mixed_state[0.0].temperature.fix(305.15 * units.K)
-m.fs.interstage_mixer[1].mixed_state[0.0].pressure.fix(1e5 * units.Pa)
+m.fs.interstage_mixer[:].mixed_state[0.0].temperature.fix(305.15 * units.K)
+m.fs.interstage_mixer[:].mixed_state[0.0].pressure.fix(1e5 * units.Pa)
 
 trial_element_list = ["Y", "Dy", "Gd", "Sm", "Nd", "Ce"]
 
-m.percentage_recovery = Var(trial_element_list, initialize=1, bounds=(0, 100))
+# m.percentage_recovery = Var(trial_element_list, initialize=1, bounds=(0, 100))
+
+m.tree_recovery = Var(initialize=1, bounds=(0, 100))
+
+# @m.Constraint(trial_element_list)
+# def recovery_constraint(m, e):
+#     return (
+#         m.percentage_recovery[e]
+#         == (
+#             (
+#                 m.fs.mixer_settler_sx[1].organic_outlet.conc_mass_comp[0, f"{e}_o"]
+#                 * m.fs.mixer_settler_sx[1].organic_outlet.flow_vol[0]
+#                 - m.fs.mixer_settler_sx[number_of_stages].organic_inlet.conc_mass_comp[
+#                     0, f"{e}_o"
+#                 ]
+#                 * m.fs.mixer_settler_sx[number_of_stages].organic_inlet.flow_vol[0]
+#             )
+#             / (
+#                 m.fs.mixer_settler_sx[1].aqueous_inlet.conc_mass_comp[0, f"{e}"]
+#                 * m.fs.mixer_settler_sx[1].aqueous_inlet.flow_vol[0]
+#             )
+#         )
+#         * 100
+#     )
 
 
-@m.Constraint(trial_element_list)
-def recovery_constraint(m, e):
+@m.Constraint()
+def recovery_constraint(m):
     return (
-        m.percentage_recovery[e]
+        m.tree_recovery
         == (
             (
-                m.fs.mixer_settler_sx[1].organic_outlet.conc_mass_comp[0, f"{e}_o"]
+                sum(
+                    m.fs.mixer_settler_sx[1].organic_outlet.conc_mass_comp[0, f"{e}_o"]
+                    for e in m.fs.leach_soln.component_list
+                    if e
+                    not in ["H2O", "H", "HSO4", "SO4", "Cl", "Al", "Ca", "Fe", "Sc"]
+                )
                 * m.fs.mixer_settler_sx[1].organic_outlet.flow_vol[0]
-                - m.fs.mixer_settler_sx[number_of_stages].organic_inlet.conc_mass_comp[
-                    0, f"{e}_o"
-                ]
+                - sum(
+                    m.fs.mixer_settler_sx[
+                        number_of_stages
+                    ].organic_inlet.conc_mass_comp[0, f"{e}_o"]
+                    for e in m.fs.leach_soln.component_list
+                    if e
+                    not in ["H2O", "H", "HSO4", "SO4", "Cl", "Al", "Ca", "Fe", "Sc"]
+                )
                 * m.fs.mixer_settler_sx[number_of_stages].organic_inlet.flow_vol[0]
             )
             / (
-                m.fs.mixer_settler_sx[1].aqueous_inlet.conc_mass_comp[0, f"{e}"]
+                sum(
+                    m.fs.mixer_settler_sx[1].aqueous_inlet.conc_mass_comp[0, e]
+                    for e in m.fs.leach_soln.component_list
+                    if e
+                    not in ["H2O", "H", "HSO4", "SO4", "Cl", "Al", "Ca", "Fe", "Sc"]
+                )
                 * m.fs.mixer_settler_sx[1].aqueous_inlet.flow_vol[0]
             )
         )
@@ -243,52 +281,48 @@ def recovery_constraint(m, e):
     )
 
 
+REE_set = ["Ce_o", "Dy_o", "Gd_o", "La_o", "Nd_o", "Pr_o", "Sm_o", "Y_o"]
+
 C_organic_max = {
-    "Ce": 0.197,
-    "Dy": 0.046,
-    "Gd": 0.102,
-    "La": 0.089,
-    "Nd": 0.066,
-    "Pr": 0.029,
-    "Sm": 0.0178,
-    "Y": 0.123,
+    "Ce_o": 0.205,
+    "Dy_o": 0.047,
+    "Gd_o": 0.125,
+    "La_o": 0.093,
+    "Nd_o": 0.068,
+    "Pr_o": 0.0307,
+    "Sm_o": 0.0196,
+    "Y_o": 0.124,
 }
 
 
 @m.Constraint()
-def inlet_constraint(m):
+def sx_inlet_H_constraint(m):
     return (
         m.fs.mixer_settler_sx[1].aqueous_inlet.conc_mass_comp[0, "H"]
-        >= 0.1 * units.mg / units.L
+        >= 3 * units.mg / units.L
     )
 
 
-@m.Constraint()
-def Dy_constraint(m):
+@m.Constraint(interstage_list)
+def interstage_inlet_H_constraint(m, s):
     return (
-        m.fs.mixer_settler_sx[1].organic_outlet.conc_mass_comp[0, "Dy_o"]
-        <= C_organic_max["Dy"]
+        m.fs.interstage_mixer[s].feed.conc_mass_comp[0, "H"] >= 3 * units.mg / units.L
     )
 
 
-# @m.Constraint()
-# def Gd_constraint(m):
-#     return m.percentage_recovery["Gd"] <= 50
+@m.Constraint(REE_set)
+def REE_conc_constraint(m, e):
+    return (
+        m.fs.mixer_settler_sx[1].organic_outlet.conc_mass_comp[0, e] >= C_organic_max[e]
+    )
 
-m.rho = Param(initialize=5)
+
+# m.rho = Param(initialize=5)
 
 
 @m.Objective(sense=maximize)
 def objective_function(m):
-    return (
-        m.percentage_recovery["Gd"]
-        + m.rho
-        * (
-            m.fs.mixer_settler_sx[1].organic_outlet.conc_mass_comp[0, "Dy_o"]
-            - C_organic_max["Dy"]
-        )
-        ** 2
-    )
+    return m.tree_recovery
 
 
 print(degrees_of_freedom(m))

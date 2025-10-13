@@ -42,9 +42,9 @@ m.fs.prop_o = REESolExOgParameters()
 m.fs.leach_soln = LeachSolutionParameters()
 m.fs.reaxn = SolventExtractionReactions()
 
-dosage = 5
+dosage = 4
 
-number_of_stages = 2
+number_of_stages = 4
 number_of_interstage_mixers = number_of_stages - 1
 
 stage_list = RangeSet(1, number_of_stages)
@@ -193,27 +193,27 @@ for i in stage_list:
 
 TransformationFactory("network.expand_arcs").apply_to(m)
 
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "H2O"].fix(1e6)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "H"].fix(10 ** (-pH) * 1e3)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "SO4"].fix(10 ** (-pH) * 96e3)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "HSO4"].fix(1e-5)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Al"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Cl"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Ca"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Fe"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Sc"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Y"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "La"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Ce"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Pr"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Nd"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Sm"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Gd"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.conc_mass_comp[0, "Dy"].fix(1e-9)
-m.fs.interstage_mixer[1].feed.flow_vol.fix(10)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "H2O"].fix(1e6)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "H"].fix(10 ** (-2) * 1e3)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "SO4"].fix(10 ** (-2) * 96e3)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "HSO4"].fix(1e-5)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "Al"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "Cl"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "Ca"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "Fe"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "Sc"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "Y"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "La"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "Ce"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "Pr"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "Nd"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "Sm"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "Gd"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.conc_mass_comp[0, "Dy"].fix(1e-9)
+m.fs.interstage_mixer[:].feed.flow_vol.fix(1)
 
-m.fs.interstage_mixer[1].mixed_state[0.0].temperature.fix(305.15 * units.K)
-m.fs.interstage_mixer[1].mixed_state[0.0].pressure.fix(1e5 * units.Pa)
+m.fs.interstage_mixer[:].mixed_state[0.0].temperature.fix(305.15 * units.K)
+m.fs.interstage_mixer[:].mixed_state[0.0].pressure.fix(1e5 * units.Pa)
 
 # trial_element_list = ["Y", "Dy", "Gd", "Sm", "Nd", "Ce"]
 
@@ -270,3 +270,31 @@ print(degrees_of_freedom(m))
 solver = get_solver("ipopt_v2")
 solver.options["max_iter"] = 1000
 solver.solve(m, tee=True)
+
+
+TREE_recovery = (
+    (
+        sum(
+            m.fs.mixer_settler_sx[1].organic_outlet.conc_mass_comp[0, f"{e}_o"]()
+            for e in m.fs.leach_soln.component_list
+            if e not in ["H2O", "H", "HSO4", "SO4", "Cl", "Al", "Ca", "Fe", "Sc"]
+        )
+        * m.fs.mixer_settler_sx[1].organic_outlet.flow_vol[0]()
+        - sum(
+            m.fs.mixer_settler_sx[number_of_stages].organic_inlet.conc_mass_comp[
+                0, f"{e}_o"
+            ]()
+            for e in m.fs.leach_soln.component_list
+            if e not in ["H2O", "H", "HSO4", "SO4", "Cl", "Al", "Ca", "Fe", "Sc"]
+        )
+        * m.fs.mixer_settler_sx[number_of_stages].organic_inlet.flow_vol[0]()
+    )
+    / (
+        sum(
+            m.fs.mixer_settler_sx[1].aqueous_inlet.conc_mass_comp[0, e]()
+            for e in m.fs.leach_soln.component_list
+            if e not in ["H2O", "H", "HSO4", "SO4", "Cl", "Al", "Ca", "Fe", "Sc"]
+        )
+        * m.fs.mixer_settler_sx[1].aqueous_inlet.flow_vol[0]()
+    )
+) * 100
