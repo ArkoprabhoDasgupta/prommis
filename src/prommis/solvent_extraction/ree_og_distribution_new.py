@@ -192,7 +192,7 @@ class REESolExOgStateBlockData(StateBlockData):
         self.extractant_dosage = Var(
             domain=Reals,
             initialize=1.0,
-            bounds=(1, 10),
+            bounds=(1, 30),
             doc="Extractant dosage v/v%",
             units=units.dimensionless,
         )

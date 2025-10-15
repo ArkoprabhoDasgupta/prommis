@@ -49,7 +49,7 @@ def build_model(dosage, number_of_stages):
 
     m.fs.reaxn.extractant_dosage = dosage
 
-    m.system = RangeSet(1, 8)
+    m.system = RangeSet(1, 13)
 
     m.fs.mixer_settler_ex = MixerSettlerExtraction(
         m.system,
@@ -87,16 +87,15 @@ def set_inputs(m, dosage):
         None
 
     """
-    pH_set = {
-        1: 0.235,
-        2: 0.54,
-        3: 0.82,
-        4: 1.18,
-        5: 1.53,
-        6: 1.75,
-        7: 1.996,
-        8: 4,
-    }
+
+    pH_set = dict(
+        zip(
+            RangeSet(1, 13),
+            sorted(
+                [0.235, 0.54, 0.82, 1.18, 1.53, 1.75, 2, 0.3, 0.68, 0.9, 1.3, 1.8, 2.6]
+            ),
+        )
+    )
     dosage_set = {
         1: 2,
         2: 2,
@@ -106,6 +105,11 @@ def set_inputs(m, dosage):
         6: 2,
         7: 2,
         8: 2,
+        9: 2,
+        10: 2,
+        11: 2,
+        12: 2,
+        13: 2,
     }
 
     for s in m.system:

@@ -23,7 +23,7 @@ from prommis.solvent_extraction.mixer_settler_extraction import (
     MixerSettlerExtraction,
     MixerSettlerExtractionInitializer,
 )
-from prommis.solvent_extraction.solvent_extraction_reaction_package_new import (
+from prommis.solvent_extraction.solvent_extraction_reaction_package_new_modified import (
     SolventExtractionReactions,
 )
 
@@ -49,7 +49,7 @@ def build_model(dosage, number_of_stages):
 
     m.fs.reaxn.extractant_dosage = dosage
 
-    m.system = RangeSet(1, 7)
+    m.system = RangeSet(1, 13)
 
     m.fs.mixer_settler_ex = MixerSettlerExtraction(
         m.system,
@@ -87,15 +87,38 @@ def set_inputs(m, dosage):
         None
 
     """
-    pH_set = {
-        1: 0.25,
-        2: 0.53,
-        3: 0.81,
-        4: 1.13,
-        5: 1.4,
-        6: 1.6,
-        7: 1.68,
-    }
+    pH_set = dict(
+        zip(
+            RangeSet(1, 13),
+            sorted(
+                [
+                    0.25,
+                    0.53,
+                    0.81,
+                    1.13,
+                    1.4,
+                    1.6,
+                    1.68,
+                    0.34,
+                    0.7,
+                    0.97,
+                    1.26,
+                    1.5,
+                    1.64,
+                ]
+            ),
+        )
+    )
+
+    # pH_set = {
+    #     1: 0.25,
+    #     2: 0.53,
+    #     3: 0.81,
+    #     4: 1.13,
+    #     5: 1.4,
+    #     6: 1.6,
+    #     7: 1.68,
+    # }
     dosage_set = {
         1: 5,
         2: 5,
@@ -104,6 +127,12 @@ def set_inputs(m, dosage):
         5: 5,
         6: 5,
         7: 5,
+        8: 5,
+        9: 5,
+        10: 5,
+        11: 5,
+        12: 5,
+        13: 5,
     }
 
     for s in m.system:
@@ -371,7 +400,20 @@ for e in element_list:
     plt.plot(
         pH_list,
         percentage_extraction[e],
-        marker="v",
+        color=colors[e],
+        label=f"{e}_model",
+    )
+plt.xlabel("pH")
+plt.ylabel("Extraction %")
+plt.title(f"Extraction % comparison for 5% DEHPA 10% TBP")
+plt.legend()
+
+plt.figure(dpi=300)
+for e in ["Y", "Dy", "Gd"]:
+    plt.scatter(df["pH"], df[e], marker="o", color=colors[e], label=f"{e}_exp")
+    plt.plot(
+        pH_list,
+        percentage_extraction[e],
         color=colors[e],
         label=f"{e}_model",
     )
