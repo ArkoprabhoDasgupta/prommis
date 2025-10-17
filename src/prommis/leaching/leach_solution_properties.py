@@ -212,6 +212,7 @@ class LeachSolutionStateBlockData(StateBlockData):
 
         self.flow_vol = Var(
             units=units.L / units.hour,
+            initialize=1e-5,
             bounds=(1e-8, None),
         )
         self.conc_mass_comp = Var(

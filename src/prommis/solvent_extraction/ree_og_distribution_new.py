@@ -164,7 +164,9 @@ class REESolExOgStateBlockData(StateBlockData):
             bounds=(1e-20, None),
         )
 
-        self.flow_vol = Var(units=units.L / units.hour, bounds=(1e-8, None))
+        self.flow_vol = Var(
+            units=units.L / units.hour, initialize=1e-5, bounds=(1e-8, None)
+        )
 
         self.conc_mol_comp = Var(
             self.params.component_list,
