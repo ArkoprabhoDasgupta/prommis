@@ -420,4 +420,43 @@ ax[1].set_ylabel("Concentration, mg/L")
 ax[1].set_title("Strip phase concentration profile")
 plt.tight_layout()
 
+fig, ax = plt.subplots(1, 2, figsize=(10, 6), dpi=300)
+fig.suptitle("Steady state counter-current MSX profiles 5% DEHPA 10% DEHPA comparison")
+for s in ["Ce", "Nd"]:
+    ax[0].plot(
+        m.fs["5"].membrane_module.feed_phase.length_domain,
+        feed_percentage_recovery_5[s],
+        linewidth=3,
+        linestyle="--",
+        label=f"{s} 5% DEHPA",
+    )
+    ax[0].plot(
+        m.fs["10"].membrane_module.feed_phase.length_domain,
+        feed_percentage_recovery_10[s],
+        linewidth=3,
+        label=f"{s} 10% DEHPA",
+    )
+ax[0].legend()
+ax[0].set_xlabel("Normalized length")
+ax[0].set_ylabel("Recovery %")
+ax[0].set_title("Feed phase recovery percentage")
+for s in ["Ce", "Nd"]:
+    ax[1].plot(
+        m.fs["5"].membrane_module.strip_phase.length_domain,
+        m.fs["5"].membrane_module.strip_phase.properties[0, :].conc_mass_comp[s](),
+        linewidth=3,
+        label=f"{s} 5% DEHPA",
+    )
+    ax[1].plot(
+        m.fs["10"].membrane_module.strip_phase.length_domain,
+        m.fs["10"].membrane_module.strip_phase.properties[0, :].conc_mass_comp[s](),
+        linewidth=3,
+        linestyle="--",
+        label=f"{s} 10% DEHPA",
+    )
+ax[1].legend()
+ax[1].set_xlabel("Normalized length")
+ax[1].set_ylabel("Concentration, mg/L")
+ax[1].set_title("Strip phase concentration profile")
+plt.tight_layout()
 # to_json(m, fname="membrane_solvent_extraction.json")

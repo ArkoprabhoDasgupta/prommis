@@ -104,7 +104,9 @@ for t in m.fs.time:
     if t <= 1:
         m.fs.membrane_module.feed_phase_inlet.flow_vol[t].fix(17 * units.mL / units.min)
     else:
-        m.fs.membrane_module.feed_phase_inlet.flow_vol[t].fix(17 * units.mL / units.min)
+        m.fs.membrane_module.feed_phase_inlet.flow_vol[t].fix(
+            17 * 1.2 * units.mL / units.min
+        )
 
 
 # m.fs.membrane_module.feed_phase_inlet.flow_vol.fix(17 * units.mL / units.min)
@@ -158,7 +160,7 @@ for t in m.fs.time:
         )
     else:
         m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[t, "H"].fix(
-            10**-1.9 * 1 * units.gram / units.L
+            10**-2.06 * 1 * units.gram / units.L
         )
 
 # Strip phase inlet conditions
@@ -381,24 +383,24 @@ for e in m.fs.mem_prop.component_list:
 
 import matplotlib.pyplot as plt
 
-# fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-# ax[0].plot(m.fs.time, m.fs.membrane_module.feed_phase_inlet.flow_vol[:]())
-# ax[0].set_xlabel("Time, hrs")
-# ax[0].set_ylabel("Feed inlet flowrate, L/hr")
-# ax[0].set_title("Change in feed inlet flowrate")
-# ax[1].plot(m.fs.time, strip_outlet_recovery["Pr"])
-# ax[1].set_xlabel("Time, hrs")
-# ax[1].set_ylabel("Pr strip outlet recovery %")
-# ax[1].set_title("Change in Pr strip outlet recovery %")
-# plt.tight_layout()
-
-fig, ax = plt.subplots(2, figsize=(7, 7))
-ax[0].plot(m.fs.time, m.fs.membrane_module.strip_phase_inlet.flow_vol[:]())
+fig, ax = plt.subplots(2, figsize=(4, 6), dpi=300)
+ax[0].plot(m.fs.time, m.fs.membrane_module.feed_phase_inlet.flow_vol[:]())
 ax[0].set_xlabel("Time, hrs")
-ax[0].set_ylabel("Strip inlet flowrate, L/hr")
-ax[0].set_title("Change in strip inlet flowrate")
+ax[0].set_ylabel("Feed inlet flowrate, L/hr")
+ax[0].set_title("Change in feed inlet flowrate")
 ax[1].plot(m.fs.time, strip_outlet_recovery["Pr"])
 ax[1].set_xlabel("Time, hrs")
 ax[1].set_ylabel("Pr strip outlet recovery %")
 ax[1].set_title("Change in Pr strip outlet recovery %")
 plt.tight_layout()
+
+# fig, ax = plt.subplots(2, figsize=(4, 6), dpi=300)
+# ax[0].plot(m.fs.time, m.fs.membrane_module.strip_phase_inlet.flow_vol[:]())
+# ax[0].set_xlabel("Time, hrs")
+# ax[0].set_ylabel("Strip inlet flowrate, L/hr")
+# ax[0].set_title("Change in strip inlet flowrate")
+# ax[1].plot(m.fs.time, strip_outlet_recovery["Pr"])
+# ax[1].set_xlabel("Time, hrs")
+# ax[1].set_ylabel("Pr strip outlet recovery %")
+# ax[1].set_title("Change in Pr strip outlet recovery %")
+# plt.tight_layout()
