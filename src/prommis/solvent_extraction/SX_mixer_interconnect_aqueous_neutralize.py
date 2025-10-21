@@ -51,7 +51,7 @@ m.fs.reaxn = SolventExtractionReactions()
 
 dosage = 4
 
-number_of_stages = 5
+number_of_stages = 2
 number_of_interstage_mixers = number_of_stages - 1
 
 stage_list = RangeSet(1, number_of_stages)
@@ -203,14 +203,19 @@ m.fs.neutral[:].control_volume.properties_out[0.0].pressure.fix(101325)
 print(degrees_of_freedom(m))
 
 seq = SequentialDecomposition()
-seq.options.select_tear_method = "heuristic"
-seq.options.tear_method = "Wegstein"
-# seq.options.iterLim = 3
+seq.options.tear_method = "Direct"  # Alternatives are Wegstein and Newton
+# Set limits on the number of sequential loops
+seq.options.iterLim = 1
+
+# seq = SequentialDecomposition()
+# seq.options.select_tear_method = "heuristic"
+# seq.options.tear_method = "Wegstein"
+# # seq.options.iterLim = 3
 
 # Using the SD tool
 G = seq.create_graph(m)
-heuristic_tear_set = seq.tear_set_arcs(G, method="heuristic")
-order = seq.calculation_order(G)
+heuristic_tear_set = seq.tear_set_arcs(G, method="mip", solver="ipopt")
+# order = seq.calculation_order(G)
 
 tear_guesses1 = {
     "flow_vol": {0: 62.01},
@@ -258,26 +263,26 @@ tear_guesses2 = {
     "pressure": {0: 101325},
 }
 
-seq.set_guesses_for(m.fs.mixer_settler_sx[1].organic_inlet, tear_guesses1)
-seq.set_guesses_for(m.fs.neutral[2].inlet, tear_guesses2)
-seq.set_guesses_for(m.fs.neutral[3].inlet, tear_guesses2)
-seq.set_guesses_for(m.fs.neutral[4].inlet, tear_guesses2)
+# seq.set_guesses_for(m.fs.mixer_settler_sx[1].organic_inlet, tear_guesses1)
+# seq.set_guesses_for(m.fs.neutral[2].inlet, tear_guesses2)
+# seq.set_guesses_for(m.fs.neutral[3].inlet, tear_guesses2)
+# seq.set_guesses_for(m.fs.neutral[4].inlet, tear_guesses2)
 
 print(degrees_of_freedom(m))
 
 mx_sx = [
     m.fs.mixer_settler_sx[1],
     m.fs.mixer_settler_sx[2],
-    m.fs.mixer_settler_sx[3],
-    m.fs.mixer_settler_sx[4],
-    m.fs.mixer_settler_sx[5],
+    # m.fs.mixer_settler_sx[3],
+    # m.fs.mixer_settler_sx[4],
+    # m.fs.mixer_settler_sx[5],
 ]
 
 neutral_tank = [
     m.fs.neutral[1],
-    m.fs.neutral[2],
-    m.fs.neutral[3],
-    m.fs.neutral[4],
+    # m.fs.neutral[2],
+    # m.fs.neutral[3],
+    # m.fs.neutral[4],
 ]
 
 
