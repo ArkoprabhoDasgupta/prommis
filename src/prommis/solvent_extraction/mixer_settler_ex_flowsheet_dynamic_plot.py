@@ -152,11 +152,11 @@ def set_inputs(m, dosage, perturb_time):
         if t <= perturb_time:
             m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t].fix(62.01)
         else:
-            m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t].fix(72.01)
+            m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t].fix(62.01)
         if t <= perturb_time:
             m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"].fix(10.75)
         else:
-            m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"].fix(10.75)
+            m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"].fix(5.75)
 
     m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "Kerosene"].fix(820e3)
     m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "DEHPA"].fix(
@@ -467,7 +467,7 @@ for e in m.fs.leach_soln.component_list:
 # plt.legend(["stage 1", "stage 2", "stage 3"])
 
 
-fig, ax = plt.subplots(3, figsize=(7, 9))
+fig, ax = plt.subplots(3, figsize=(7, 9), dpi=300)
 
 fig.suptitle("pH perturbation effect on Gd")
 ax[0].plot(
@@ -519,9 +519,36 @@ ax[2].set_ylabel("Recovery %")
 ax[2].set_title("Percentage recovery profile")
 plt.tight_layout()
 
+# Add centered labels below each subplot (small font)
+plt.subplots_adjust(bottom=0.10)
+ax[0].text(
+    0.5,
+    -0.25,
+    "(a) Aqueous feed pH",
+    transform=ax[0].transAxes,
+    ha="center",
+    fontsize=8,
+)
+ax[1].text(
+    0.5,
+    -0.25,
+    "(b) Organic settler outlet concentration (stages 1 & 3)",
+    transform=ax[1].transAxes,
+    ha="center",
+    fontsize=8,
+)
+ax[2].text(
+    0.5,
+    -0.25,
+    "(c) Percentage recovery",
+    transform=ax[2].transAxes,
+    ha="center",
+    fontsize=8,
+)
+
 plt.show()
 
-fig, ax = plt.subplots(3, figsize=(7, 9))
+fig, ax = plt.subplots(3, figsize=(7, 9), dpi=300)
 
 fig.suptitle("Aqueous feed flowrate perturbation effect on Gd")
 ax[0].plot(
@@ -569,3 +596,28 @@ ax[2].set_xlabel("Time, hrs")
 ax[2].set_ylabel("Recovery %")
 ax[2].set_title("Percentage recovery profile")
 plt.tight_layout()
+plt.subplots_adjust(bottom=0.10)
+ax[0].text(
+    0.5,
+    -0.25,
+    "(d) Aqueous feed flowrate",
+    transform=ax[0].transAxes,
+    ha="center",
+    fontsize=8,
+)
+ax[1].text(
+    0.5,
+    -0.25,
+    "(e) Organic settler outlet concentration (stages 1 & 3)",
+    transform=ax[1].transAxes,
+    ha="center",
+    fontsize=8,
+)
+ax[2].text(
+    0.5,
+    -0.25,
+    "(f) Percentage recovery",
+    transform=ax[2].transAxes,
+    ha="center",
+    fontsize=8,
+)

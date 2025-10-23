@@ -211,7 +211,7 @@ def main(dosage, number_of_stages):
 
 
 dosage = 5
-number_of_stages = 20
+number_of_stages = 3
 
 if __name__ == "__main__":
     m, results = main(dosage, number_of_stages)
