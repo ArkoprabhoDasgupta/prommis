@@ -308,45 +308,46 @@ for e in m.fs.mem_prop.component_list:
             (
                 m.fs.membrane_module.strip_phase.properties[0, z].conc_mass_comp[e]()
                 * m.fs.membrane_module.strip_phase.properties[0, z].flow_vol()
-            )
-            / (
-                m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[0, e]()
+                - m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[0, e]()
                 * m.fs.membrane_module.strip_phase_inlet.flow_vol[0]()
             )
-            - 1
+            / (
+                m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[0, e]()
+                * m.fs.membrane_module.feed_phase_inlet.flow_vol[0]()
+            )
         )
         * 100
         for z in m.fs.membrane_module.strip_phase.length_domain
     ]
 
-fig, ax = plt.subplots(2, figsize=(6, 8))
-fig.suptitle("Steady state counter-current MSX profiles for 5% DEHPA")
-for s in ["Ce", "Nd", "Gd", "Sm"]:
-    ax[0].plot(
-        m.fs.membrane_module.feed_phase.length_domain,
-        feed_percentage_recovery[s],
-        linewidth=3,
-    )
-ax[0].legend(["Ce", "Nd", "Gd", "Sm"])
-ax[0].set_xlabel("Normalized length")
-ax[0].set_ylabel("Recovery %")
-ax[0].set_title("Feed phase recovery percentage")
-for s in ["Ce", "Nd", "Gd", "Sm"]:
-    ax[1].plot(
-        m.fs.membrane_module.strip_phase.length_domain,
-        m.fs.membrane_module.strip_phase.properties[0, :].conc_mass_comp[s](),
-        linewidth=3,
-    )
-ax[1].legend(["Ce", "Nd", "Gd", "Sm"])
-ax[1].set_xlabel("Normalized length")
-ax[1].set_ylabel("Concentration, mg/L")
-ax[1].set_title("Strip phase concentration profile")
-plt.tight_layout()
+# fig, ax = plt.subplots(2, figsize=(6, 8))
+# fig.suptitle("Steady state counter-current MSX profiles for 5% DEHPA")
+# for s in ["Ce", "Nd", "Gd", "Sm"]:
+#     ax[0].plot(
+#         m.fs.membrane_module.feed_phase.length_domain,
+#         feed_percentage_recovery[s],
+#         linewidth=3,
+#     )
+# ax[0].legend(["Ce", "Nd", "Gd", "Sm"])
+# ax[0].set_xlabel("Normalized length")
+# ax[0].set_ylabel("Recovery %")
+# ax[0].set_title("Feed phase recovery percentage")
+# for s in ["Ce", "Nd", "Gd", "Sm"]:
+#     ax[1].plot(
+#         m.fs.membrane_module.strip_phase.length_domain,
+#         m.fs.membrane_module.strip_phase.properties[0, :].conc_mass_comp[s](),
+#         linewidth=3,
+#     )
+# ax[1].legend(["Ce", "Nd", "Gd", "Sm"])
+# ax[1].set_xlabel("Normalized length")
+# ax[1].set_ylabel("Concentration, mg/L")
+# ax[1].set_title("Strip phase concentration profile")
+# plt.tight_layout()
 
 to_json(m, fname="membrane_solvent_extraction.json")
 
 fig, ax = plt.subplots(1, 2, figsize=(8, 4), dpi=300)
-fig.suptitle("Steady state counter-current MSX profiles for 10% DEHPA")
+# fig.suptitle("Steady state counter-current MSX profiles for 10% DEHPA")
 for s in ["Ce", "Nd", "Gd", "Sm"]:
     ax[0].plot(
         m.fs.membrane_module.feed_phase.length_domain,
@@ -360,11 +361,41 @@ ax[0].set_title("Feed phase recovery percentage")
 for s in ["Ce", "Nd", "Gd", "Sm"]:
     ax[1].plot(
         m.fs.membrane_module.strip_phase.length_domain,
-        m.fs.membrane_module.strip_phase.properties[0, :].conc_mass_comp[s](),
+        strip_percentage_recovery[s],
         linewidth=3,
     )
 ax[1].legend(["Ce", "Nd", "Gd", "Sm"])
 ax[1].set_xlabel("Normalized length")
-ax[1].set_ylabel("Concentration, mg/L")
-ax[1].set_title("Strip phase concentration profile")
+ax[1].set_ylabel("Recovery %")
+ax[1].set_title("Strip phase recovery percentage")
 plt.tight_layout()
+
+
+import numpy as np
+
+x_vals = [float(z) for z in m.fs.membrane_module.feed_phase.length_domain]
+y_vals = [float(r) for r in m.fs.membrane_module.r]
+y_vals_new = [float(r) * 1e6 for r in m.fs.membrane_module.r]
+
+Xg, Yg = np.meshgrid(x_vals, y_vals_new, indexing="ij")  # shape: (len(x), len(y))
+Zg = np.empty_like(Xg, dtype=float)
+
+for i, z in enumerate(x_vals):
+    for j, r in enumerate(y_vals):
+        Zg[i, j] = float(
+            m.fs.membrane_module.conc_mol_membrane_comp[0, z, r, "Sm"]()
+            * m.fs.mem_channel.mw["Ce"]()
+            * 1e9
+        )
+
+fig = plt.figure(dpi=300)
+ax = plt.axes(projection="3d")
+ax.invert_xaxis()
+ax.view_init(elev=30, azim=120)
+ax.plot_surface(Xg, Yg, Zg, cmap="viridis")  # or ax.plot_wireframe / ax.plot_surface
+ax.set_xlabel("z (m)")
+ax.set_ylabel("r (micro-m)")
+ax.set_zlabel("C (micro-gram/L)")
+ax.set_box_aspect(None, zoom=0.85)
+plt.tight_layout()
+plt.show()

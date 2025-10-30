@@ -101,12 +101,10 @@ copy_first_steady_state(m)
 # Feed phase inlet conditions
 
 for t in m.fs.time:
-    if t <= 1:
+    if t <= 0.5:
         m.fs.membrane_module.feed_phase_inlet.flow_vol[t].fix(17 * units.mL / units.min)
     else:
-        m.fs.membrane_module.feed_phase_inlet.flow_vol[t].fix(
-            17 * 1.2 * units.mL / units.min
-        )
+        m.fs.membrane_module.feed_phase_inlet.flow_vol[t].fix(17 * units.mL / units.min)
 
 
 # m.fs.membrane_module.feed_phase_inlet.flow_vol.fix(17 * units.mL / units.min)
@@ -154,7 +152,7 @@ m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[:, "H2O"].fix(
 )
 
 for t in m.fs.time:
-    if t <= 1:
+    if t <= 1.5:
         m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[t, "H"].fix(
             10**-2.06 * 1 * units.gram / units.L
         )
@@ -166,13 +164,22 @@ for t in m.fs.time:
 # Strip phase inlet conditions
 
 for t in m.fs.time:
-    if t <= 1:
+    if t <= 0.5:
         m.fs.membrane_module.strip_phase_inlet.flow_vol[t].fix(
             54 * units.mL / units.min
         )
     else:
         m.fs.membrane_module.strip_phase_inlet.flow_vol[t].fix(
             54 * units.mL / units.min
+        )
+for t in m.fs.time:
+    if t <= 1.5:
+        m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[t, "H"].fix(
+            3 * units.gram / units.L
+        )
+    else:
+        m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[t, "H"].fix(
+            3 * units.gram / units.L
         )
 
 # m.fs.membrane_module.strip_phase_inlet.flow_vol.fix(54 * units.mL / units.min)
@@ -212,9 +219,9 @@ m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "Y"].fix(
 m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "Sc"].fix(
     0.649 * units.microgram / units.L
 )
-m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "H"].fix(
-    3 * 1 * units.gram / units.L
-)
+# m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "H"].fix(
+#     3 * 1 * units.gram / units.L
+# )
 
 m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "H2O"].fix(
     1e6 * units.mg / units.L
@@ -383,16 +390,17 @@ for e in m.fs.mem_prop.component_list:
 
 import matplotlib.pyplot as plt
 
-fig, ax = plt.subplots(2, figsize=(4, 6), dpi=300)
-ax[0].plot(m.fs.time, m.fs.membrane_module.feed_phase_inlet.flow_vol[:]())
-ax[0].set_xlabel("Time, hrs")
-ax[0].set_ylabel("Feed inlet flowrate, L/hr")
-ax[0].set_title("Change in feed inlet flowrate")
-ax[1].plot(m.fs.time, strip_outlet_recovery["Pr"])
-ax[1].set_xlabel("Time, hrs")
-ax[1].set_ylabel("Pr strip outlet recovery %")
-ax[1].set_title("Change in Pr strip outlet recovery %")
-plt.tight_layout()
+# fig, ax = plt.subplots(1, 3, figsize=(4, 6), dpi=300)
+# ax[0].plot(m.fs.time, m.fs.membrane_module.feed_phase_inlet.flow_vol[:]())
+# ax[0].set_xlabel("Time, hrs")
+# ax[0].set_ylabel("Feed inlet flowrate, L/hr")
+# ax[0].set_title("Change in feed inlet flowrate")
+# ax[1].plot(m.fs.time, strip_outlet_recovery["Pr"])
+# ax[1].set_xlabel("Time, hrs")
+# ax[1].set_ylabel("Pr strip outlet recovery %")
+# ax[1].set_title("Change in Pr strip outlet recovery %")
+# plt.tight_layout()
+# ax[0].axvline(x=1, color="k", linestyle="--")
 
 # fig, ax = plt.subplots(2, figsize=(4, 6), dpi=300)
 # ax[0].plot(m.fs.time, m.fs.membrane_module.strip_phase_inlet.flow_vol[:]())
@@ -404,3 +412,25 @@ plt.tight_layout()
 # ax[1].set_ylabel("Pr strip outlet recovery %")
 # ax[1].set_title("Change in Pr strip outlet recovery %")
 # plt.tight_layout()
+
+fig, ax = plt.subplots(1, 3, figsize=(10, 3), dpi=300)
+ax[0].plot(m.fs.time, m.fs.membrane_module.feed_phase_inlet.flow_vol[:]())
+ax[0].set_xlabel("Time, hrs")
+ax[0].set_ylabel("Feed inlet flowrate, L/hr")
+ax[0].axvline(x=1, color="k", linestyle="--")
+ax[0].set_title("Change in feed inlet flowrate")
+ax[1].plot(
+    m.fs.time,
+    [
+        -log10(m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[t, "H"]() / 1000)
+        for t in m.fs.time
+    ],
+)
+ax[1].set_xlabel("Time, hrs")
+ax[1].set_ylabel("pH")
+ax[1].set_title("Change in feed pH")
+ax[2].plot(m.fs.time, strip_outlet_recovery["Pr"])
+ax[2].set_xlabel("Time, hrs")
+ax[2].set_ylabel("Pr strip outlet recovery %")
+ax[2].set_title("Change in Pr strip outlet recovery %")
+plt.tight_layout()

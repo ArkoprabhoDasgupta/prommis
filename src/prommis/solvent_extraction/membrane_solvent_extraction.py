@@ -609,34 +609,35 @@ class MembraneSolventExtractionData(UnitModelBlockData):
             rule=shell_flux_formula,
         )
 
-        # self.dCMdr = Var(
-        #     self.flowsheet().time,
-        #     self.feed_phase.length_domain,
-        #     self.r,
-        #     self.config.membrane_phase["property_package"].component_list,
-        #     units=units.mole / (units.L * units.m),
-        # )
+        self.flux = Var(
+            self.flowsheet().time,
+            self.feed_phase.length_domain,
+            self.r,
+            self.config.membrane_phase["property_package"].component_list,
+            units=units.mole / (units.hour * units.m**2),
+        )
 
-        # def CM_gradient_expression(b, t, z, r, e):
-        #     r_m = b.tube_outer_radius
-        #     r_i = b.tube_inner_radius
-        #     C_mem_feed_int = (
-        #         b.feed_phase.properties[t, z].conc_mol_comp[e]
-        #         * b.membrane_phase[t, z].feed_distribution_coefficient[e]
-        #     )
-        #     C_mem_strip_int = (
-        #         b.strip_phase.properties[t, z].conc_mol_comp[e]
-        #         * b.membrane_phase[t, z].strip_distribution_coefficient[e]
-        #     )
-        #     return b.dCMdr[t, z, r, e] == units.convert(
-        #         ((C_mem_strip_int - C_mem_feed_int) / (r * units.m * log(r_m / r_i))),
-        #         to_units=units.mole / (units.L * units.m),
-        #     )
+        def flux_gradient_expression(b, t, z, r, e):
+            r_m = b.tube_outer_radius
+            r_i = b.tube_inner_radius
+            C_mem_feed_int = (
+                b.feed_phase.properties[t, z].conc_mol_comp[e]
+                * b.membrane_phase[t, z].feed_distribution_coefficient[e]
+            )
+            C_mem_strip_int = (
+                b.strip_phase.properties[t, z].conc_mol_comp[e]
+                * b.membrane_phase[t, z].strip_distribution_coefficient[e]
+            )
+            return b.flux[t, z, r, e] == units.convert(
+                b.config.membrane_phase["property_package"].D_coeff[e]
+                * ((C_mem_strip_int - C_mem_feed_int) / (r * units.m * log(r_m / r_i))),
+                to_units=units.mole / (units.hour * units.m**2),
+            )
 
-        # self.CM_gradient_expression_rule = Constraint(
-        #     self.flowsheet().time,
-        #     self.feed_phase.length_domain,
-        #     self.r,
-        #     self.config.membrane_phase["property_package"].component_list,
-        #     rule=CM_gradient_expression,
-        # )
+        self.flux_gradient_expression_rule = Constraint(
+            self.flowsheet().time,
+            self.feed_phase.length_domain,
+            self.r,
+            self.config.membrane_phase["property_package"].component_list,
+            rule=flux_gradient_expression,
+        )
