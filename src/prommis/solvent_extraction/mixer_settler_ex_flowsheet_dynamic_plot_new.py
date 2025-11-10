@@ -28,7 +28,7 @@ from prommis.solvent_extraction.ree_og_distribution_new import REESolExOgParamet
 from prommis.solvent_extraction.mixer_settler_extraction import (
     MixerSettlerExtraction,
 )
-from prommis.solvent_extraction.solvent_extraction_reaction_package_new import (
+from prommis.solvent_extraction.solvent_extraction_reaction_package_new_modified import (
     SolventExtractionReactions,
 )
 import matplotlib.pyplot as plt
@@ -156,8 +156,8 @@ def set_inputs(m, dosage, perturb_time):
         if t <= perturb_time * 3:
             m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"].fix(10.75)
         else:
-            # m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"].fix(5.75)
-            m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"].fix(10.75)
+            m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"].fix(5.75)
+            # m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"].fix(10.75)
 
     m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "Kerosene"].fix(820e3)
     # m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "DEHPA"].fix(
@@ -170,7 +170,7 @@ def set_inputs(m, dosage, perturb_time):
             )
         else:
             m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[t, "DEHPA"].fix(
-                975.8e3 * dosage * 1.2 / 100
+                975.8e3 * dosage / 100
             )
     m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "Al_o"].fix(1.267e-5)
     m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "Ca_o"].fix(2.684e-5)
@@ -413,7 +413,7 @@ if __name__ == "__main__":
         number_of_stages,
         time_duration,
         perturb_time,
-        path_name="mixer_settler_extraction.json",
+        path_name="mixer_settler_extraction_new.json",
     )
 
 percentage_recovery = {}
@@ -455,108 +455,6 @@ for e in m.fs.leach_soln.component_list:
             for t in m.fs.time
         ]
 
-# REE_list = []
-# for e in m.fs.leach_soln.component_list:
-#     if e in ["Y", "Dy", "Gd", "La"]:
-#         REE_list.append(e)
-#         plt.plot(
-#             m.fs.time,
-#             percentage_recovery[e],
-#         )
-# plt.legend(REE_list)
-
-# plt.show()
-
-# for s in RangeSet(number_of_stages):
-#     plt.plot(
-#         m.fs.time,
-#         m.fs.mixer_settler_ex.mixer[s]
-#         .unit.mscontactor.organic[:, 1]
-#         .conc_mass_comp["Y_o"](),
-#     )
-# plt.legend(["stage 1", "stage 2", "stage 3"])
-
-
-# fig, ax = plt.subplots(3, figsize=(7, 9), dpi=300)
-
-# fig.suptitle("pH perturbation effect on Gd")
-# ax[0].plot(
-#     m.fs.time,
-#     [
-#         -log10(m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"]() / 1000)
-#         for t in m.fs.time
-#     ],
-#     linewidth=3,
-# )
-# ax[0].set_xlabel("Time, hrs")
-# ax[0].set_ylabel("pH")
-# ax[0].set_title("Aqueous feed pH")
-# ax[0].axvline(4, linestyle="--", color="green", linewidth=2)
-# ax[1].plot(
-#     m.fs.time,
-#     m.fs.mixer_settler_ex.organic_settler[1]
-#     .unit.properties[:, 1]
-#     .conc_mass_comp["Gd_o"](),
-#     linewidth=3,
-#     label="stage 1",
-# )
-# ax[1].set_xlabel("Time, hrs")
-# ax[1].set_ylabel("Stage 1, Concentration, mg/L")
-# ax2 = ax[1].twinx()
-# ax2.plot(
-#     m.fs.time,
-#     m.fs.mixer_settler_ex.organic_settler[3]
-#     .unit.properties[:, 1]
-#     .conc_mass_comp["Gd_o"](),
-#     linewidth=3,
-#     color="red",
-#     label="stage 3",
-# )
-# ax[1].axvline(4, linestyle="--", color="green", linewidth=2)
-# ax2.set_ylabel("Stage 3, Concentration, mg/L")
-# ax[1].set_title("Stage 1 and 3 organic settler outlet concentration profile")
-# ax[1].ticklabel_format(style="sci", axis="y", scilimits=(0, 0))
-# ax2.ticklabel_format(style="sci", axis="y", scilimits=(0, 0))
-# handles1, labels1 = ax[1].get_legend_handles_labels()
-# handles2, labels2 = ax2.get_legend_handles_labels()
-# all_handles = handles1 + handles2
-# all_labels = labels1 + labels2
-# ax[1].legend(all_handles, all_labels, loc="upper left")
-# ax[2].plot(m.fs.time, percentage_recovery["Gd"], linewidth=3)
-# ax[2].axvline(4, linestyle="--", color="green", linewidth=2)
-# ax[2].set_xlabel("Time, hrs")
-# ax[2].set_ylabel("Recovery %")
-# ax[2].set_title("Percentage recovery profile")
-# plt.tight_layout()
-
-# # Add centered labels below each subplot (small font)
-# plt.subplots_adjust(bottom=0.10)
-# ax[0].text(
-#     0.5,
-#     -0.25,
-#     "(a) Aqueous feed pH",
-#     transform=ax[0].transAxes,
-#     ha="center",
-#     fontsize=8,
-# )
-# ax[1].text(
-#     0.5,
-#     -0.25,
-#     "(b) Organic settler outlet concentration (stages 1 & 3)",
-#     transform=ax[1].transAxes,
-#     ha="center",
-#     fontsize=8,
-# )
-# ax[2].text(
-#     0.5,
-#     -0.25,
-#     "(c) Percentage recovery",
-#     transform=ax[2].transAxes,
-#     ha="center",
-#     fontsize=8,
-# )
-
-# plt.show()
 
 fig, ax = plt.subplots(1, 3, figsize=(15, 4), dpi=300)
 
@@ -573,6 +471,21 @@ ax[0].set_ylabel("Flowrate L/hr")
 ax[0].set_ylim(60, 70)
 ax[0].set_title("Aqueous feed flowrate")
 
+# ax[1].plot(
+#     m.fs.time,
+#     [
+#         (m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[t, "DEHPA"]() / 9758)
+#         for t in m.fs.time
+#     ],
+#     linewidth=3,
+# )
+# ax[1].set_xlabel("Time, hrs")
+# ax[1].set_ylabel("Dosage (% v/v)")
+# ax[1].set_ylim(4, 8.5)
+# ax[1].set_title("Organic feed extractant dosage")
+# ax[1].axvline(4, linestyle="--", color="green", linewidth=2)
+# ax[1].axvline(12, linestyle="--", color="red", linewidth=2)
+
 ax[1].plot(
     m.fs.time,
     [
@@ -583,87 +496,16 @@ ax[1].plot(
 )
 ax[1].set_xlabel("Time, hrs")
 ax[1].set_ylabel("pH")
-ax[1].set_ylim(1.9, 2.3)
+# ax[1].set_ylim(1.9, 2.3)
 ax[1].set_title("Aqueous feed pH")
 ax[1].axvline(4, linestyle="--", color="green", linewidth=2)
 ax[1].axvline(12, linestyle="--", color="red", linewidth=2)
+
 ax[2].plot(m.fs.time, percentage_recovery["Gd"], linewidth=3)
 ax[2].axvline(4, linestyle="--", color="green", linewidth=2)
 ax[2].axvline(12, linestyle="--", color="red", linewidth=2)
 ax[2].set_xlabel("Time, hrs")
 ax[2].set_ylabel("Gd Recovery %")
 ax[2].set_title("Gd Recovery % profile")
-ax[2].set_ylim(23.5, 26.5)
+ax[2].set_ylim(23.5, 27.5)
 plt.tight_layout()
-
-# fig.suptitle("Aqueous feed flowrate perturbation effect on Gd")
-# ax[0].plot(
-#     m.fs.time,
-#     m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[:](),
-#     linewidth=3,
-# )
-# ax[0].axvline(4, linestyle="--", color="green", linewidth=2)
-# ax[0].set_xlabel("Time, hrs")
-# ax[0].set_ylabel("Flowrate L/hr")
-# ax[0].set_title("Aqueous feed flowrate")
-# ax[1].plot(
-#     m.fs.time,
-#     m.fs.mixer_settler_ex.organic_settler[1]
-#     .unit.properties[:, 1]
-#     .conc_mass_comp["Gd_o"](),
-#     linewidth=3,
-#     label="stage 1",
-# )
-# ax[1].axvline(4, linestyle="--", color="green", linewidth=2)
-# ax[1].set_xlabel("Time, hrs")
-# ax[1].set_ylabel("Stage 1, Concentration, mg/L")
-# ax2 = ax[1].twinx()
-# ax2.plot(
-#     m.fs.time,
-#     m.fs.mixer_settler_ex.organic_settler[3]
-#     .unit.properties[:, 1]
-#     .conc_mass_comp["Gd_o"](),
-#     linewidth=3,
-#     color="red",
-#     label="stage 3",
-# )
-# ax2.set_ylabel("Stage 3, Concentration, mg/L")
-# ax[1].set_title("Stage 1 and 3 organic settler outlet concentration profile")
-# handles1, labels1 = ax[1].get_legend_handles_labels()
-# handles2, labels2 = ax2.get_legend_handles_labels()
-# all_handles = handles1 + handles2
-# all_labels = labels1 + labels2
-# ax[1].legend(all_handles, all_labels, loc="upper left")
-# ax[1].ticklabel_format(style="sci", axis="y", scilimits=(0, 0))
-# ax2.ticklabel_format(style="sci", axis="y", scilimits=(0, 0))
-# ax[2].plot(m.fs.time, percentage_recovery["Gd"], linewidth=3)
-# ax[2].axvline(4, linestyle="--", color="green", linewidth=2)
-# ax[2].set_xlabel("Time, hrs")
-# ax[2].set_ylabel("Recovery %")
-# ax[2].set_title("Percentage recovery profile")
-# plt.tight_layout()
-# plt.subplots_adjust(bottom=0.10)
-# ax[0].text(
-#     0.5,
-#     -0.25,
-#     "(d) Aqueous feed flowrate",
-#     transform=ax[0].transAxes,
-#     ha="center",
-#     fontsize=8,
-# )
-# ax[1].text(
-#     0.5,
-#     -0.25,
-#     "(e) Organic settler outlet concentration (stages 1 & 3)",
-#     transform=ax[1].transAxes,
-#     ha="center",
-#     fontsize=8,
-# )
-# ax[2].text(
-#     0.5,
-#     -0.25,
-#     "(f) Percentage recovery",
-#     transform=ax[2].transAxes,
-#     ha="center",
-#     fontsize=8,
-# )
