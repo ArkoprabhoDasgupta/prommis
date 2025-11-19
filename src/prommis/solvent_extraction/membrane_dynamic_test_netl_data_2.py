@@ -478,6 +478,16 @@ for e in m.fs.mem_prop.component_list:
         for t in m.fs.time
     ]
 
+for e in m.fs.mem_prop.component_list:
+    strip_outlet_recovery[e] = [
+        (
+            (m.fs.membrane_module.strip_phase_outlet.conc_mass_comp[t, e]() * 1.03)
+            / (m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[t, e]() * 4.3)
+        )
+        * 100
+        for t in m.fs.time
+    ]
+
 import matplotlib.pyplot as plt
 
 fig, ax = plt.subplots(2, 2, figsize=(10, 7))
