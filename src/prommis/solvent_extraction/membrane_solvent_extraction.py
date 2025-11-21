@@ -486,7 +486,7 @@ class MembraneSolventExtractionData(UnitModelBlockData):
         r_points = RangeSet(
             value(self.tube_inner_radius),
             value(self.tube_outer_radius),
-            (value(self.tube_outer_radius) - value(self.tube_inner_radius)) / 5,
+            (value(self.tube_outer_radius) - value(self.tube_inner_radius)) / 3,
         )
         self.r = Set(initialize=r_points, ordered=True)
 
