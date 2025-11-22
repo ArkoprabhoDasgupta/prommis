@@ -219,9 +219,9 @@ m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "Y"].fix(
 m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "Sc"].fix(
     0.649 * units.microgram / units.L
 )
-# m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "H"].fix(
-#     3 * 1 * units.gram / units.L
-# )
+m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "H"].fix(
+    3 * 1 * units.gram / units.L
+)
 
 m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "H2O"].fix(
     1e6 * units.mg / units.L
@@ -356,6 +356,8 @@ for t in m.fs.time:
 
 scaling = TransformationFactory("core.scale_model")
 scaled_model = scaling.create_using(m, rename=False)
+
+assert 1 == 2
 
 solver = get_solver("ipopt_v2")
 solver.options["max_iter"] = 10000

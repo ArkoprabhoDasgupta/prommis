@@ -1,5 +1,5 @@
 from pyomo.common.config import ConfigBlock, ConfigValue, In, Bool
-from pyomo.environ import Reference
+from pyomo.environ import Reference, units, Param, TransformationFactory
 
 # Import IDAES cores
 from idaes.core import (
