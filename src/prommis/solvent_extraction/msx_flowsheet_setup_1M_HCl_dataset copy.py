@@ -48,27 +48,28 @@ from idaes.core.util import DiagnosticsToolbox
 
 m = ConcreteModel()
 
-time_break_points = [0, 12, 22, 32, 42, 52, 63, 72, 82, 92, 102, 117, 122]
-time_fe = 5
+# time_break_points = [0, 12, 22, 32, 42, 52, 63, 72, 82, 92, 102, 117, 122]
+time_break_points = [0, 12]
+time_fe = 1
 time_set = []
 
-for i in range(len(time_break_points)):
-    if i == 0:
-        time_set.append(time_break_points[i])
-    else:
-        if (time_break_points[i] - time_break_points[i - 1]) >= time_fe:
-            number_of_points = int(
-                (time_break_points[i] - time_break_points[i - 1]) / time_fe
-            )
-            if (time_break_points[i] - time_break_points[i - 1]) % time_fe == 0:
-                for j in range(1, number_of_points):
-                    time_set.append(time_break_points[i - 1] + j * time_fe)
-            else:
-                for j in range(1, number_of_points + 1):
-                    time_set.append(time_break_points[i - 1] + j * time_fe)
-            time_set.append(time_break_points[i])
-        else:
-            time_set.append(time_break_points[i])
+# for i in range(len(time_break_points)):
+#     if i == 0:
+#         time_set.append(time_break_points[i])
+#     else:
+#         if (time_break_points[i] - time_break_points[i - 1]) >= time_fe:
+#             number_of_points = int(
+#                 (time_break_points[i] - time_break_points[i - 1]) / time_fe
+#             )
+#             if (time_break_points[i] - time_break_points[i - 1]) % time_fe == 0:
+#                 for j in range(1, number_of_points):
+#                     time_set.append(time_break_points[i - 1] + j * time_fe)
+#             else:
+#                 for j in range(1, number_of_points + 1):
+#                     time_set.append(time_break_points[i - 1] + j * time_fe)
+#             time_set.append(time_break_points[i])
+#         else:
+#             time_set.append(time_break_points[i])
 
 # for i in range(len(time_break_points)):
 #     if i == 0:
@@ -80,7 +81,7 @@ for i in range(len(time_break_points)):
 
 # assert 1 == 2
 
-m.fs = FlowsheetBlock(dynamic=True, time_set=time_set, time_units=units.minute)
+m.fs = FlowsheetBlock(dynamic=True, time_set=time_break_points, time_units=units.minute)
 
 m.fs.mem_prop = MembraneSXModuleParameters()
 m.fs.mem_channel = MembraneSXChannelParameters()
@@ -125,8 +126,11 @@ m.fs.strip_tank = NonReactiveTank(
     property_package=m.fs.mem_channel,
 )
 
-m.discretizer = TransformationFactory("dae.finite_difference")
-m.discretizer.apply_to(m, nfe=len(time_set) - 1, wrt=m.fs.time, scheme="BACKWARD")
+# m.discretizer = TransformationFactory("dae.finite_difference")
+# m.discretizer.apply_to(m, nfe=len(time_set) - 1, wrt=m.fs.time, scheme="BACKWARD")
+
+m.discretizer = TransformationFactory("dae.collocation")
+m.discretizer.apply_to(m, nfe=6, ncp=3, wrt=m.fs.time, scheme="LAGRANGE-RADAU")
 
 
 def copy_first_steady_state(m):
@@ -441,57 +445,7 @@ m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["H"].fix(
 
 m.scaling_factor = Suffix(direction=Suffix.EXPORT)
 
-# for t in m.fs.time:
-#     for z in m.fs.membrane_module.feed_phase.length_domain:
-#         set_scaling_factor(
-#             m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp["H"],
-#             1e2,
-#         )
-#         set_scaling_factor(
-#             m.fs.membrane_module.feed_phase.properties[t, z].pH_constraint,
-#             1e2,
-#         )
-#         set_scaling_factor(
-#             m.fs.membrane_module.feed_phase.material_flow_linking_constraints[
-#                 t, z, "liquid", "H"
-#             ],
-#             1e2,
-#         )
-#         for e in m.fs.mem_prop.component_list:
-#             set_scaling_factor(
-#                 m.fs.membrane_module.feed_phase.properties[t, z].conc_mol_comp[e],
-#                 1e3,
-#             )
-#             set_scaling_factor(
-#                 m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp[e],
-#                 1,
-#             )
-#             set_scaling_factor(
-#                 m.fs.membrane_module.strip_phase.properties[t, z].conc_mol_comp[e],
-#                 1e2,
-#             )
-#             set_scaling_factor(
-#                 m.fs.membrane_module.strip_phase.properties[t, z].conc_mass_comp[e],
-#                 1,
-#             )
-
-#             for r in m.fs.membrane_module.r:
-#                 set_scaling_factor(
-#                     m.fs.membrane_module.conc_mol_membrane_comp[t, z, r, e],
-#                     1e2,
-#                 )
-
-
 for t in m.fs.time:
-    for e in m.fs.mem_channel.component_list:
-        if t != 0:
-            set_scaling_factor(
-                m.fs.strip_tank.control_volume.material_accumulation_disc_eq[
-                    t, "liquid", e
-                ],
-                1e1,
-            )
-
     for z in m.fs.membrane_module.feed_phase.length_domain:
         set_scaling_factor(
             m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp["H"],
@@ -514,7 +468,7 @@ for t in m.fs.time:
             )
             set_scaling_factor(
                 m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp[e],
-                1,
+                1e5,
             )
             set_scaling_factor(
                 m.fs.membrane_module.strip_phase.properties[t, z].conc_mol_comp[e],
@@ -522,7 +476,7 @@ for t in m.fs.time:
             )
             set_scaling_factor(
                 m.fs.membrane_module.strip_phase.properties[t, z].conc_mass_comp[e],
-                1,
+                1e4,
             )
 
             for r in m.fs.membrane_module.r:
@@ -530,7 +484,6 @@ for t in m.fs.time:
                     m.fs.membrane_module.conc_mol_membrane_comp[t, z, r, e],
                     1e3,
                 )
-
 
 # for t in m.fs.time:
 #     set_scaling_factor(
@@ -553,21 +506,81 @@ for t in m.fs.time:
 
 scaling = TransformationFactory("core.scale_model")
 scaled_model = scaling.create_using(m, rename=False)
-#
+# #
 # assert 1 == 2
-solver = get_solver("ipopt_v2")
-solver.options["max_iter"] = 4000
-results = solver.solve(scaled_model, tee=True)
-# results = solver.solve(m, tee=True)
+# solver = get_solver("ipopt_v2")
+# solver.options["max_iter"] = 4000
+# results = solver.solve(scaled_model, tee=True)
+# # results = solver.solve(m, tee=True)
 
-# m.fs.module_to_strip = Arc(
-#     source=m.fs.membrane_module.strip_phase_outlet,
-#     destination=m.fs.strip_tank.inlet,
-# )
+# # m.fs.module_to_strip = Arc(
+# #     source=m.fs.membrane_module.strip_phase_outlet,
+# #     destination=m.fs.strip_tank.inlet,
+# # )
 
 # TransformationFactory("network.expand_arcs").apply_to(m)
 
-scaling.propagate_solution(scaled_model, m)
+results = petsc.petsc_dae_by_time_element(
+    scaled_model,
+    time=scaled_model.fs.time,
+    between=[scaled_model.fs.time.first(), scaled_model.fs.time.last()],
+    # between=time_set[k:k+2],
+    # timevar=m.fs.timevar,
+    keepfiles=True,
+    symbolic_solver_labels=True,
+    ts_options={
+        "--ts_type": "beuler",
+        "--ts_dt": 0.1,
+        "--ts_rtol": 1e-3,
+        # "--ts_adapt_clip":"0.001,300",
+        # "--ksp_monitor":"",
+        "--ts_adapt_dt_min": 1e-9,
+        # "--ts_adapt_dt_max": 300,
+        "--ksp_rtol": 1e-12,
+        "--snes_type": "newtontr",
+        # "--ts_max_reject": 200,
+        # "--snes_monitor":"",
+        "--ts_monitor": "",
+        "--ts_save_trajectory": 1,
+        "--ts_trajectory_type": "visualization",
+        "--ts_max_snes_failures": 25,
+        # "--show_cl":"",
+        "-snes_max_it": 50,
+        "-snes_rtol": 0,
+        "-snes_stol": 0,
+        "-snes_atol": 1e-6,
+    },
+    skip_initial=False,
+    initial_solver="ipopt",
+    initial_solver_options={
+        # 'bound_push' : 1e-22,
+        "nlp_scaling_method": "user-scaling",
+        "linear_solver": "ma57",
+        "OF_ma57_automatic_scaling": "yes",
+        "max_iter": 300,
+        "tol": 1e-6,
+        "halt_on_ampl_error": "yes",
+        # 'mu_strategy': 'monotone',
+    },
+    # vars_stub="soec_flowsheet_prototype",
+    # trajectory_save_prefix="soec_flowsheet_prototype",
+    # previous_trajectory=traj
+)
+
+# petsc.petsc_dae_by_time_element(
+#     scaled_model,
+#     time=scaled_model.fs.time,
+#     between=[scaled_model.fs.time.first(), scaled_model.fs.time.last()],
+#     ts_options={
+#         "--ts_type": "beuler",
+#         "--ts_dt": 0.1,
+#         "--ts_monitor": "",  # set initial step to 0.1
+#         "--ts_save_trajectory": 1,
+#     },
+#     symbolic_solver_labels=True,
+# )
+
+# scaling.propagate_solution(scaled_model, m)
 
 # Export only variable values to JSON
 # wts = StoreSpec.value()
