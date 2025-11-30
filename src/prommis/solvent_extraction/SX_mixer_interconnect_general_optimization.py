@@ -184,7 +184,7 @@ m.organic_load_to_strip = Arc(
 
 TransformationFactory("network.expand_arcs").apply_to(m)
 
-pH_load = 1
+pH_load = 1.5
 m.fs.aq_feed_neutral.inlet.flow_vol.fix(62.01)
 m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Al"].fix(400)
 m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Ca"].fix(400)
@@ -227,7 +227,7 @@ for i in load_interstage_list:
     # dosage = 10  # in vol %
     # m.fs.org_inter_mixer[i].feed.conc_mass_comp[0, "DEHPA"].fix(975.8e3 * dosage / 100) # dv
 
-pH_strip = 1
+pH_strip = 0.8
 
 for i in strip_stage_list:
     for e in m.fs.leach_soln.component_list:
@@ -247,15 +247,15 @@ for i in strip_stage_list:
 for e in m.fs.leach_soln.component_list:
     if e not in ["H2O", "HSO4", "SO4", "H"]:
         m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, e].fix(1e-9)
-    m.fs.aq_inter_mixer[1].sx.flow_vol.fix(62.01)
-    m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, "H2O"].fix(1e6)
-    m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, "H"].fix(
-        10 ** (-pH_strip) * 2 * units.gram / units.L
-    )
-    m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, "SO4"].fix(
-        10 ** (-pH_strip) * 96 * units.gram / units.L
-    )
-    m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, "HSO4"].fix(1e-4)
+m.fs.aq_inter_mixer[1].sx.flow_vol.fix(62.01)
+m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, "H2O"].fix(1e6)
+m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, "H"].fix(
+    10 ** (-pH_strip) * 2 * units.gram / units.L
+)
+m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, "SO4"].fix(
+    10 ** (-pH_strip) * 96 * units.gram / units.L
+)
+m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, "HSO4"].fix(1e-4)
 
 
 # fix parameters
@@ -407,9 +407,9 @@ market_demand = {
 # }
 
 
-@m.Constraint(REE_list)
-def market_demand_constraint(m, e):
-    return m.market_distribution[e] <= market_demand[e]
+# @m.Constraint(REE_list)
+# def market_demand_constraint(m, e):
+#     return m.market_distribution[e] >= market_demand[e]
 
 
 print(degrees_of_freedom(m))
