@@ -16,7 +16,7 @@ from idaes.core import (
     ControlVolume0DBlock,
 )
 from idaes.core.util import to_json, from_json, StoreSpec
-from idaes.core.solvers import get_solver, petsc
+from idaes.core.solvers import get_solver
 from idaes.core.util.scaling import set_scaling_factor
 from idaes.core.util.model_statistics import degrees_of_freedom as dof
 from idaes.core.util.scaling import set_scaling_factor
@@ -26,7 +26,7 @@ from idaes.core.initialization import (
 )
 
 # from prommis.solvent_extraction.petsc import petsc_dae_by_time_element
-# from petsc import petsc
+from petsc import petsc
 from pyomo.dae.flatten import flatten_dae_components
 
 from prommis.solvent_extraction.membrane_module_property_package import (
@@ -48,11 +48,10 @@ from idaes.core.util import DiagnosticsToolbox
 
 m = ConcreteModel()
 
-time_break_points = [0, 12, 22, 32, 42, 52, 63, 72, 82, 92, 102, 112, 117, 122]
-end_time = 60
-# time_break_points = [0, 12, 22, 32, 42, 52]
+time_break_points = [0, 12, 22, 32, 42, 52, 63, 72, 82, 92, 102, 117, 122]
 time_fe = 2
 time_set = []
+# time_set = time_break_points
 
 for i in range(len(time_break_points)):
     if i == 0:
@@ -130,10 +129,6 @@ m.fs.strip_tank = NonReactiveTank(
 m.discretizer = TransformationFactory("dae.finite_difference")
 m.discretizer.apply_to(m, nfe=len(time_set) - 1, wrt=m.fs.time, scheme="BACKWARD")
 
-# m.discretizer = TransformationFactory("dae.collocation")
-# m.discretizer.apply_to(m, nfe=10, ncp=2, wrt=m.fs.time, scheme="LAGRANGE-RADAU")
-# %%
-
 
 def copy_first_steady_state(m):
     """
@@ -178,18 +173,32 @@ TransformationFactory("network.expand_arcs").apply_to(m)
 # Define membrane module parameters
 
 m.fs.membrane_module.module_length.fix(0.254 * 2 * units.m)
-m.fs.membrane_module.eff["Al"].fix(3.246e-4)
-m.fs.membrane_module.eff["Ca"].fix(1.765e-3)
-m.fs.membrane_module.eff["Ce"].fix(0.0305)
-m.fs.membrane_module.eff["Dy"].fix(1.156e-3)
-m.fs.membrane_module.eff["Fe"].fix(7.773e-4)
-m.fs.membrane_module.eff["Gd"].fix(0.013)
-m.fs.membrane_module.eff["La"].fix(0.032)
-m.fs.membrane_module.eff["Nd"].fix(0.059)
-m.fs.membrane_module.eff["Pr"].fix(0.105)
-m.fs.membrane_module.eff["Sm"].fix(0.15)
-m.fs.membrane_module.eff["Y"].fix(3e-6)
-m.fs.membrane_module.eff["Sc"].fix(1.5e-5)
+m.fs.membrane_module.eff[:, :, "Al"].fix(3.246e-4)
+m.fs.membrane_module.eff[:, :, "Ca"].fix(1.765e-3)
+m.fs.membrane_module.eff[:, :, "Ce"].fix(0.0305)
+m.fs.membrane_module.eff[:, :, "Dy"].fix(1.156e-3)
+m.fs.membrane_module.eff[:, :, "Fe"].fix(7.773e-4)
+m.fs.membrane_module.eff[:, :, "Gd"].fix(0.013)
+m.fs.membrane_module.eff[:, :, "La"].fix(0.032)
+m.fs.membrane_module.eff[:, :, "Nd"].fix(0.059)
+m.fs.membrane_module.eff[:, "strip", "Pr"].fix(0.105)
+m.fs.membrane_module.eff[:, :, "Sm"].fix(0.15)
+m.fs.membrane_module.eff[:, :, "Y"].fix(3e-6)
+m.fs.membrane_module.eff[:, :, "Sc"].fix(1.5e-5)
+
+m.a = Var(["c", "l", "q"], initialize=0.1)
+# m.b = Var(initialize=0.1)
+# m.c = Var(initialize=0.1)
+
+
+@m.Constraint(m.fs.time)
+def eff_feed_Pr(m, t):
+    v = m.fs.membrane_module.feed_phase.properties[t, 0].flow_vol
+    return (
+        m.fs.membrane_module.eff[t, "feed", "Pr"]
+        == m.a["c"] + m.a["l"] * v + m.a["q"] * v**2
+    )
+
 
 # Define feed tank inlet conditions
 
@@ -487,6 +496,57 @@ for t in m.fs.time:
                     1e3,
                 )
 
+
+# for t in m.fs.time:
+#     for e in m.fs.mem_channel.component_list:
+#         if t != 0:
+#             set_scaling_factor(
+#                 m.fs.strip_tank.control_volume.material_accumulation_disc_eq[
+#                     t, "liquid", e
+#                 ],
+#                 1e1,
+#             )
+
+#     for z in m.fs.membrane_module.feed_phase.length_domain:
+#         set_scaling_factor(
+#             m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp["H"],
+#             1e2,
+#         )
+#         set_scaling_factor(
+#             m.fs.membrane_module.feed_phase.properties[t, z].pH_constraint,
+#             1e2,
+#         )
+#         set_scaling_factor(
+#             m.fs.membrane_module.feed_phase.material_flow_linking_constraints[
+#                 t, z, "liquid", "H"
+#             ],
+#             1e2,
+#         )
+#         for e in m.fs.mem_prop.component_list:
+#             set_scaling_factor(
+#                 m.fs.membrane_module.feed_phase.properties[t, z].conc_mol_comp[e],
+#                 1e3,
+#             )
+#             set_scaling_factor(
+#                 m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp[e],
+#                 1,
+#             )
+#             set_scaling_factor(
+#                 m.fs.membrane_module.strip_phase.properties[t, z].conc_mol_comp[e],
+#                 1e4,
+#             )
+#             set_scaling_factor(
+#                 m.fs.membrane_module.strip_phase.properties[t, z].conc_mass_comp[e],
+#                 1,
+#             )
+
+#             for r in m.fs.membrane_module.r:
+#                 set_scaling_factor(
+#                     m.fs.membrane_module.conc_mol_membrane_comp[t, z, r, e],
+#                     1e3,
+#                 )
+
+
 # for t in m.fs.time:
 #     set_scaling_factor(
 #         m.fs.feed_tank.control_volume.properties_out[t].conc_mass_comp["H"], 1e2
@@ -505,14 +565,55 @@ for t in m.fs.time:
 #             1e2,
 #         )
 
+Pr_experimental = dict(
+    zip(
+        time_break_points,
+        [
+            0.029,
+            8.69,
+            20.4,
+            27.6,
+            31.5,
+            42.5,
+            56.5,
+            69.0,
+            81.5,
+            100,
+            145,
+            193,
+            262,
+            263,
+        ],
+    )
+)
+
+
+@m.Objective(sense=minimize)
+def Pr_residual(m):
+    return (
+        (
+            sum(
+                (
+                    m.fs.strip_tank.control_volume.properties_out[t].conc_mass_comp[
+                        "Pr"
+                    ]
+                    - Pr_experimental[t] * 1e-3
+                )
+                ** 2
+                for t in time_break_points
+            )
+        )
+        ** 0.5
+    ) / len(time_break_points)
+
 
 scaling = TransformationFactory("core.scale_model")
 scaled_model = scaling.create_using(m, rename=False)
-# #
+#
 # assert 1 == 2
-# solver = get_solver("ipopt_v2")
-# solver.options["max_iter"] = 4000
-# results = solver.solve(scaled_model, tee=True)
+solver = get_solver("ipopt_v2")
+solver.options["max_iter"] = 2000
+results = solver.solve(scaled_model, tee=True)
 # results = solver.solve(m, tee=True)
 
 # # m.fs.module_to_strip = Arc(
@@ -520,69 +621,13 @@ scaled_model = scaling.create_using(m, rename=False)
 # #     destination=m.fs.strip_tank.inlet,
 # # )
 
-# TransformationFactory("network.expand_arcs").apply_to(m)
-
-results = petsc.petsc_dae_by_time_element(
-    scaled_model,
-    time=scaled_model.fs.time,
-    between=[scaled_model.fs.time.first(), scaled_model.fs.time.last()],
-    # between=time_set[k:k+2],
-    # timevar=m.fs.timevar,
-    keepfiles=True,
-    symbolic_solver_labels=True,
-    ts_options={
-        "--ts_type": "beuler",
-        "--ts_dt": 0.1,
-        "--ts_rtol": 1e-6,
-        # "--ts_adapt_clip":"0.001,300",
-        # "--ksp_monitor":"",
-        "--ts_adapt_dt_min": 1e-9,
-        # "--ts_adapt_dt_max": 300,
-        "--ksp_rtol": 1e-12,
-        "--snes_type": "newtontr",
-        # "--ts_max_reject": 200,
-        # "--snes_monitor":"",
-        "--ts_monitor": "",
-        "--ts_save_trajectory": 1,
-        "--ts_trajectory_type": "visualization",
-        # "--ts_max_snes_failures": 25,
-        # "--show_cl":"",
-        "-snes_max_it": 1000,
-        "-snes_rtol": 0,
-        "-snes_stol": 0,
-        "-snes_atol": 1e-6,
-    },
-    skip_initial=False,
-    initial_solver="ipopt_v2",
-    initial_solver_options={
-        # 'bound_push' : 1e-22,
-        "nlp_scaling_method": "gradient-based",
-        "linear_solver": "ma57",
-        "OF_ma57_automatic_scaling": "yes",
-        "max_iter": 1000,
-        "tol": 1e-6,
-        "halt_on_ampl_error": "no",
-        # 'mu_strategy': 'monotone',
-    },
-    # vars_stub="soec_flowsheet_prototype",
-    # trajectory_save_prefix="soec_flowsheet_prototype",
-    # previous_trajectory=traj
-)
-
-# petsc.petsc_dae_by_time_element(
-#     scaled_model,
-#     time=scaled_model.fs.time,
-#     between=[scaled_model.fs.time.first(), scaled_model.fs.time.last()],
-#     ts_options={
-#         "--ts_type": "beuler",
-#         "--ts_dt": 0.1,
-#         "--ts_monitor": "",  # set initial step to 0.1
-#         "--ts_save_trajectory": 1,
-#     },
-#     symbolic_solver_labels=True,
-# )
+# # TransformationFactory("network.expand_arcs").apply_to(m)
 
 scaling.propagate_solution(scaled_model, m)
+
+# # Export only variable values to JSON
+# # wts = StoreSpec.value()
+# # to_json(m, fname="membrane_solvent_extraction.json", wts=wts, human_read=True)
 
 strip_outlet_recovery = {}
 
@@ -640,10 +685,18 @@ ax[1, 1].set_ylabel("Pr strip outlet recovery %")
 ax[1, 1].set_title("Change in Pr strip outlet recovery %")
 plt.tight_layout()
 
-# Export only variable values to JSON
-wts = StoreSpec.value()
-to_json(m, fname="msx_1M_HCl_petsc.json", human_read=True)
+# alternate_strip_recovery = {}
 
-# %%
+# for e in m.fs.mem_prop.component_list:
 
-# alternate_strip_recovery
+#     alternate_strip_recovery[e] = [
+#         (
+#             (
+#                 m.fs.strip_tank.control_volume.properties_out[t].conc_mass_comp[e]()
+#                 * 1.03
+#             )
+#             / (m.fs.feed_tank.inlet.conc_mass_comp[t, e]() * 4.2)
+#         )
+#         * 100
+#         for t in m.fs.time
+#     ]

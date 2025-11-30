@@ -16,7 +16,7 @@ from idaes.core import (
     ControlVolume0DBlock,
 )
 from idaes.core.util import to_json, from_json, StoreSpec
-from idaes.core.solvers import get_solver, petsc
+from idaes.core.solvers import get_solver
 from idaes.core.util.scaling import set_scaling_factor
 from idaes.core.util.model_statistics import degrees_of_freedom as dof
 from idaes.core.util.scaling import set_scaling_factor
@@ -26,7 +26,7 @@ from idaes.core.initialization import (
 )
 
 # from prommis.solvent_extraction.petsc import petsc_dae_by_time_element
-# from petsc import petsc
+from petsc import petsc
 from pyomo.dae.flatten import flatten_dae_components
 
 from prommis.solvent_extraction.membrane_module_property_package import (
@@ -49,10 +49,9 @@ from idaes.core.util import DiagnosticsToolbox
 m = ConcreteModel()
 
 time_break_points = [0, 12, 22, 32, 42, 52, 63, 72, 82, 92, 102, 112, 117, 122]
-end_time = 60
-# time_break_points = [0, 12, 22, 32, 42, 52]
 time_fe = 2
 time_set = []
+# time_set = time_break_points
 
 for i in range(len(time_break_points)):
     if i == 0:
@@ -130,10 +129,6 @@ m.fs.strip_tank = NonReactiveTank(
 m.discretizer = TransformationFactory("dae.finite_difference")
 m.discretizer.apply_to(m, nfe=len(time_set) - 1, wrt=m.fs.time, scheme="BACKWARD")
 
-# m.discretizer = TransformationFactory("dae.collocation")
-# m.discretizer.apply_to(m, nfe=10, ncp=2, wrt=m.fs.time, scheme="LAGRANGE-RADAU")
-# %%
-
 
 def copy_first_steady_state(m):
     """
@@ -152,10 +147,19 @@ def copy_first_steady_state(m):
 
 
 wts = StoreSpec.value()
+from_json(m, fname="msx_1M_HCl_petsc.json", wts=wts)
+# copy_first_steady_state(m)
+
+plt.plot(
+    m.fs.time, m.fs.membrane_module.feed_phase.properties[:, 1].conc_mass_comp["Pr"]()
+)
+# plt.plot(
+#     m.fs.time, m.fs.feed_tank.control_volume.properties_out[:].conc_mass_comp["Pr"]()
+# )
+# assert 1 == 2
+
 from_json(m, fname="membrane_solvent_extraction_2.json", wts=wts)
 copy_first_steady_state(m)
-
-# assert 1 == 2
 
 # Arcs connection
 
@@ -487,6 +491,57 @@ for t in m.fs.time:
                     1e3,
                 )
 
+
+# for t in m.fs.time:
+#     for e in m.fs.mem_channel.component_list:
+#         if t != 0:
+#             set_scaling_factor(
+#                 m.fs.strip_tank.control_volume.material_accumulation_disc_eq[
+#                     t, "liquid", e
+#                 ],
+#                 1e1,
+#             )
+
+#     for z in m.fs.membrane_module.feed_phase.length_domain:
+#         set_scaling_factor(
+#             m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp["H"],
+#             1e2,
+#         )
+#         set_scaling_factor(
+#             m.fs.membrane_module.feed_phase.properties[t, z].pH_constraint,
+#             1e2,
+#         )
+#         set_scaling_factor(
+#             m.fs.membrane_module.feed_phase.material_flow_linking_constraints[
+#                 t, z, "liquid", "H"
+#             ],
+#             1e2,
+#         )
+#         for e in m.fs.mem_prop.component_list:
+#             set_scaling_factor(
+#                 m.fs.membrane_module.feed_phase.properties[t, z].conc_mol_comp[e],
+#                 1e3,
+#             )
+#             set_scaling_factor(
+#                 m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp[e],
+#                 1,
+#             )
+#             set_scaling_factor(
+#                 m.fs.membrane_module.strip_phase.properties[t, z].conc_mol_comp[e],
+#                 1e4,
+#             )
+#             set_scaling_factor(
+#                 m.fs.membrane_module.strip_phase.properties[t, z].conc_mass_comp[e],
+#                 1,
+#             )
+
+#             for r in m.fs.membrane_module.r:
+#                 set_scaling_factor(
+#                     m.fs.membrane_module.conc_mol_membrane_comp[t, z, r, e],
+#                     1e3,
+#                 )
+
+
 # for t in m.fs.time:
 #     set_scaling_factor(
 #         m.fs.feed_tank.control_volume.properties_out[t].conc_mass_comp["H"], 1e2
@@ -508,83 +563,60 @@ for t in m.fs.time:
 
 scaling = TransformationFactory("core.scale_model")
 scaled_model = scaling.create_using(m, rename=False)
-# #
+#
 # assert 1 == 2
-# solver = get_solver("ipopt_v2")
-# solver.options["max_iter"] = 4000
-# results = solver.solve(scaled_model, tee=True)
+solver = get_solver("ipopt_v2")
+solver.options["max_iter"] = 4000
+results = solver.solve(scaled_model, tee=True)
 # results = solver.solve(m, tee=True)
 
-# # m.fs.module_to_strip = Arc(
-# #     source=m.fs.membrane_module.strip_phase_outlet,
-# #     destination=m.fs.strip_tank.inlet,
-# # )
-
-# TransformationFactory("network.expand_arcs").apply_to(m)
-
-results = petsc.petsc_dae_by_time_element(
-    scaled_model,
-    time=scaled_model.fs.time,
-    between=[scaled_model.fs.time.first(), scaled_model.fs.time.last()],
-    # between=time_set[k:k+2],
-    # timevar=m.fs.timevar,
-    keepfiles=True,
-    symbolic_solver_labels=True,
-    ts_options={
-        "--ts_type": "beuler",
-        "--ts_dt": 0.1,
-        "--ts_rtol": 1e-6,
-        # "--ts_adapt_clip":"0.001,300",
-        # "--ksp_monitor":"",
-        "--ts_adapt_dt_min": 1e-9,
-        # "--ts_adapt_dt_max": 300,
-        "--ksp_rtol": 1e-12,
-        "--snes_type": "newtontr",
-        # "--ts_max_reject": 200,
-        # "--snes_monitor":"",
-        "--ts_monitor": "",
-        "--ts_save_trajectory": 1,
-        "--ts_trajectory_type": "visualization",
-        # "--ts_max_snes_failures": 25,
-        # "--show_cl":"",
-        "-snes_max_it": 1000,
-        "-snes_rtol": 0,
-        "-snes_stol": 0,
-        "-snes_atol": 1e-6,
-    },
-    skip_initial=False,
-    initial_solver="ipopt_v2",
-    initial_solver_options={
-        # 'bound_push' : 1e-22,
-        "nlp_scaling_method": "gradient-based",
-        "linear_solver": "ma57",
-        "OF_ma57_automatic_scaling": "yes",
-        "max_iter": 1000,
-        "tol": 1e-6,
-        "halt_on_ampl_error": "no",
-        # 'mu_strategy': 'monotone',
-    },
-    # vars_stub="soec_flowsheet_prototype",
-    # trajectory_save_prefix="soec_flowsheet_prototype",
-    # previous_trajectory=traj
-)
-
-# petsc.petsc_dae_by_time_element(
-#     scaled_model,
-#     time=scaled_model.fs.time,
-#     between=[scaled_model.fs.time.first(), scaled_model.fs.time.last()],
-#     ts_options={
-#         "--ts_type": "beuler",
-#         "--ts_dt": 0.1,
-#         "--ts_monitor": "",  # set initial step to 0.1
-#         "--ts_save_trajectory": 1,
-#     },
-#     symbolic_solver_labels=True,
-# )
 
 scaling.propagate_solution(scaled_model, m)
 
-strip_outlet_recovery = {}
+# plt.plot(
+#     m.fs.time, m.fs.feed_tank.control_volume.properties_out[:].conc_mass_comp["Pr"]()
+# )
+plt.plot(
+    m.fs.time, m.fs.membrane_module.feed_phase.properties[:, 1].conc_mass_comp["Pr"]()
+)
+
+Pr_experimental = [
+    0.029,
+    8.69,
+    20.4,
+    27.6,
+    31.5,
+    42.5,
+    56.5,
+    69.0,
+    81.5,
+    100,
+    145,
+    193,
+    262,
+    263,
+]
+
+Pr_feed = [206, 220, 193, 209, 234, 283, 266, 220, 241, 268, 268, 267, 119, 331]
+
+
+plt.scatter(
+    sorted(time_break_points, reverse=True),
+    [e * 1e-3 for e in Pr_feed],
+    marker="o",
+    color="g",
+)
+plt.xlabel("Time, mins")
+plt.ylabel("Concentration, mg/L")
+plt.title("Pr feed tank outlet concentration")
+plt.legend(["petsc", "full discretization", "experiment"])
+
+
+# # Export only variable values to JSON
+# # wts = StoreSpec.value()
+# # to_json(m, fname="membrane_solvent_extraction.json", wts=wts, human_read=True)
+
+# strip_outlet_recovery = {}
 
 # for e in m.fs.mem_prop.component_list:
 #     strip_outlet_recovery[e] = [
@@ -608,42 +640,50 @@ strip_outlet_recovery = {}
 #         for t in m.fs.time
 #     ]
 
-for e in m.fs.mem_prop.component_list:
-    strip_outlet_recovery[e] = [
-        (
-            (
-                m.fs.strip_tank.control_volume.properties_out[t].conc_mass_comp[e]()
-                * 1.03
-            )
-            / (m.fs.feed_tank.inlet.conc_mass_comp[t, e]() * 4.2)
-        )
-        * 100
-        for t in m.fs.time
-    ]
+# for e in m.fs.mem_prop.component_list:
+#     strip_outlet_recovery[e] = [
+#         (
+#             (
+#                 m.fs.strip_tank.control_volume.properties_out[t].conc_mass_comp[e]()
+#                 * 1.03
+#             )
+#             / (m.fs.feed_tank.inlet.conc_mass_comp[t, e]() * 4.2)
+#         )
+#         * 100
+#         for t in m.fs.time
+#     ]
 
-fig, ax = plt.subplots(2, 2, figsize=(10, 7))
-ax[0, 0].step(m.fs.time, m.fs.feed_tank.inlet.flow_vol[:]())
-ax[0, 0].set_xlabel("Time, mins")
-ax[0, 0].set_ylabel("Feed inlet flowrate, L/hr")
-ax[0, 0].set_title("Change in feed inlet flowrate")
-ax[0, 1].step(m.fs.time, m.fs.strip_tank.inlet.flow_vol[:]())
-ax[0, 1].set_xlabel("Time, mins")
-ax[0, 1].set_ylabel("Strip inlet flowrate, L/hr")
-ax[0, 1].set_title("Change in strip inlet flowrate")
-ax[1, 0].step(m.fs.time, m.fs.feed_tank.inlet.conc_mass_comp[:, "Pr"]())
-ax[1, 0].set_xlabel("Time, mins")
-ax[1, 0].set_ylabel("Pr feed inlet concentration, mg/L")
-ax[1, 0].set_title("Change in Pr feed inlet concentration")
-ax[1, 1].plot(m.fs.time, strip_outlet_recovery["Pr"])
-ax[1, 1].set_xlabel("Time, mins")
-ax[1, 1].set_ylabel("Pr strip outlet recovery %")
-ax[1, 1].set_title("Change in Pr strip outlet recovery %")
-plt.tight_layout()
+# fig, ax = plt.subplots(2, 2, figsize=(10, 7))
+# ax[0, 0].step(m.fs.time, m.fs.feed_tank.inlet.flow_vol[:]())
+# ax[0, 0].set_xlabel("Time, mins")
+# ax[0, 0].set_ylabel("Feed inlet flowrate, L/hr")
+# ax[0, 0].set_title("Change in feed inlet flowrate")
+# ax[0, 1].step(m.fs.time, m.fs.strip_tank.inlet.flow_vol[:]())
+# ax[0, 1].set_xlabel("Time, mins")
+# ax[0, 1].set_ylabel("Strip inlet flowrate, L/hr")
+# ax[0, 1].set_title("Change in strip inlet flowrate")
+# ax[1, 0].step(m.fs.time, m.fs.feed_tank.inlet.conc_mass_comp[:, "Pr"]())
+# ax[1, 0].set_xlabel("Time, mins")
+# ax[1, 0].set_ylabel("Pr feed inlet concentration, mg/L")
+# ax[1, 0].set_title("Change in Pr feed inlet concentration")
+# ax[1, 1].plot(m.fs.time, strip_outlet_recovery["Pr"])
+# ax[1, 1].set_xlabel("Time, mins")
+# ax[1, 1].set_ylabel("Pr strip outlet recovery %")
+# ax[1, 1].set_title("Change in Pr strip outlet recovery %")
+# plt.tight_layout()
 
-# Export only variable values to JSON
-wts = StoreSpec.value()
-to_json(m, fname="msx_1M_HCl_petsc.json", human_read=True)
+# alternate_strip_recovery = {}
 
-# %%
+# for e in m.fs.mem_prop.component_list:
 
-# alternate_strip_recovery
+#     alternate_strip_recovery[e] = [
+#         (
+#             (
+#                 m.fs.strip_tank.control_volume.properties_out[t].conc_mass_comp[e]()
+#                 * 1.03
+#             )
+#             / (m.fs.feed_tank.inlet.conc_mass_comp[t, e]() * 4.2)
+#         )
+#         * 100
+#         for t in m.fs.time
+#     ]

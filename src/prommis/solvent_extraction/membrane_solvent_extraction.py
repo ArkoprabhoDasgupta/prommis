@@ -491,6 +491,8 @@ class MembraneSolventExtractionData(UnitModelBlockData):
         self.r = Set(initialize=r_points, ordered=True)
 
         self.eff = Var(
+            self.flowsheet().time,
+            ["feed", "strip"],
             self.config.membrane_phase["property_package"].component_list,
             initialize=1,
             bounds=(0, 1),
@@ -535,12 +537,12 @@ class MembraneSolventExtractionData(UnitModelBlockData):
             C_mem_feed_int = (
                 b.feed_phase.properties[t, z].conc_mol_comp[e]
                 * b.membrane_phase[t, z].feed_distribution_coefficient[e]
-                * b.eff[e]
+                * b.eff[t, "feed", e]
             )
             C_mem_strip_int = (
                 b.strip_phase.properties[t, z].conc_mol_comp[e]
                 * b.membrane_phase[t, z].strip_distribution_coefficient[e]
-                * b.eff[e]
+                * b.eff[t, "strip", e]
             )
             return (C_membrane - C_mem_feed_int) * log(value(r_m) / value(r_i)) == (
                 C_mem_strip_int - C_mem_feed_int
@@ -563,12 +565,12 @@ class MembraneSolventExtractionData(UnitModelBlockData):
                 C_mem_feed_int = (
                     b.feed_phase.properties[t, z].conc_mol_comp[e]
                     * b.membrane_phase[t, z].feed_distribution_coefficient[e]
-                    * b.eff[e]
+                    * b.eff[t, "feed", e]
                 )
                 C_mem_strip_int = (
                     b.strip_phase.properties[t, z].conc_mol_comp[e]
                     * b.membrane_phase[t, z].strip_distribution_coefficient[e]
-                    * b.eff[e]
+                    * b.eff[t, "strip", e]
                 )
 
                 Diff_coeff = b.config.membrane_phase["property_package"].D_coeff[e]

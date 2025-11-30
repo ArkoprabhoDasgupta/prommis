@@ -49,7 +49,7 @@ from idaes.core.util import DiagnosticsToolbox
 m = ConcreteModel()
 
 time_break_points = [0, 12, 22, 32, 42, 52, 63, 72, 82, 92, 102, 117, 122]
-time_fe = 1
+time_fe = 2
 time_set = []
 # time_set = time_break_points
 
@@ -630,18 +630,18 @@ ax[1, 1].set_ylabel("Pr strip outlet recovery %")
 ax[1, 1].set_title("Change in Pr strip outlet recovery %")
 plt.tight_layout()
 
-alternate_strip_recovery = {}
+# alternate_strip_recovery = {}
 
-for e in m.fs.mem_prop.component_list:
+# for e in m.fs.mem_prop.component_list:
 
-    alternate_strip_recovery[e] = [
-        (
-            (
-                m.fs.strip_tank.control_volume.properties_out[t].conc_mass_comp[e]()
-                * 1.03
-            )
-            / (m.fs.feed_tank.inlet.conc_mass_comp[t, e]() * 4.2)
-        )
-        * 100
-        for t in m.fs.time
-    ]
+#     alternate_strip_recovery[e] = [
+#         (
+#             (
+#                 m.fs.strip_tank.control_volume.properties_out[t].conc_mass_comp[e]()
+#                 * 1.03
+#             )
+#             / (m.fs.feed_tank.inlet.conc_mass_comp[t, e]() * 4.2)
+#         )
+#         * 100
+#         for t in m.fs.time
+#     ]
