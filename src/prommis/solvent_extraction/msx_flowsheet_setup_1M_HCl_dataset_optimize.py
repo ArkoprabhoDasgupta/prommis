@@ -24,6 +24,7 @@ from idaes.core.initialization import (
     SingleControlVolumeUnitInitializer,
     BlockTriangularizationInitializer,
 )
+import pandas as pd
 
 # from prommis.solvent_extraction.petsc import petsc_dae_by_time_element
 from petsc import petsc
@@ -181,23 +182,25 @@ m.fs.membrane_module.eff[:, :, "Fe"].fix(7.773e-4)
 m.fs.membrane_module.eff[:, :, "Gd"].fix(0.013)
 m.fs.membrane_module.eff[:, :, "La"].fix(0.032)
 m.fs.membrane_module.eff[:, :, "Nd"].fix(0.059)
-m.fs.membrane_module.eff[:, "strip", "Pr"].fix(0.105)
+m.fs.membrane_module.eff[:, :, "Pr"].fix(0.105)
 m.fs.membrane_module.eff[:, :, "Sm"].fix(0.15)
 m.fs.membrane_module.eff[:, :, "Y"].fix(3e-6)
 m.fs.membrane_module.eff[:, :, "Sc"].fix(1.5e-5)
 
-m.a = Var(["c", "l", "q"], initialize=0.1)
+element_to_optimize = ["Pr", "Ce"]
+
+m.a = Var(m.fs.mem_prop.component_list, ["c", "l", "q"], initialize=0.1)
 # m.b = Var(initialize=0.1)
 # m.c = Var(initialize=0.1)
 
 
-@m.Constraint(m.fs.time)
-def eff_feed_Pr(m, t):
-    v = m.fs.membrane_module.feed_phase.properties[t, 0].flow_vol
-    return (
-        m.fs.membrane_module.eff[t, "feed", "Pr"]
-        == m.a["c"] + m.a["l"] * v + m.a["q"] * v**2
-    )
+# @m.Constraint(m.fs.time, element_to_optimize)
+# def eff_feed_Pr(m, t, e):
+#     v = m.fs.membrane_module.feed_phase.properties[t, 0].flow_vol
+#     return (
+#         m.fs.membrane_module.eff[t, "feed", e]
+#         == m.a[e, "c"] + m.a[e, "l"] * v + m.a[e, "q"] * v**2
+#     )
 
 
 # Define feed tank inlet conditions
@@ -497,199 +500,126 @@ for t in m.fs.time:
                 )
 
 
-# for t in m.fs.time:
-#     for e in m.fs.mem_channel.component_list:
-#         if t != 0:
-#             set_scaling_factor(
-#                 m.fs.strip_tank.control_volume.material_accumulation_disc_eq[
-#                     t, "liquid", e
-#                 ],
-#                 1e1,
-#             )
+strip_data = pd.read_excel("1M HCl experimental data.xlsx")
+strip_data = strip_data.set_index(strip_data.columns[0])
 
-#     for z in m.fs.membrane_module.feed_phase.length_domain:
-#         set_scaling_factor(
-#             m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp["H"],
-#             1e2,
-#         )
-#         set_scaling_factor(
-#             m.fs.membrane_module.feed_phase.properties[t, z].pH_constraint,
-#             1e2,
-#         )
-#         set_scaling_factor(
-#             m.fs.membrane_module.feed_phase.material_flow_linking_constraints[
-#                 t, z, "liquid", "H"
-#             ],
-#             1e2,
-#         )
-#         for e in m.fs.mem_prop.component_list:
-#             set_scaling_factor(
-#                 m.fs.membrane_module.feed_phase.properties[t, z].conc_mol_comp[e],
-#                 1e3,
-#             )
-#             set_scaling_factor(
-#                 m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp[e],
-#                 1,
-#             )
-#             set_scaling_factor(
-#                 m.fs.membrane_module.strip_phase.properties[t, z].conc_mol_comp[e],
-#                 1e4,
-#             )
-#             set_scaling_factor(
-#                 m.fs.membrane_module.strip_phase.properties[t, z].conc_mass_comp[e],
-#                 1,
-#             )
+eff_corr = pd.read_excel("feed_correlation_function.xlsx")
+eff_corr = eff_corr.set_index(eff_corr.columns[0])
 
-#             for r in m.fs.membrane_module.r:
-#                 set_scaling_factor(
-#                     m.fs.membrane_module.conc_mol_membrane_comp[t, z, r, e],
-#                     1e3,
+
+# @m.Objective(sense=minimize)
+# def strip_residual(m):
+#     return (
+#         (
+#             sum(
+#                 (
+#                     m.fs.strip_tank.control_volume.properties_out[t].conc_mass_comp[e]
+#                     - strip_experiment[e][t] * 1e-3
 #                 )
-
-
-# for t in m.fs.time:
-#     set_scaling_factor(
-#         m.fs.feed_tank.control_volume.properties_out[t].conc_mass_comp["H"], 1e2
-#     )
-#     if t != 0:
-#         set_scaling_factor(
-#             m.fs.strip_tank.control_volume.material_accumulation_disc_eq[
-#                 t, "liquid", "H"
-#             ],
-#             1e2,
+#                 ** 2
+#                 for t in time_break_points
+#                 for e in element_to_optimize
+#             )
 #         )
-#         set_scaling_factor(
-#             m.fs.feed_tank.control_volume.material_accumulation_disc_eq[
-#                 t, "liquid", "H"
-#             ],
-#             1e2,
-#         )
+#         / (len(time_break_points) * len(element_to_optimize))
+#     ) ** 0.5
 
-Pr_experimental = dict(
-    zip(
-        time_break_points,
-        [
-            0.029,
-            8.69,
-            20.4,
-            27.6,
-            31.5,
-            42.5,
-            56.5,
-            69.0,
-            81.5,
-            100,
-            145,
-            193,
-            262,
-            263,
-        ],
-    )
+
+# scaling = TransformationFactory("core.scale_model")
+# scaled_model = scaling.create_using(m, rename=False)
+
+# eff_corr = pd.DataFrame(columns=m.fs.mem_prop.component_list, index=["c", "l", "q"])
+
+optimize_element = ["Pr", "La", "Y", "Ce", "Sm", "Gd", "Nd"]
+
+for e in optimize_element:
+    m.fs.membrane_module.eff[:, "feed", e].unfix()
+
+
+@m.Constraint(
+    m.fs.time,
+    optimize_element,
 )
-
-
-@m.Objective(sense=minimize)
-def Pr_residual(m):
+def eff_feed(m, t, e):
+    v = m.fs.membrane_module.feed_phase.properties[t, 0].flow_vol
     return (
-        (
-            sum(
-                (
-                    m.fs.strip_tank.control_volume.properties_out[t].conc_mass_comp[
-                        "Pr"
-                    ]
-                    - Pr_experimental[t] * 1e-3
-                )
-                ** 2
-                for t in time_break_points
-            )
-        )
-        ** 0.5
-    ) / len(time_break_points)
+        m.fs.membrane_module.eff[t, "feed", e]
+        == eff_corr.loc["c", e] + eff_corr.loc["l", e] * v + eff_corr.loc["q", e] * v**2
+    )
+
+    # @m.Objective(sense=minimize)
+    # def strip_residual(m):
+    #     return (
+    #         (
+    #             sum(
+    #                 (
+    #                     m.fs.strip_tank.control_volume.properties_out[
+    #                         t
+    #                     ].conc_mass_comp[e]
+    #                     - strip_data.loc[t, e] * 1e-3
+    #                 )
+    #                 ** 2
+    #                 for t in time_break_points
+    #             )
+    #         )
+    #         / (len(time_break_points))
+    #     ) ** 0.5
 
 
 scaling = TransformationFactory("core.scale_model")
 scaled_model = scaling.create_using(m, rename=False)
-#
-# assert 1 == 2
+
 solver = get_solver("ipopt_v2")
 solver.options["max_iter"] = 2000
 results = solver.solve(scaled_model, tee=True)
-# results = solver.solve(m, tee=True)
-
-# # m.fs.module_to_strip = Arc(
-# #     source=m.fs.membrane_module.strip_phase_outlet,
-# #     destination=m.fs.strip_tank.inlet,
-# # )
-
-# # TransformationFactory("network.expand_arcs").apply_to(m)
 
 scaling.propagate_solution(scaled_model, m)
 
-# # Export only variable values to JSON
-# # wts = StoreSpec.value()
-# # to_json(m, fname="membrane_solvent_extraction.json", wts=wts, human_read=True)
+# eff_corr.loc["c", e] = m.a[e, "c"]()
+# eff_corr.loc["l", e] = m.a[e, "l"]()
+# eff_corr.loc["q", e] = m.a[e, "q"]()
 
-strip_outlet_recovery = {}
+# for e in m.fs.mem_prop.component_list:
+#     if e not in ["Sc", "Ca", "Fe", "Al"]:
+
+#         plt.plot(
+#             m.fs.time,
+#             m.fs.strip_tank.control_volume.properties_out[:].conc_mass_comp[e](),
+#         )
+#         plt.scatter(
+#             time_break_points, [strip_data.loc[t, e] * 1e-3 for t in time_break_points]
+#         )
+#         plt.xlabel("Time, mins")
+#         plt.ylabel(f"{e} strip outlet concentration, mg/L")
+#         plt.title(f"Change in {e} strip outlet concentration")
+#         plt.legend(["model", "experiment"])
+#         plt.show()
+
+
+# #
+# assert 1 == 2
+# solver = get_solver("ipopt_v2")
+# solver.options["max_iter"] = 2000
+# results = solver.solve(scaled_model, tee=True)
+# # results = solver.solve(m, tee=True)
+
+# # # m.fs.module_to_strip = Arc(
+# # #     source=m.fs.membrane_module.strip_phase_outlet,
+# # #     destination=m.fs.strip_tank.inlet,
+# # # )
+
+# # # TransformationFactory("network.expand_arcs").apply_to(m)
+
+# scaling.propagate_solution(scaled_model, m)
+
+# # # Export only variable values to JSON
+# # # wts = StoreSpec.value()
+# # # to_json(m, fname="membrane_solvent_extraction.json", wts=wts, human_read=True)
+
+# strip_outlet_recovery = {}
 
 # for e in m.fs.mem_prop.component_list:
 #     strip_outlet_recovery[e] = [
-#         (
-#             (
-#                 (
-#                     m.fs.membrane_module.strip_phase_outlet.conc_mass_comp[t, e]()
-#                     * m.fs.membrane_module.strip_phase_outlet.flow_vol[t]()
-#                 )
-#                 - (
-#                     m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[t, e]()
-#                     * m.fs.membrane_module.strip_phase_inlet.flow_vol[t]()
-#                 )
-#             )
-#             / (
-#                 m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[t, e]()
-#                 * m.fs.membrane_module.feed_phase_inlet.flow_vol[t]()
-#             )
-#         )
-#         * 100
-#         for t in m.fs.time
-#     ]
-
-for e in m.fs.mem_prop.component_list:
-    strip_outlet_recovery[e] = [
-        (
-            (
-                m.fs.strip_tank.control_volume.properties_out[t].conc_mass_comp[e]()
-                * 1.03
-            )
-            / (m.fs.feed_tank.inlet.conc_mass_comp[t, e]() * 4.2)
-        )
-        * 100
-        for t in m.fs.time
-    ]
-
-fig, ax = plt.subplots(2, 2, figsize=(10, 7))
-ax[0, 0].step(m.fs.time, m.fs.feed_tank.inlet.flow_vol[:]())
-ax[0, 0].set_xlabel("Time, mins")
-ax[0, 0].set_ylabel("Feed inlet flowrate, L/hr")
-ax[0, 0].set_title("Change in feed inlet flowrate")
-ax[0, 1].step(m.fs.time, m.fs.strip_tank.inlet.flow_vol[:]())
-ax[0, 1].set_xlabel("Time, mins")
-ax[0, 1].set_ylabel("Strip inlet flowrate, L/hr")
-ax[0, 1].set_title("Change in strip inlet flowrate")
-ax[1, 0].step(m.fs.time, m.fs.feed_tank.inlet.conc_mass_comp[:, "Pr"]())
-ax[1, 0].set_xlabel("Time, mins")
-ax[1, 0].set_ylabel("Pr feed inlet concentration, mg/L")
-ax[1, 0].set_title("Change in Pr feed inlet concentration")
-ax[1, 1].plot(m.fs.time, strip_outlet_recovery["Pr"])
-ax[1, 1].set_xlabel("Time, mins")
-ax[1, 1].set_ylabel("Pr strip outlet recovery %")
-ax[1, 1].set_title("Change in Pr strip outlet recovery %")
-plt.tight_layout()
-
-# alternate_strip_recovery = {}
-
-# for e in m.fs.mem_prop.component_list:
-
-#     alternate_strip_recovery[e] = [
 #         (
 #             (
 #                 m.fs.strip_tank.control_volume.properties_out[t].conc_mass_comp[e]()
@@ -700,3 +630,38 @@ plt.tight_layout()
 #         * 100
 #         for t in m.fs.time
 #     ]
+
+# fig, ax = plt.subplots(2, 2, figsize=(10, 7))
+# ax[0, 0].step(m.fs.time, m.fs.feed_tank.inlet.flow_vol[:]())
+# ax[0, 0].set_xlabel("Time, mins")
+# ax[0, 0].set_ylabel("Feed inlet flowrate, L/hr")
+# ax[0, 0].set_title("Change in feed inlet flowrate")
+# ax[0, 1].step(m.fs.time, m.fs.strip_tank.inlet.flow_vol[:]())
+# ax[0, 1].set_xlabel("Time, mins")
+# ax[0, 1].set_ylabel("Strip inlet flowrate, L/hr")
+# ax[0, 1].set_title("Change in strip inlet flowrate")
+# ax[1, 0].step(m.fs.time, m.fs.feed_tank.inlet.conc_mass_comp[:, "Pr"]())
+# ax[1, 0].set_xlabel("Time, mins")
+# ax[1, 0].set_ylabel("Pr feed inlet concentration, mg/L")
+# ax[1, 0].set_title("Change in Pr feed inlet concentration")
+# ax[1, 1].plot(m.fs.time, strip_outlet_recovery["Pr"])
+# ax[1, 1].set_xlabel("Time, mins")
+# ax[1, 1].set_ylabel("Pr strip outlet recovery %")
+# ax[1, 1].set_title("Change in Pr strip outlet recovery %")
+# plt.tight_layout()
+
+# # alternate_strip_recovery = {}
+
+# # for e in m.fs.mem_prop.component_list:
+
+# #     alternate_strip_recovery[e] = [
+# #         (
+# #             (
+# #                 m.fs.strip_tank.control_volume.properties_out[t].conc_mass_comp[e]()
+# #                 * 1.03
+# #             )
+# #             / (m.fs.feed_tank.inlet.conc_mass_comp[t, e]() * 4.2)
+# #         )
+# #         * 100
+# #         for t in m.fs.time
+# #     ]

@@ -24,7 +24,7 @@ from idaes.core.initialization import (
     SingleControlVolumeUnitInitializer,
     BlockTriangularizationInitializer,
 )
-
+import pandas as pd
 from prommis.solvent_extraction.membrane_module_property_package import (
     MembraneSXModuleParameters,
 )
@@ -78,39 +78,39 @@ m.fs.membrane_module = MembraneSolventExtraction(
     number_of_tubes=6300,
 )
 
-m.fs.feed_tank = NonReactiveTank(
-    material_balance_type=MaterialBalanceType.componentTotal,
-    dynamic=False,
-    has_holdup=True,
-    property_package=m.fs.mem_channel,
-)
+# m.fs.feed_tank = NonReactiveTank(
+#     material_balance_type=MaterialBalanceType.componentTotal,
+#     dynamic=False,
+#     has_holdup=True,
+#     property_package=m.fs.mem_channel,
+# )
 
-m.fs.strip_tank = NonReactiveTank(
-    material_balance_type=MaterialBalanceType.componentTotal,
-    dynamic=False,
-    has_holdup=True,
-    property_package=m.fs.mem_channel,
-)
+# m.fs.strip_tank = NonReactiveTank(
+#     material_balance_type=MaterialBalanceType.componentTotal,
+#     dynamic=False,
+#     has_holdup=True,
+#     property_package=m.fs.mem_channel,
+# )
 
 # m.discretizer = TransformationFactory("dae.finite_difference")
 # m.discretizer.apply_to(m, nfe=len(time_set) - 1, wrt=m.fs.time, scheme="BACKWARD")
 
 # Arcs connection
 
-m.fs.feed_to_module = Arc(
-    source=m.fs.feed_tank.outlet, destination=m.fs.membrane_module.feed_phase_inlet
-)
+# m.fs.feed_to_module = Arc(
+#     source=m.fs.feed_tank.outlet, destination=m.fs.membrane_module.feed_phase_inlet
+# )
 
-m.fs.strip_to_module = Arc(
-    source=m.fs.strip_tank.outlet, destination=m.fs.membrane_module.strip_phase_inlet
-)
+# m.fs.strip_to_module = Arc(
+#     source=m.fs.strip_tank.outlet, destination=m.fs.membrane_module.strip_phase_inlet
+# )
 
 # m.fs.module_to_strip = Arc(
 #     source=m.fs.membrane_module.strip_phase_outlet,
 #     destination=m.fs.strip_tank.inlet,
 # )
 
-TransformationFactory("network.expand_arcs").apply_to(m)
+# TransformationFactory("network.expand_arcs").apply_to(m)
 
 
 # Define membrane module parameters
@@ -200,28 +200,34 @@ feed_concentration_values = {
 
 for t in m.fs.time:
     if t == 0:
-        m.fs.feed_tank.inlet.flow_vol[t].fix(
+        m.fs.membrane_module.feed_phase_inlet.flow_vol[t].fix(
             feed_flow_rate_values[(0, 42)] * units.mL / units.min
         )
     else:
         for k, v in feed_flow_rate_values.items():
             if k[0] < t <= k[1]:
-                m.fs.feed_tank.inlet.flow_vol[t].fix(v * units.mL / units.min)
+                m.fs.membrane_module.feed_phase_inlet.flow_vol[t].fix(
+                    v * units.mL / units.min
+                )
 
     for k in feed_concentration_values.keys():
         for e, v in feed_concentration_values[k].items():
             if t == 0:
-                m.fs.feed_tank.inlet.conc_mass_comp[t, e].fix(
+                m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[t, e].fix(
                     feed_concentration_values[(0, 52)][e] * units.microgram / units.L
                 )
             elif k[0] < t <= k[1]:
-                m.fs.feed_tank.inlet.conc_mass_comp[t, e].fix(
+                m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[t, e].fix(
                     v * units.microgram / units.L
                 )
 
-m.fs.feed_tank.inlet.conc_mass_comp[:, "H"].fix(10**-2 * 1 * units.gram / units.L)
-m.fs.feed_tank.inlet.conc_mass_comp[:, "H2O"].fix(1e6 * units.mg / units.L)
-m.fs.feed_tank.control_volume.volume[:].fix(1 * units.L)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[:, "H"].fix(
+    10**-2 * 1 * units.gram / units.L
+)
+m.fs.membrane_module.feed_phase_inlet.conc_mass_comp[:, "H2O"].fix(
+    1e6 * units.mg / units.L
+)
+# m.fs.feed_tank.volume[:].fix(1 * units.L)
 
 # Strip phase inlet conditions
 
@@ -239,40 +245,95 @@ strip_flow_rate_values = {
 
 for t in m.fs.time:
     if t == 0:
-        m.fs.strip_tank.inlet.flow_vol[t].fix(45 * units.mL / units.min)
+        m.fs.membrane_module.strip_phase_inlet.flow_vol[t].fix(
+            45 * units.mL / units.min
+        )
     else:
         for k, v in strip_flow_rate_values.items():
             if k[0] < t <= k[1]:
-                m.fs.strip_tank.inlet.flow_vol[t].fix(v * units.mL / units.min)
+                m.fs.membrane_module.strip_phase_inlet.flow_vol[t].fix(
+                    v * units.mL / units.min
+                )
 
-m.fs.strip_tank.volume[:].fix(1 * units.L)
+# m.fs.strip_tank.volume[:].fix(1 * units.L)
 
-m.fs.strip_tank.inlet.conc_mass_comp[:, "Ca"].fix(578.1 * units.microgram / units.L)
-m.fs.strip_tank.inlet.conc_mass_comp[:, "Al"].fix(1e-7 * units.microgram / units.L)
-m.fs.strip_tank.inlet.conc_mass_comp[:, "Fe"].fix(92 * units.microgram / units.L)
-m.fs.strip_tank.inlet.conc_mass_comp[:, "La"].fix(0.211 * units.microgram / units.L)
-m.fs.strip_tank.inlet.conc_mass_comp[:, "Ce"].fix(0.61 * units.microgram / units.L)
-m.fs.strip_tank.inlet.conc_mass_comp[:, "Pr"].fix(0.029 * units.microgram / units.L)
-m.fs.strip_tank.inlet.conc_mass_comp[:, "Nd"].fix(1e-7 * units.microgram / units.L)
-m.fs.strip_tank.inlet.conc_mass_comp[:, "Sm"].fix(1e-7 * units.microgram / units.L)
-m.fs.strip_tank.inlet.conc_mass_comp[:, "Gd"].fix(0.013 * units.microgram / units.L)
-m.fs.strip_tank.inlet.conc_mass_comp[:, "Dy"].fix(0.046 * units.microgram / units.L)
-m.fs.strip_tank.inlet.conc_mass_comp[:, "Y"].fix(0.102 * units.microgram / units.L)
-m.fs.strip_tank.inlet.conc_mass_comp[:, "Sc"].fix(1e-7 * units.microgram / units.L)
-m.fs.strip_tank.inlet.conc_mass_comp[:, "H"].fix(1 * units.gram / units.L)
-m.fs.strip_tank.inlet.conc_mass_comp[:, "H2O"].fix(1e6 * units.mg / units.L)
+m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "Ca"].fix(
+    578.1 * units.microgram / units.L
+)
+m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "Al"].fix(
+    1e-7 * units.microgram / units.L
+)
+m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "Fe"].fix(
+    92 * units.microgram / units.L
+)
+m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "La"].fix(
+    0.211 * units.microgram / units.L
+)
+m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "Ce"].fix(
+    0.61 * units.microgram / units.L
+)
+m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "Pr"].fix(
+    0.029 * units.microgram / units.L
+)
+m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "Nd"].fix(
+    1e-7 * units.microgram / units.L
+)
+m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "Sm"].fix(
+    1e-7 * units.microgram / units.L
+)
+m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "Gd"].fix(
+    0.013 * units.microgram / units.L
+)
+m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "Dy"].fix(
+    0.046 * units.microgram / units.L
+)
+m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "Y"].fix(
+    0.102 * units.microgram / units.L
+)
+m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "Sc"].fix(
+    1e-7 * units.microgram / units.L
+)
+m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "H"].fix(
+    1 * units.gram / units.L
+)
+m.fs.membrane_module.strip_phase_inlet.conc_mass_comp[:, "H2O"].fix(
+    1e6 * units.mg / units.L
+)
+
+for e in m.fs.mem_prop.component_list:
+    if e not in ["Sc", "Ca", "Fe", "Al"]:
+
+        m.fs.membrane_module.eff[:, "feed", e].unfix()
+
+eff_corr = pd.read_excel("feed_correlation_function.xlsx")
+eff_corr = eff_corr.set_index(eff_corr.columns[0])
+
+
+@m.Constraint(
+    m.fs.time,
+    [e for e in m.fs.mem_prop.component_list if e not in ["Sc", "Ca", "Fe", "Al"]],
+)
+def eff_feed(m, t, e):
+    v = m.fs.membrane_module.feed_phase_inlet.flow_vol[t]
+    return (
+        m.fs.membrane_module.eff[t, "feed", e]
+        == eff_corr.loc["c", e] + eff_corr.loc["l", e] * v + eff_corr.loc["q", e] * v**2
+    )
+
 
 print(dof(m))
 
-seq = SequentialDecomposition()
-seq.options.select_tear_method = "heuristic"
-seq.options.tear_method = "Wegstein"
-seq.options.iterLim = 5
+# assert 1 == 2
 
-# Using the SD tool
-G = seq.create_graph(m)
-heuristic_tear_set = seq.tear_set_arcs(G, method="heuristic")
-order = seq.calculation_order(G)
+# seq = SequentialDecomposition()
+# seq.options.select_tear_method = "heuristic"
+# seq.options.tear_method = "Wegstein"
+# seq.options.iterLim = 5
+
+# # Using the SD tool
+# G = seq.create_graph(m)
+# heuristic_tear_set = seq.tear_set_arcs(G, method="heuristic")
+# order = seq.calculation_order(G)
 
 m.scaling_factor = Suffix(direction=Suffix.EXPORT)
 
@@ -280,11 +341,11 @@ for t in m.fs.time:
     for z in m.fs.membrane_module.feed_phase.length_domain:
         set_scaling_factor(
             m.fs.membrane_module.feed_phase.properties[t, z].conc_mol_comp["H"],
-            1e4,
+            1,
         )
         set_scaling_factor(
             m.fs.membrane_module.feed_phase.properties[t, z].pH_constraint,
-            1e4,
+            1,
         )
         # set_scaling_factor(
         #     m.fs.membrane_module.feed_phase.properties[t, z].pH_phase,
@@ -294,7 +355,7 @@ for t in m.fs.time:
             m.fs.membrane_module.feed_phase.material_flow_linking_constraints[
                 t, z, "liquid", "H"
             ],
-            1e4,
+            1,
         )
         # for e in m.fs.mem_prop.component_list:
         #     set_scaling_factor(
@@ -320,19 +381,25 @@ for t in m.fs.time:
 scaling = TransformationFactory("core.scale_model")
 scaled_model = scaling.create_using(m, rename=False)
 
-tank_units = [scaled_model.fs.feed_tank, scaled_model.fs.strip_tank]
-msx_units = [scaled_model.fs.membrane_module]
+# tank_units = [scaled_model.fs.feed_tank, scaled_model.fs.strip_tank]
+# msx_units = [scaled_model.fs.membrane_module]
 
 
-def function(unit):
-    if unit in tank_units:
-        BlockTriangularizationInitializer().initialize(unit)
-    elif unit in msx_units:
-        MembraneSolventExtractionInitializer().initialize(unit)
+# def function(unit):
+#     if unit in tank_units:
+#         BlockTriangularizationInitializer().initialize(unit)
+#     elif unit in msx_units:
+#         for e in ["Y", "Dy", "Gd", "Ce", "Sm", "Pr", "Nd", "La"]:
+#             unit.eff[:, "feed", e].fix(0.05)
+#         MembraneSolventExtractionInitializer().initialize(unit)
+#         for e in ["Y", "Dy", "Gd", "Ce", "Sm", "Pr", "Nd", "La"]:
+#             unit.eff[:, "feed", e].unfix()
 
 
-seq.run(scaled_model, function)
+# seq.run(scaled_model, function)
+MembraneSolventExtractionInitializer().initialize(scaled_model.fs.membrane_module)
 
+assert 1 == 2
 
 solver = get_solver("ipopt_v2")
 solver.options["max_iter"] = 4000
@@ -341,5 +408,5 @@ results = solver.solve(scaled_model, tee=True)
 
 scaling.propagate_solution(scaled_model, m)
 
-wts = StoreSpec.value()
-to_json(m, fname="membrane_solvent_extraction_2.json", wts=wts, human_read=True)
+# wts = StoreSpec.value()
+# to_json(m, fname="membrane_solvent_extraction_2.json", wts=wts, human_read=True)

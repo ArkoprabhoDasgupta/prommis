@@ -1,12 +1,12 @@
 {
   "__metadata__": {
     "format_version": 4,
-    "date": "2025-11-22",
-    "time": "16:49:05.029696",
+    "date": "2025-12-01",
+    "time": "18:56:01.276307",
     "other": {},
     "__performance__": {
-      "n_components": 1815,
-      "etime_make_dict": 0.008152008056640625
+      "n_components": 1827,
+      "etime_make_dict": 0.009302854537963867
     }
   },
   "unknown": {
@@ -3771,51 +3771,99 @@
                           "eff": {
                             "__type__": "<class 'pyomo.core.base.var.IndexedVar'>",
                             "data": {
-                              "'Sc'": {
+                              "(0.0, 'feed', 'Sc')": {
                                 "__type__": "<class 'pyomo.core.base.var.VarData'>",
                                 "value": 1.5e-05
                               },
-                              "'Y'": {
+                              "(0.0, 'feed', 'Y')": {
                                 "__type__": "<class 'pyomo.core.base.var.VarData'>",
                                 "value": 3e-06
                               },
-                              "'La'": {
+                              "(0.0, 'feed', 'La')": {
                                 "__type__": "<class 'pyomo.core.base.var.VarData'>",
                                 "value": 0.032
                               },
-                              "'Ce'": {
+                              "(0.0, 'feed', 'Ce')": {
                                 "__type__": "<class 'pyomo.core.base.var.VarData'>",
                                 "value": 0.0305
                               },
-                              "'Pr'": {
+                              "(0.0, 'feed', 'Pr')": {
                                 "__type__": "<class 'pyomo.core.base.var.VarData'>",
                                 "value": 0.105
                               },
-                              "'Nd'": {
+                              "(0.0, 'feed', 'Nd')": {
                                 "__type__": "<class 'pyomo.core.base.var.VarData'>",
                                 "value": 0.059
                               },
-                              "'Sm'": {
+                              "(0.0, 'feed', 'Sm')": {
                                 "__type__": "<class 'pyomo.core.base.var.VarData'>",
                                 "value": 0.15
                               },
-                              "'Gd'": {
+                              "(0.0, 'feed', 'Gd')": {
                                 "__type__": "<class 'pyomo.core.base.var.VarData'>",
                                 "value": 0.013
                               },
-                              "'Dy'": {
+                              "(0.0, 'feed', 'Dy')": {
                                 "__type__": "<class 'pyomo.core.base.var.VarData'>",
                                 "value": 0.001156
                               },
-                              "'Al'": {
+                              "(0.0, 'feed', 'Al')": {
                                 "__type__": "<class 'pyomo.core.base.var.VarData'>",
                                 "value": 0.0003246
                               },
-                              "'Ca'": {
+                              "(0.0, 'feed', 'Ca')": {
                                 "__type__": "<class 'pyomo.core.base.var.VarData'>",
                                 "value": 0.001765
                               },
-                              "'Fe'": {
+                              "(0.0, 'feed', 'Fe')": {
+                                "__type__": "<class 'pyomo.core.base.var.VarData'>",
+                                "value": 0.0007773
+                              },
+                              "(0.0, 'strip', 'Sc')": {
+                                "__type__": "<class 'pyomo.core.base.var.VarData'>",
+                                "value": 1.5e-05
+                              },
+                              "(0.0, 'strip', 'Y')": {
+                                "__type__": "<class 'pyomo.core.base.var.VarData'>",
+                                "value": 3e-06
+                              },
+                              "(0.0, 'strip', 'La')": {
+                                "__type__": "<class 'pyomo.core.base.var.VarData'>",
+                                "value": 0.032
+                              },
+                              "(0.0, 'strip', 'Ce')": {
+                                "__type__": "<class 'pyomo.core.base.var.VarData'>",
+                                "value": 0.0305
+                              },
+                              "(0.0, 'strip', 'Pr')": {
+                                "__type__": "<class 'pyomo.core.base.var.VarData'>",
+                                "value": 0.105
+                              },
+                              "(0.0, 'strip', 'Nd')": {
+                                "__type__": "<class 'pyomo.core.base.var.VarData'>",
+                                "value": 0.059
+                              },
+                              "(0.0, 'strip', 'Sm')": {
+                                "__type__": "<class 'pyomo.core.base.var.VarData'>",
+                                "value": 0.15
+                              },
+                              "(0.0, 'strip', 'Gd')": {
+                                "__type__": "<class 'pyomo.core.base.var.VarData'>",
+                                "value": 0.013
+                              },
+                              "(0.0, 'strip', 'Dy')": {
+                                "__type__": "<class 'pyomo.core.base.var.VarData'>",
+                                "value": 0.001156
+                              },
+                              "(0.0, 'strip', 'Al')": {
+                                "__type__": "<class 'pyomo.core.base.var.VarData'>",
+                                "value": 0.0003246
+                              },
+                              "(0.0, 'strip', 'Ca')": {
+                                "__type__": "<class 'pyomo.core.base.var.VarData'>",
+                                "value": 0.001765
+                              },
+                              "(0.0, 'strip', 'Fe')": {
                                 "__type__": "<class 'pyomo.core.base.var.VarData'>",
                                 "value": 0.0007773
                               }
