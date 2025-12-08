@@ -23,7 +23,7 @@ from prommis.solvent_extraction.mixer_settler_extraction import (
     MixerSettlerExtraction,
     MixerSettlerExtractionInitializer,
 )
-from prommis.solvent_extraction.solvent_extraction_reaction_package_new import (
+from prommis.solvent_extraction.solvent_extraction_reaction_package_new_modified import (
     SolventExtractionReactions,
 )
 
@@ -92,7 +92,7 @@ def set_inputs(m, dosage):
         zip(
             RangeSet(1, 13),
             sorted(
-                [0.235, 0.54, 0.82, 1.18, 1.53, 1.75, 2, 0.3, 0.68, 0.9, 1.3, 1.8, 2.6]
+                [0.235, 0.54, 0.82, 1.18, 1.53, 1.75, 2, 0.3, 0.68, 0.9, 1.3, 1.8, 5]
             ),
         )
     )
@@ -274,6 +274,7 @@ for e in ["Al", "Ca", "Fe", "Sc"]:
 
 print(degrees_of_freedom(m))
 
+
 # for s in m.system:
 #     # set_scaling_factor(
 #     #     m.fs.mixer_settler_ex[s]
@@ -291,20 +292,28 @@ for e in ["La", "Ce", "Pr", "Nd", "Sm"]:
     #     .distribution_expression_constraint[e],
     #     1e-1,
     # )
+    for s in m.system:
+        set_scaling_factor(
+            m.fs.mixer_settler_ex[s]
+            .mixer[1]
+            .unit.distribution_extent_constraint[0.0, 1, e],
+            1e1,
+        )
 
-    set_scaling_factor(
-        m.fs.mixer_settler_ex[8]
-        .mixer[1]
-        .unit.distribution_extent_constraint[0.0, 1, e],
-        1e1,
-    )
+        set_scaling_factor(
+            m.fs.mixer_settler_ex[s]
+            .mixer[1]
+            .unit.distribution_extent_constraint[0.0, 1, e],
+            1e1,
+        )
 
 # # set_scaling_factor(m.fs.mixer_settler_ex[:].mixer[1].unit.mscontactor.aqueous[0.0,1].conc_mol_comp['HSO4'])
 
 scaling = TransformationFactory("core.scale_model")
 scaled_model = scaling.create_using(m, rename=False)
 
-# MixerSettlerExtractionInitializer().initialize(scaled_model.fs.mixer_settler_ex[8])
+# for s in m.system:
+#     MixerSettlerExtractionInitializer().initialize(scaled_model.fs.mixer_settler_ex[s])
 
 # solve_model(m)
 

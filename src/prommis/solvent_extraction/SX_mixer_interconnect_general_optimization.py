@@ -82,7 +82,7 @@ m.fs.org_inter_mixer = Mixer(
 
 m.fs.aq_feed_neutral = NeutralizationTank(property_package=m.fs.leach_soln)
 
-strip_stages = 3
+strip_stages = 4
 strip_stage_list = RangeSet(1, strip_stages)
 
 m.fs.strip_sx = MixerSettlerExtraction(
@@ -184,7 +184,7 @@ m.organic_load_to_strip = Arc(
 
 TransformationFactory("network.expand_arcs").apply_to(m)
 
-pH_load = 1.5
+pH_load = 0.7
 m.fs.aq_feed_neutral.inlet.flow_vol.fix(62.01)
 m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Al"].fix(400)
 m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Ca"].fix(400)
@@ -201,10 +201,10 @@ m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Y"].fix(33.45)
 m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "H2O"].fix(1e6)
 m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Cl"].fix(1e-7)
 m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "H"].fix(
-    10 ** (-pH_load) * 2 * units.gram / units.L
+    10 ** (-pH_load) * units.gram / units.L
 )
 m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "SO4"].fix(
-    10 ** (-pH_load) * 96 * units.gram / units.L
+    10 ** (-pH_load) * 48 * units.gram / units.L
 )
 m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "HSO4"].fix(1e-4)
 
@@ -213,7 +213,7 @@ for e in m.fs.prop_o.component_list:
         m.fs.load_sx[loading_stages].organic_inlet.conc_mass_comp[0, e].fix(1e-9)
 m.fs.load_sx[loading_stages].organic_inlet.flow_vol.fix(62.01)
 m.fs.load_sx[loading_stages].organic_inlet.conc_mass_comp[0, "Kerosene"].fix(820e3)
-dosage = 9  # in vol %
+dosage = 8  # in vol %
 m.fs.load_sx[loading_stages].organic_inlet.conc_mass_comp[0, "DEHPA"].fix(
     975.8e3 * dosage / 100
 )
@@ -227,7 +227,7 @@ for i in load_interstage_list:
     # dosage = 10  # in vol %
     # m.fs.org_inter_mixer[i].feed.conc_mass_comp[0, "DEHPA"].fix(975.8e3 * dosage / 100) # dv
 
-pH_strip = 0.8
+pH_strip = 0.5
 
 for i in strip_stage_list:
     for e in m.fs.leach_soln.component_list:
@@ -238,10 +238,8 @@ for i in strip_stage_list:
     # m.fs.aq_inter_mixer[i].feed.conc_mass_comp[0, "H"].fix(
     #     10 ** (-pH_strip) * 2 * units.gram / units.L
     # ) #dv
-    m.fs.aq_inter_mixer[i].feed.conc_mass_comp[0, "SO4"].fix(
-        10 ** (-pH_strip) * 96 * units.gram / units.L
-    )
-    m.fs.aq_inter_mixer[i].feed.conc_mass_comp[0, "HSO4"].fix(1e-4)
+    m.fs.aq_inter_mixer[i].feed.conc_mass_comp[0, "SO4"].fix(1e-8)
+    m.fs.aq_inter_mixer[i].feed.conc_mass_comp[0, "HSO4"].fix(1e-8)
 
 # aqueous strip inlet
 for e in m.fs.leach_soln.component_list:
@@ -250,12 +248,10 @@ for e in m.fs.leach_soln.component_list:
 m.fs.aq_inter_mixer[1].sx.flow_vol.fix(62.01)
 m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, "H2O"].fix(1e6)
 m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, "H"].fix(
-    10 ** (-pH_strip) * 2 * units.gram / units.L
-)
-m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, "SO4"].fix(
-    10 ** (-pH_strip) * 96 * units.gram / units.L
-)
-m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, "HSO4"].fix(1e-4)
+    10 ** (-pH_strip) * 1 * units.gram / units.L
+)  # maybe dv
+m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, "SO4"].fix(1e-8)
+m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, "HSO4"].fix(1e-8)
 
 
 # fix parameters
@@ -286,7 +282,7 @@ m.fs.strip_sx[:].mixer[:].unit.mscontactor.organic[:, :].temperature.fix(
 )
 
 # fix neutral tank volumes and temperatures
-m.fs.aq_feed_neutral.base_flowrate[0].fix(1)
+m.fs.aq_feed_neutral.base_flowrate[0].fix(2)
 # m.fs.aq_feed_neutral.base_concentration[0].fix(0.01) #dv
 m.fs.aq_feed_neutral.control_volume.properties_out[0.0].temperature.fix(305)
 m.fs.aq_feed_neutral.control_volume.properties_out[0.0].pressure.fix(101325)
@@ -352,27 +348,32 @@ def tree_recovery_constraint(m):
     )
 
 
-@m.Objective(sense=maximize)
-def objective_function(m):
-    return m.tree_recovery
+# @m.Objective(sense=maximize)
+# def objective_function(m):
+#     return m.tree_recovery
 
 
 # set upper bounds to decision variables
-m.fs.aq_feed_neutral.base_concentration.setub(1)
+m.fs.aq_feed_neutral.base_concentration.setub(2)
 
 for i in strip_stage_list:
     m.fs.aq_inter_mixer[i].feed.conc_mass_comp[0, "H"].setub(2 * units.gram / units.L)
-    m.fs.aq_inter_mixer[i].feed.conc_mass_comp[0, "H"].setub(
-        1e-4 * units.gram / units.L
-    )
+    # m.fs.aq_inter_mixer[i].feed.conc_mass_comp[0, "H"].setlb(
+    #     1e-4 * units.gram / units.L
+    # )
+m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, "H"].setub(2 * units.gram / units.L)
 
-m.market_distribution = Var(REE_list, initialize=1, bounds=(0, 100))
+m.product_distribution = Var(REE_list, initialize=1, bounds=(0, 100))
+
+# @m.Constraint(m.fs.time)
+# def neutral_base_restriction(m,t):
+#     return
 
 
 @m.Constraint(REE_list)
-def market_distribution_constraint(m, e):
+def product_distribution_constraint(m, e):
     return (
-        m.market_distribution[e]
+        m.product_distribution[e]
         == (
             m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, e]
             / sum(
@@ -384,7 +385,7 @@ def market_distribution_constraint(m, e):
     )
 
 
-market_demand = {
+product_distribution = {
     "Y": 23,
     "La": 9,
     "Ce": 26,
@@ -406,14 +407,38 @@ market_demand = {
 #     "Dy": 4,
 # }
 
+product_constraint_element = ["Y"]
 
-# @m.Constraint(REE_list)
-# def market_demand_constraint(m, e):
-#     return m.market_distribution[e] >= market_demand[e]
+
+# @m.Constraint(product_constraint_element)
+# def production_constraint(m, e):
+#     return (
+#         m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, e]
+#         <= 52
+#         * sum(
+#             m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, e]
+#             for e in REE_list
+#         )
+#         / 100
+#     )
+
+
+@m.Constraint()
+def production_constraint(m):
+    return m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, "Pr"] <= 1.2
+
+
+@m.Objective(sense=maximize)
+def objective_function(m):
+    return m.tree_recovery
+    # return m.percentage_recovery["Ce"] + 1.5 * (
+    #     1.2 - m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, "Pr"]
+    # )
+    # return m.product_distribution["Pr"]
 
 
 print(degrees_of_freedom(m))
 
 solver = get_solver("ipopt_v2")
-solver.options["max_iter"] = 10000
+solver.options["max_iter"] = 15000
 solver.solve(m, tee=True)

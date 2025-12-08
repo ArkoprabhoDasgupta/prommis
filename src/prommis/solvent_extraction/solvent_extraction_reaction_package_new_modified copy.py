@@ -133,10 +133,10 @@ class SolventExtractionReactionsData(
                 "Nd": 0.319,
                 "La": 0.541,
                 "Pr": 0.553,
-                "Sc": 1.044,
-                "Al": -0.812,
-                "Ca": 0.112,
-                "Fe": -0.988,
+                "Sc": 0,
+                "Al": 0,
+                "Ca": 0,
+                "Fe": 0,
             },
         )
 
@@ -152,8 +152,8 @@ class SolventExtractionReactionsData(
                 "La": 0,
                 "Pr": 0,
                 "Sc": 0,
-                "Al": 0.215,
-                "Ca": 0.079,
+                "Al": 0,
+                "Ca": 0,
                 "Fe": 0,
             },
         )
@@ -169,10 +169,10 @@ class SolventExtractionReactionsData(
                 "Nd": -1.82,
                 "La": -2.51,
                 "Pr": -3.015,
-                "Sc": -0.121,
-                "Al": 0.081,
-                "Ca": 0.202,
-                "Fe": 0.115,
+                "Sc": 0,
+                "Al": 0,
+                "Ca": 0,
+                "Fe": 0,
             },
         )
 
@@ -187,10 +187,10 @@ class SolventExtractionReactionsData(
                 "Nd": 4.32e-6,
                 "La": 0.814,
                 "Pr": 1.533,
-                "Sc": 0.89,
-                "Al": 0.048,
-                "Ca": 0.229,
-                "Fe": 0.913,
+                "Sc": 0,
+                "Al": 0,
+                "Ca": 0,
+                "Fe": 0,
             },
         )
 
@@ -223,10 +223,10 @@ class SolventExtractionReactionsData(
                 "Nd": 0,
                 "La": 0,
                 "Pr": 0,
-                "Sc": 0,
-                "Al": 0,
-                "Ca": 0,
-                "Fe": 0,
+                "Sc": 1,
+                "Al": 1,
+                "Ca": 1,
+                "Fe": 1,
             },
         )
 
