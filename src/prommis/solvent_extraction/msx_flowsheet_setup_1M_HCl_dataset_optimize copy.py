@@ -105,7 +105,7 @@ m.fs.membrane_module = MembraneSolventExtraction(
     membrane_phase={
         "property_package": m.fs.mem_prop,
     },
-    finite_elements=10,
+    finite_elements=4,
     transformation_method="dae.finite_difference",
     transformation_scheme="BACKWARD",
     # collocation_points=2,
@@ -187,21 +187,20 @@ m.fs.membrane_module.eff[:, :, "Sm"].fix(0.15)
 m.fs.membrane_module.eff[:, :, "Y"].fix(3e-6)
 m.fs.membrane_module.eff[:, :, "Sc"].fix(1.5e-5)
 
-element_to_optimize = ["Pr", "La", "Y", "Ce", "Sm", "Gd", "Nd", "Dy"]
+element_to_optimize = ["Pr", "Ce"]
 
 m.a = Var(m.fs.mem_prop.component_list, ["c", "l", "q"], initialize=0.1)
+# m.b = Var(initialize=0.1)
+# m.c = Var(initialize=0.1)
 
-for e in element_to_optimize:
-    m.fs.membrane_module.eff[:, "feed", e].unfix()
 
-
-@m.Constraint(m.fs.time, element_to_optimize)
-def eff_feed(m, t, e):
-    v = m.fs.membrane_module.feed_phase.properties[t, 0].flow_vol
-    return (
-        m.fs.membrane_module.eff[t, "feed", e]
-        == m.a[e, "c"] + m.a[e, "l"] * v + m.a[e, "q"] * v**2
-    )
+# @m.Constraint(m.fs.time, element_to_optimize)
+# def eff_feed_Pr(m, t, e):
+#     v = m.fs.membrane_module.feed_phase.properties[t, 0].flow_vol
+#     return (
+#         m.fs.membrane_module.eff[t, "feed", e]
+#         == m.a[e, "c"] + m.a[e, "l"] * v + m.a[e, "q"] * v**2
+#     )
 
 
 # Define feed tank inlet conditions
@@ -322,6 +321,20 @@ for t in m.fs.time:
 
 m.fs.module_to_strip_expanded.flow_vol_equality.deactivate()
 
+# m.fs.strip_tank.inlet.conc_mass_comp[:, "Ca"].fix(578.1 * units.microgram / units.L)
+# m.fs.strip_tank.inlet.conc_mass_comp[:, "Al"].fix(1e-7 * units.microgram / units.L)
+# m.fs.strip_tank.inlet.conc_mass_comp[:, "Fe"].fix(92 * units.microgram / units.L)
+# m.fs.strip_tank.inlet.conc_mass_comp[:, "La"].fix(0.211 * units.microgram / units.L)
+# m.fs.strip_tank.inlet.conc_mass_comp[:, "Ce"].fix(0.61 * units.microgram / units.L)
+# m.fs.strip_tank.inlet.conc_mass_comp[:, "Pr"].fix(0.029 * units.microgram / units.L)
+# m.fs.strip_tank.inlet.conc_mass_comp[:, "Nd"].fix(1e-7 * units.microgram / units.L)
+# m.fs.strip_tank.inlet.conc_mass_comp[:, "Sm"].fix(1e-7 * units.microgram / units.L)
+# m.fs.strip_tank.inlet.conc_mass_comp[:, "Gd"].fix(0.013 * units.microgram / units.L)
+# m.fs.strip_tank.inlet.conc_mass_comp[:, "Dy"].fix(0.046 * units.microgram / units.L)
+# m.fs.strip_tank.inlet.conc_mass_comp[:, "Y"].fix(0.102 * units.microgram / units.L)
+# m.fs.strip_tank.inlet.conc_mass_comp[:, "Sc"].fix(1e-7 * units.microgram / units.L)
+# m.fs.strip_tank.inlet.conc_mass_comp[:, "H"].fix(1 * units.gram / units.L)
+# m.fs.strip_tank.inlet.conc_mass_comp[:, "H2O"].fix(1e6 * units.mg / units.L)
 
 m.fs.strip_tank.control_volume.volume[:].fix(1 * units.L)
 
@@ -330,55 +343,76 @@ m.fs.strip_tank.control_volume.volume[:].fix(1 * units.L)
 # feed tank at t=0
 m.fs.feed_tank.control_volume.properties_out[0].flow_vol.fix()
 m.fs.strip_tank.control_volume.properties_out[0].flow_vol.fix()
+# m.fs.membrane_module.feed_phase.properties[0.0, :].flow_vol.fix()
+# m.fs.membrane_module.strip_phase.properties[0.0, :].flow_vol.fix()
+# m.fs.strip_to_module_expanded.flow_vol_equality[0.0].deactivate()
+# m.fs.feed_to_module_expanded.flow_vol_equality[0.0].deactivate()
 
+#         m.fs.membrane_module.strip_phase.properties[0.0, z].flow_vol.fix()
+# for z in m.fs.membrane_module.feed_phase.length_domain:
+#     if z != 0:
+#         m.fs.membrane_module.feed_phase.properties[0.0, z].flow_vol.fix()
+#         m.fs.membrane_module.strip_phase.properties[0.0, z].flow_vol.fix()
 
 for e in m.fs.mem_channel.component_list:
     if e not in ["H2O"]:
         m.fs.feed_tank.control_volume.properties_out[0].conc_mass_comp[e].fix()
         m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp[e].fix()
+        # m.fs.membrane_module.feed_phase.properties[0.0, :].conc_mass_comp[e].fix()
+        # m.fs.membrane_module.strip_phase.properties[0.0, :].conc_mass_comp[e].fix()
+        # m.fs.feed_to_module_expanded.conc_mass_comp_equality[0.0, e].deactivate()
+        # m.fs.strip_to_module_expanded.conc_mass_comp_equality[0.0, e].deactivate()
 
+        # for z in m.fs.membrane_module.feed_phase.length_domain:
+        #     if z != 0:
+        #         m.fs.membrane_module.feed_phase.properties[0.0, z].conc_mass_comp[
+        #             e
+        #         ].fix()
+        #         m.fs.membrane_module.strip_phase.properties[0.0, z].conc_mass_comp[
+        #             e
+        #         ].fix()
 
-# # strip tank at t=0
-# m.fs.strip_tank.control_volume.properties_out[0].flow_vol.fix(45 * units.mL / units.min)
-# m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["Ca"].fix(
-#     578.1 * units.microgram / units.L
-# )
-# m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["Al"].fix(
-#     1e-7 * units.microgram / units.L
-# )
-# m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["Fe"].fix(
-#     92 * units.microgram / units.L
-# )
-# m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["La"].fix(
-#     0.211 * units.microgram / units.L
-# )
-# m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["Ce"].fix(
-#     0.61 * units.microgram / units.L
-# )
-# m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["Pr"].fix(
-#     0.029 * units.microgram / units.L
-# )
-# m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["Nd"].fix(
-#     1e-7 * units.microgram / units.L
-# )
-# m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["Sm"].fix(
-#     1e-7 * units.microgram / units.L
-# )
-# m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["Gd"].fix(
-#     0.013 * units.microgram / units.L
-# )
-# m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["Dy"].fix(
-#     0.046 * units.microgram / units.L
-# )
-# m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["Y"].fix(
-#     0.102 * units.microgram / units.L
-# )
-# m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["Sc"].fix(
-#     1e-7 * units.microgram / units.L
-# )
-# m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["H"].fix(
-#     1 * units.gram / units.L
-# )
+# strip tank at t=0
+m.fs.strip_tank.control_volume.properties_out[0].flow_vol.fix(45 * units.mL / units.min)
+m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["Ca"].fix(
+    578.1 * units.microgram / units.L
+)
+m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["Al"].fix(
+    1e-7 * units.microgram / units.L
+)
+m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["Fe"].fix(
+    92 * units.microgram / units.L
+)
+m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["La"].fix(
+    0.211 * units.microgram / units.L
+)
+m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["Ce"].fix(
+    0.61 * units.microgram / units.L
+)
+m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["Pr"].fix(
+    0.029 * units.microgram / units.L
+)
+m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["Nd"].fix(
+    1e-7 * units.microgram / units.L
+)
+m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["Sm"].fix(
+    1e-7 * units.microgram / units.L
+)
+m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["Gd"].fix(
+    0.013 * units.microgram / units.L
+)
+m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["Dy"].fix(
+    0.046 * units.microgram / units.L
+)
+m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["Y"].fix(
+    0.102 * units.microgram / units.L
+)
+m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["Sc"].fix(
+    1e-7 * units.microgram / units.L
+)
+m.fs.strip_tank.control_volume.properties_out[0].conc_mass_comp["H"].fix(
+    1 * units.gram / units.L
+)
 
 # # initialize the tank variables at t=0
 
@@ -423,105 +457,123 @@ for e in m.fs.mem_channel.component_list:
 #                 )
 
 
-# m.scaling_factor = Suffix(direction=Suffix.EXPORT)
+m.scaling_factor = Suffix(direction=Suffix.EXPORT)
 
-# for t in m.fs.time:
-#     for z in m.fs.membrane_module.feed_phase.length_domain:
-#         set_scaling_factor(
-#             m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp["H"],
-#             1e2,
-#         )
-#         set_scaling_factor(
-#             m.fs.membrane_module.feed_phase.properties[t, z].pH_constraint,
-#             1e2,
-#         )
-#         set_scaling_factor(
-#             m.fs.membrane_module.feed_phase.material_flow_linking_constraints[
-#                 t, z, "liquid", "H"
-#             ],
-#             1e2,
-#         )
-#         for e in m.fs.mem_prop.component_list:
-#             set_scaling_factor(
-#                 m.fs.membrane_module.feed_phase.properties[t, z].conc_mol_comp[e],
-#                 1e3,
-#             )
-#             set_scaling_factor(
-#                 m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp[e],
-#                 1e5,
-#             )
-#             set_scaling_factor(
-#                 m.fs.membrane_module.strip_phase.properties[t, z].conc_mol_comp[e],
-#                 1e4,
-#             )
-#             set_scaling_factor(
-#                 m.fs.membrane_module.strip_phase.properties[t, z].conc_mass_comp[e],
-#                 1e4,
-#             )
+for t in m.fs.time:
+    for z in m.fs.membrane_module.feed_phase.length_domain:
+        set_scaling_factor(
+            m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp["H"],
+            1e2,
+        )
+        set_scaling_factor(
+            m.fs.membrane_module.feed_phase.properties[t, z].pH_constraint,
+            1e2,
+        )
+        set_scaling_factor(
+            m.fs.membrane_module.feed_phase.material_flow_linking_constraints[
+                t, z, "liquid", "H"
+            ],
+            1e2,
+        )
+        for e in m.fs.mem_prop.component_list:
+            set_scaling_factor(
+                m.fs.membrane_module.feed_phase.properties[t, z].conc_mol_comp[e],
+                1e3,
+            )
+            set_scaling_factor(
+                m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp[e],
+                1e5,
+            )
+            set_scaling_factor(
+                m.fs.membrane_module.strip_phase.properties[t, z].conc_mol_comp[e],
+                1e4,
+            )
+            set_scaling_factor(
+                m.fs.membrane_module.strip_phase.properties[t, z].conc_mass_comp[e],
+                1e4,
+            )
 
-#             for r in m.fs.membrane_module.r:
-#                 set_scaling_factor(
-#                     m.fs.membrane_module.conc_mol_membrane_comp[t, z, r, e],
-#                     1e3,
-#                 )
+            for r in m.fs.membrane_module.r:
+                set_scaling_factor(
+                    m.fs.membrane_module.conc_mol_membrane_comp[t, z, r, e],
+                    1e3,
+                )
 
 
 strip_data = pd.read_excel("1M HCl experimental data.xlsx")
 strip_data = strip_data.set_index(strip_data.columns[0])
 
-# eff_corr = pd.read_excel("feed_correlation_function.xlsx")
-# eff_corr = eff_corr.set_index(eff_corr.columns[0])
+eff_corr = pd.read_excel("feed_correlation_function.xlsx")
+eff_corr = eff_corr.set_index(eff_corr.columns[0])
 
 
-@m.Objective(sense=minimize)
-def strip_residual(m):
-    return (
-        (
-            sum(
-                (
-                    m.fs.strip_tank.control_volume.properties_out[t].conc_mass_comp[e]
-                    * 1e3
-                    - strip_data[e][t]
-                )
-                ** 2
-                for t in time_break_points
-                for e in element_to_optimize
-            )
-        )
-        / (len(time_break_points) * len(element_to_optimize))
-    ) ** 0.5
-
-
-# scaling = TransformationFactory("core.scale_model")
-# scaled_model = scaling.create_using(m, rename=False)
-
-
-# optimize_element = ["Pr", "La", "Y", "Ce", "Sm", "Gd", "Nd"]
-
-# for e in optimize_element:
-#     m.fs.membrane_module.eff[:, "feed", e].unfix()
-
-
-# @m.Constraint(
-#     m.fs.time,
-#     optimize_element,
-# )
-# def eff_feed(m, t, e):
-#     v = m.fs.membrane_module.feed_phase.properties[t, 0].flow_vol
+# @m.Objective(sense=minimize)
+# def strip_residual(m):
 #     return (
-#         m.fs.membrane_module.eff[t, "feed", e]
-#         == eff_corr.loc["c", e] + eff_corr.loc["l", e] * v + eff_corr.loc["q", e] * v**2
-#     )
+#         (
+#             sum(
+#                 (
+#                     m.fs.strip_tank.control_volume.properties_out[t].conc_mass_comp[e]
+#                     - strip_experiment[e][t] * 1e-3
+#                 )
+#                 ** 2
+#                 for t in time_break_points
+#                 for e in element_to_optimize
+#             )
+#         )
+#         / (len(time_break_points) * len(element_to_optimize))
+#     ) ** 0.5
 
 
 # scaling = TransformationFactory("core.scale_model")
 # scaled_model = scaling.create_using(m, rename=False)
+
+# eff_corr = pd.DataFrame(columns=m.fs.mem_prop.component_list, index=["c", "l", "q"])
+
+optimize_element = ["Pr", "La", "Y", "Ce", "Sm", "Gd", "Nd"]
+
+for e in optimize_element:
+    m.fs.membrane_module.eff[:, "feed", e].unfix()
+
+
+@m.Constraint(
+    m.fs.time,
+    optimize_element,
+)
+def eff_feed(m, t, e):
+    v = m.fs.membrane_module.feed_phase.properties[t, 0].flow_vol
+    return (
+        m.fs.membrane_module.eff[t, "feed", e]
+        == eff_corr.loc["c", e] + eff_corr.loc["l", e] * v + eff_corr.loc["q", e] * v**2
+    )
+
+    # @m.Objective(sense=minimize)
+    # def strip_residual(m):
+    #     return (
+    #         (
+    #             sum(
+    #                 (
+    #                     m.fs.strip_tank.control_volume.properties_out[
+    #                         t
+    #                     ].conc_mass_comp[e]
+    #                     - strip_data.loc[t, e] * 1e-3
+    #                 )
+    #                 ** 2
+    #                 for t in time_break_points
+    #             )
+    #         )
+    #         / (len(time_break_points))
+    #     ) ** 0.5
+
+
+scaling = TransformationFactory("core.scale_model")
+scaled_model = scaling.create_using(m, rename=False)
 
 solver = get_solver("ipopt_v2")
 solver.options["max_iter"] = 2000
-results = solver.solve(m, tee=True)
+results = solver.solve(scaled_model, tee=True)
 
-# scaling.propagate_solution(scaled_model, m)
+scaling.propagate_solution(scaled_model, m)
 
 # eff_corr.loc["c", e] = m.a[e, "c"]()
 # eff_corr.loc["l", e] = m.a[e, "l"]()
@@ -613,24 +665,3 @@ results = solver.solve(m, tee=True)
 # #         * 100
 # #         for t in m.fs.time
 # #     ]
-
-for e in element_to_optimize:
-    plt.plot(
-        m.fs.time, m.fs.strip_tank.control_volume.properties_out[:].conc_mass_comp[e]()
-    )
-    plt.scatter(time_break_points, [strip_data[e][t] * 1e-3 for t in time_break_points])
-    plt.xlabel("Time (min)")
-    plt.ylabel(f"{e} strip conc (mg/L)")
-    plt.title(f"{e} strip tank conc profile")
-    plt.legend(["model", "experiment"])
-    plt.show()
-
-eff_corr_1M = pd.DataFrame(columns=["1 M HCl"])
-for e in element_to_optimize:
-    for s in ["c", "l", "q"]:
-        eff_corr_1M.loc[f"{e}_{s}", "1 M HCl"] = m.a[e, s]()
-
-with pd.ExcelWriter(
-    "feed_phi_parameters.xlsx", mode="a", engine="openpyxl", if_sheet_exists="replace"
-) as writer:
-    eff_corr_1M.to_excel(writer, sheet_name="1 M HCl", index=True)

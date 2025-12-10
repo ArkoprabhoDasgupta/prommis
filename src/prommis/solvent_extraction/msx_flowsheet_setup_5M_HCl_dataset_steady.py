@@ -15,7 +15,7 @@ from idaes.core import (
     EnergyBalanceType,
     ControlVolume0DBlock,
 )
-from idaes.core.util import to_json, StoreSpec
+from idaes.core.util import to_json
 from idaes.core.solvers import get_solver
 from idaes.core.util.scaling import set_scaling_factor
 from idaes.core.util.model_statistics import degrees_of_freedom as dof
@@ -44,11 +44,13 @@ from idaes.core.util import DiagnosticsToolbox
 
 m = ConcreteModel()
 
-m.fs = FlowsheetBlock(dynamic=False)
+# assert 1 == 2
 
+m.fs = FlowsheetBlock(dynamic=False)
 
 m.fs.mem_prop = MembraneSXModuleParameters()
 m.fs.mem_channel = MembraneSXChannelParameters()
+
 m.fs.mem_prop.extractant_dosage = 10
 
 m.fs.membrane_module = MembraneSolventExtraction(
@@ -68,7 +70,7 @@ m.fs.membrane_module = MembraneSolventExtraction(
     membrane_phase={
         "property_package": m.fs.mem_prop,
     },
-    finite_elements=10,
+    finite_elements=25,
     transformation_method="dae.finite_difference",
     transformation_scheme="BACKWARD",
     # collocation_points=2,
@@ -92,9 +94,6 @@ m.fs.strip_tank = NonReactiveTank(
     property_package=m.fs.mem_channel,
 )
 
-# m.discretizer = TransformationFactory("dae.finite_difference")
-# m.discretizer.apply_to(m, nfe=len(time_set) - 1, wrt=m.fs.time, scheme="BACKWARD")
-
 # Arcs connection
 
 m.fs.feed_to_module = Arc(
@@ -105,10 +104,6 @@ m.fs.strip_to_module = Arc(
     source=m.fs.strip_tank.outlet, destination=m.fs.membrane_module.strip_phase_inlet
 )
 
-# m.fs.module_to_strip = Arc(
-#     source=m.fs.membrane_module.strip_phase_outlet,
-#     destination=m.fs.strip_tank.inlet,
-# )
 
 TransformationFactory("network.expand_arcs").apply_to(m)
 
@@ -132,109 +127,53 @@ m.fs.membrane_module.eff[:, :, "Sc"].fix(1.5e-5)
 # Define feed tank inlet conditions
 
 feed_flow_rate_values = {
-    (0, 42): 15,
-    (42, 72): 30,
-    (72, 102): 45,
-    (102, 112): 75,
-    (112, 122): 150,
-}
-
-feed_concentration_values = {
-    (0, 52): {
-        "Al": 1338000,
-        "Ca": 5720000,
-        "Fe": 508344,
-        "Y": 1111,
-        "La": 1218,
-        "Ce": 2506,
-        "Pr": 331,
-        "Nd": 1332,
-        "Sm": 273,
-        "Gd": 288,
-        "Dy": 239,
-        "Sc": 16.6,
-    },
-    (52, 82): {
-        "Al": 1371000,
-        "Ca": 5760000,
-        "Fe": 468217,
-        "Y": 1044,
-        "La": 1185,
-        "Ce": 2434,
-        "Pr": 320,
-        "Nd": 1309,
-        "Sm": 269,
-        "Gd": 274,
-        "Dy": 226,
-        "Sc": 16.8,
-    },
-    (82, 102): {
-        "Al": 1275000,
-        "Ca": 5562000,
-        "Fe": 427389,
-        "Y": 1017,
-        "La": 1136,
-        "Ce": 2323,
-        "Pr": 306,
-        "Nd": 1248,
-        "Sm": 258,
-        "Gd": 272,
-        "Dy": 223,
-        "Sc": 21.3,
-    },
-    (102, 122): {
-        "Al": 1334000,
-        "Ca": 5897000,
-        "Fe": 448437,
-        "Y": 1037,
-        "La": 1145,
-        "Ce": 2393,
-        "Pr": 313,
-        "Nd": 1268,
-        "Sm": 261,
-        "Gd": 274,
-        "Dy": 221,
-        "Sc": 18.9,
-    },
+    (0, 10): 45,
+    (10, 37): 15,
+    (37, 64): 30,
+    (64, 91): 45,
+    (91, 97): 75,
+    (97, 101): 150,
 }
 
 for t in m.fs.time:
     if t == 0:
         m.fs.feed_tank.inlet.flow_vol[t].fix(
-            feed_flow_rate_values[(0, 42)] * units.mL / units.min
+            feed_flow_rate_values[(0, 10)] * units.mL / units.min
         )
     else:
         for k, v in feed_flow_rate_values.items():
             if k[0] < t <= k[1]:
                 m.fs.feed_tank.inlet.flow_vol[t].fix(v * units.mL / units.min)
 
-    for k in feed_concentration_values.keys():
-        for e, v in feed_concentration_values[k].items():
-            if t == 0:
-                m.fs.feed_tank.inlet.conc_mass_comp[t, e].fix(
-                    feed_concentration_values[(0, 52)][e] * units.microgram / units.L
-                )
-            elif k[0] < t <= k[1]:
-                m.fs.feed_tank.inlet.conc_mass_comp[t, e].fix(
-                    v * units.microgram / units.L
-                )
-
+m.fs.feed_tank.inlet.conc_mass_comp[:, "Al"].fix(1351773 * units.microgram / units.L)
+m.fs.feed_tank.inlet.conc_mass_comp[:, "Ca"].fix(6276510 * units.microgram / units.L)
+m.fs.feed_tank.inlet.conc_mass_comp[:, "Fe"].fix(533032 * units.microgram / units.L)
+m.fs.feed_tank.inlet.conc_mass_comp[:, "Sc"].fix(51.4 * units.microgram / units.L)
+m.fs.feed_tank.inlet.conc_mass_comp[:, "La"].fix(995 * units.microgram / units.L)
+m.fs.feed_tank.inlet.conc_mass_comp[:, "Ce"].fix(1986 * units.microgram / units.L)
+m.fs.feed_tank.inlet.conc_mass_comp[:, "Pr"].fix(275 * units.microgram / units.L)
+m.fs.feed_tank.inlet.conc_mass_comp[:, "Nd"].fix(1104 * units.microgram / units.L)
+m.fs.feed_tank.inlet.conc_mass_comp[:, "Sm"].fix(230 * units.microgram / units.L)
+m.fs.feed_tank.inlet.conc_mass_comp[:, "Gd"].fix(231 * units.microgram / units.L)
+m.fs.feed_tank.inlet.conc_mass_comp[:, "Dy"].fix(199 * units.microgram / units.L)
+m.fs.feed_tank.inlet.conc_mass_comp[:, "Y"].fix(988 * units.microgram / units.L)
 m.fs.feed_tank.inlet.conc_mass_comp[:, "H"].fix(10**-2 * 1 * units.gram / units.L)
 m.fs.feed_tank.inlet.conc_mass_comp[:, "H2O"].fix(1e6 * units.mg / units.L)
-m.fs.feed_tank.control_volume.volume[:].fix(1 * units.L)
+m.fs.feed_tank.control_volume.volume[:].fix(4 * units.L)
 
 # Strip phase inlet conditions
 
 strip_flow_rate_values = {
-    (0, 12): 45,
-    (12, 22): 75,
-    (22, 42): 150,
-    (42, 52): 45,
-    (52, 63): 75,
-    (63, 72): 150,
-    (72, 82): 45,
-    (82, 92): 75,
-    (92, 122): 150,
+    (0, 10): 150,
+    (10, 19): 45,
+    (19, 28): 75,
+    (28, 37): 150,
+    (37, 46): 45,
+    (46, 55): 75,
+    (55, 64): 150,
+    (64, 73): 45,
+    (73, 82): 75,
+    (82, 101): 150,
 }
 
 for t in m.fs.time:
@@ -245,24 +184,28 @@ for t in m.fs.time:
             if k[0] < t <= k[1]:
                 m.fs.strip_tank.inlet.flow_vol[t].fix(v * units.mL / units.min)
 
-m.fs.strip_tank.volume[:].fix(1 * units.L)
 
-m.fs.strip_tank.inlet.conc_mass_comp[:, "Ca"].fix(578.1 * units.microgram / units.L)
-m.fs.strip_tank.inlet.conc_mass_comp[:, "Al"].fix(1e-7 * units.microgram / units.L)
-m.fs.strip_tank.inlet.conc_mass_comp[:, "Fe"].fix(92 * units.microgram / units.L)
-m.fs.strip_tank.inlet.conc_mass_comp[:, "La"].fix(0.211 * units.microgram / units.L)
-m.fs.strip_tank.inlet.conc_mass_comp[:, "Ce"].fix(0.61 * units.microgram / units.L)
-m.fs.strip_tank.inlet.conc_mass_comp[:, "Pr"].fix(0.029 * units.microgram / units.L)
-m.fs.strip_tank.inlet.conc_mass_comp[:, "Nd"].fix(1e-7 * units.microgram / units.L)
-m.fs.strip_tank.inlet.conc_mass_comp[:, "Sm"].fix(1e-7 * units.microgram / units.L)
-m.fs.strip_tank.inlet.conc_mass_comp[:, "Gd"].fix(0.013 * units.microgram / units.L)
-m.fs.strip_tank.inlet.conc_mass_comp[:, "Dy"].fix(0.046 * units.microgram / units.L)
-m.fs.strip_tank.inlet.conc_mass_comp[:, "Y"].fix(0.102 * units.microgram / units.L)
-m.fs.strip_tank.inlet.conc_mass_comp[:, "Sc"].fix(1e-7 * units.microgram / units.L)
-m.fs.strip_tank.inlet.conc_mass_comp[:, "H"].fix(1 * units.gram / units.L)
+m.fs.strip_tank.control_volume.volume[:].fix(0.72 * units.L)
+
+# strip tank at t=0
+m.fs.strip_tank.inlet.conc_mass_comp[:, "Ca"].fix(1e-8 * units.microgram / units.L)
+m.fs.strip_tank.inlet.conc_mass_comp[:, "Al"].fix(860 * units.microgram / units.L)
+m.fs.strip_tank.inlet.conc_mass_comp[:, "Fe"].fix(1e-8 * units.microgram / units.L)
+m.fs.strip_tank.inlet.conc_mass_comp[:, "La"].fix(0.12 * units.microgram / units.L)
+m.fs.strip_tank.inlet.conc_mass_comp[:, "Ce"].fix(1.1 * units.microgram / units.L)
+m.fs.strip_tank.inlet.conc_mass_comp[:, "Pr"].fix(1e-4 * units.microgram / units.L)
+m.fs.strip_tank.inlet.conc_mass_comp[:, "Nd"].fix(0.72 * units.microgram / units.L)
+m.fs.strip_tank.inlet.conc_mass_comp[:, "Sm"].fix(0.11 * units.microgram / units.L)
+m.fs.strip_tank.inlet.conc_mass_comp[:, "Gd"].fix(0.1 * units.microgram / units.L)
+m.fs.strip_tank.inlet.conc_mass_comp[:, "Dy"].fix(1e-8 * units.microgram / units.L)
+m.fs.strip_tank.inlet.conc_mass_comp[:, "Y"].fix(1.4 * units.microgram / units.L)
+m.fs.strip_tank.inlet.conc_mass_comp[:, "Sc"].fix(2.59 * units.microgram / units.L)
+m.fs.strip_tank.inlet.conc_mass_comp[:, "H"].fix(5 * units.gram / units.L)
 m.fs.strip_tank.inlet.conc_mass_comp[:, "H2O"].fix(1e6 * units.mg / units.L)
 
+
 print(dof(m))
+
 
 seq = SequentialDecomposition()
 seq.options.select_tear_method = "heuristic"
@@ -277,44 +220,48 @@ order = seq.calculation_order(G)
 m.scaling_factor = Suffix(direction=Suffix.EXPORT)
 
 for t in m.fs.time:
+    set_scaling_factor(
+        m.fs.feed_tank.control_volume.material_balances[t, "H"],
+        1e2,
+    )
     for z in m.fs.membrane_module.feed_phase.length_domain:
         set_scaling_factor(
             m.fs.membrane_module.feed_phase.properties[t, z].conc_mol_comp["H"],
-            1e4,
+            1e2,
         )
         set_scaling_factor(
             m.fs.membrane_module.feed_phase.properties[t, z].pH_constraint,
-            1e4,
+            1e2,
         )
-        # set_scaling_factor(
-        #     m.fs.membrane_module.feed_phase.properties[t, z].pH_phase,
-        #     1e2,
-        # )
+        set_scaling_factor(
+            m.fs.membrane_module.feed_phase.properties[t, z].pH_phase,
+            1e2,
+        )
         set_scaling_factor(
             m.fs.membrane_module.feed_phase.material_flow_linking_constraints[
                 t, z, "liquid", "H"
             ],
-            1e4,
+            1e2,
         )
-        # for e in m.fs.mem_prop.component_list:
-        #     set_scaling_factor(
-        #         m.fs.membrane_module.feed_phase.properties[t, z].conc_mol_comp[e],
-        #         1e2,
-        #     )
-        #     set_scaling_factor(
-        #         m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp[e],
-        #         1e2,
-        #     )
-        #     set_scaling_factor(
-        #         m.fs.membrane_module.strip_phase.properties[t, z].conc_mol_comp[e],
-        #         1e2,
-        #     )
+        for e in m.fs.mem_prop.component_list:
+            set_scaling_factor(
+                m.fs.membrane_module.feed_phase.properties[t, z].conc_mol_comp[e],
+                1e1,
+            )
+            set_scaling_factor(
+                m.fs.membrane_module.feed_phase.properties[t, z].conc_mass_comp[e],
+                1e2,
+            )
+            set_scaling_factor(
+                m.fs.membrane_module.strip_phase.properties[t, z].conc_mol_comp[e],
+                1e2,
+            )
 
-        #     for r in m.fs.membrane_module.r:
-        #         set_scaling_factor(
-        #             m.fs.membrane_module.conc_mol_membrane_comp[t, z, r, e],
-        #             1e2,
-        #         )
+            for r in m.fs.membrane_module.r:
+                set_scaling_factor(
+                    m.fs.membrane_module.conc_mol_membrane_comp[t, z, r, e],
+                    1e2,
+                )
 
 
 scaling = TransformationFactory("core.scale_model")
@@ -333,13 +280,12 @@ def function(unit):
 
 seq.run(scaled_model, function)
 
-
 solver = get_solver("ipopt_v2")
 solver.options["max_iter"] = 4000
 results = solver.solve(scaled_model, tee=True)
-# results = solver.solve(m, tee=True)
 
 scaling.propagate_solution(scaled_model, m)
 
-wts = StoreSpec.value()
-to_json(m, fname="membrane_solvent_extraction_2.json", wts=wts, human_read=True)
+# scaling.propagate_solution(scaled_model, m)
+
+to_json(m, fname="membrane_solvent_extraction_5M_HCl.json")
