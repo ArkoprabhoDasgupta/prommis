@@ -178,7 +178,7 @@ strip_flow_rate_values = {
 
 for t in m.fs.time:
     if t == 0:
-        m.fs.strip_tank.inlet.flow_vol[t].fix(45 * units.mL / units.min)
+        m.fs.strip_tank.inlet.flow_vol[t].fix(150 * units.mL / units.min)
     else:
         for k, v in strip_flow_rate_values.items():
             if k[0] < t <= k[1]:
