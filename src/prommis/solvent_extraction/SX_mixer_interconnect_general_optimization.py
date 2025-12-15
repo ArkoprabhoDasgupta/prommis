@@ -7,6 +7,7 @@ from pyomo.environ import (
     maximize,
     Param,
     value,
+    minimize,
 )
 from pyomo.network import Arc
 
@@ -184,11 +185,11 @@ m.organic_load_to_strip = Arc(
 
 TransformationFactory("network.expand_arcs").apply_to(m)
 
-pH_load = 0.7
+pH_load = 1
 m.fs.aq_feed_neutral.inlet.flow_vol.fix(62.01)
 m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Al"].fix(400)
-m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Ca"].fix(400)
-m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Fe"].fix(400)
+m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Ca"].fix(100)
+m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Fe"].fix(600)
 m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Sc"].fix(16.25)
 m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "La"].fix(62.37)
 m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Ce"].fix(132.5)
@@ -299,26 +300,22 @@ REE_list = [
     if e not in ["H2O", "H", "SO4", "HSO4", "Cl", "Al", "Fe", "Ca", "Sc"]
 ]
 
-m.percentage_recovery = Var(REE_list, initialize=1, bounds=(0, 100))
+m.percentage_recovery = Var(REE_list, initialize=0.9, bounds=(0, 1))
 
 
 @m.Constraint(REE_list)
 def recovery_constraint(m, e):
-    return (
-        m.percentage_recovery[e]
-        == (
-            (
-                m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, e]
-                * m.fs.strip_sx[strip_stages].aqueous_outlet.flow_vol[0]
-                - m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, e]
-                * m.fs.aq_inter_mixer[1].sx.flow_vol[0]
-            )
-            / (
-                m.fs.aq_feed_neutral.inlet.flow_vol[0]
-                * m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, e]
-            )
+    return m.percentage_recovery[e] == (
+        (
+            m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, e]
+            * m.fs.strip_sx[strip_stages].aqueous_outlet.flow_vol[0]
+            - m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, e]
+            * m.fs.aq_inter_mixer[1].sx.flow_vol[0]
         )
-        * 100
+        / (
+            m.fs.aq_feed_neutral.inlet.flow_vol[0]
+            * m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, e]
+        )
     )
 
 
@@ -327,24 +324,20 @@ m.tree_recovery = Var(initialize=1, bounds=(0, 100))
 
 @m.Constraint()
 def tree_recovery_constraint(m):
-    return (
-        m.tree_recovery
-        == (
-            (
-                sum(
-                    m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, e]
-                    for e in REE_list
-                )
-                * m.fs.strip_sx[strip_stages].aqueous_outlet.flow_vol[0]
-                - sum(m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, e] for e in REE_list)
-                * m.fs.aq_inter_mixer[1].sx.flow_vol[0]
+    return m.tree_recovery == (
+        (
+            sum(
+                m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, e]
+                for e in REE_list
             )
-            / (
-                m.fs.aq_feed_neutral.inlet.flow_vol[0]
-                * sum(m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, e] for e in REE_list)
-            )
+            * m.fs.strip_sx[strip_stages].aqueous_outlet.flow_vol[0]
+            - sum(m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, e] for e in REE_list)
+            * m.fs.aq_inter_mixer[1].sx.flow_vol[0]
         )
-        * 100
+        / (
+            m.fs.aq_feed_neutral.inlet.flow_vol[0]
+            * sum(m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, e] for e in REE_list)
+        )
     )
 
 
@@ -363,7 +356,7 @@ for i in strip_stage_list:
     # )
 m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, "H"].setub(2 * units.gram / units.L)
 
-m.product_distribution = Var(REE_list, initialize=1, bounds=(0, 100))
+m.product_distribution = Var(REE_list, initialize=0.12, bounds=(0, 1))
 
 # @m.Constraint(m.fs.time)
 # def neutral_base_restriction(m,t):
@@ -372,16 +365,12 @@ m.product_distribution = Var(REE_list, initialize=1, bounds=(0, 100))
 
 @m.Constraint(REE_list)
 def product_distribution_constraint(m, e):
-    return (
-        m.product_distribution[e]
-        == (
-            m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, e]
-            / sum(
-                m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, e]
-                for e in REE_list
-            )
+    return m.product_distribution[e] == (
+        m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, e]
+        / sum(
+            m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, s]
+            for s in REE_list
         )
-        * 100
     )
 
 
@@ -407,38 +396,65 @@ product_distribution = {
 #     "Dy": 4,
 # }
 
-product_constraint_element = ["Y"]
+# product_constraint_element = ["Ce"]
 
 
-# @m.Constraint(product_constraint_element)
-# def production_constraint(m, e):
-#     return (
-#         m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, e]
-#         <= 52
-#         * sum(
-#             m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, e]
-#             for e in REE_list
-#         )
-#         / 100
-#     )
+# @m.Constraint()
+# def production_constraint(m):
+#     return m.product_distribution["Y"] <= 0.4
+
+# m.product_distribution["Ce"].setub(0.13)
+
+# @m.Constraint()
+# def production_constraint(m):
+#     return m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, "Ce"] <= 6
+
+
+m.R_I_dist = Var(["ree", "Al", "Ca", "Fe", "Sc"], bounds=(0, 1), initialize=0.5)
 
 
 @m.Constraint()
-def production_constraint(m):
-    return m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, "Pr"] <= 1.2
+def ree_composition(m):
+    return m.R_I_dist["ree"] == sum(
+        m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, e]
+        for e in REE_list
+    ) / sum(
+        m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, e]
+        for e in m.fs.leach_soln.component_list
+        if e not in ["H2O", "H", "SO4", "HSO4", "Cl"]
+    )
+
+
+@m.Constraint(["Al", "Ca", "Fe", "Sc"])
+def impurity_composition(m, e):
+    return m.R_I_dist[e] == m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[
+        0, e
+    ] / sum(
+        m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, e]
+        for e in m.fs.leach_soln.component_list
+        if e not in ["H2O", "H", "SO4", "HSO4", "Cl"]
+    )
+
+
+# m.percentage_recovery["Gd"].setub(30)
+m.R_I_dist["Fe"].setub(0.1)
 
 
 @m.Objective(sense=maximize)
 def objective_function(m):
-    return m.tree_recovery
-    # return m.percentage_recovery["Ce"] + 1.5 * (
-    #     1.2 - m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, "Pr"]
+    # return m.tree_recovery
+    return m.tree_recovery + 50 * (0.1 - m.R_I_dist["Fe"])
+    # return m.percentage_recovery["Gd"] + 0.03 * (
+    #     10 - m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, "Y"]
     # )
-    # return m.product_distribution["Pr"]
+    # return m.percentage_recovery["Gd"] + 40 * (0.12 - m.product_distribution["Ce"])
+    # return m.percentage_recovery["Y"] + 1.2e-2 * (0.13 - m.product_distribution["Ce"])
+    # return m.percentage_recovery["Y"]
 
 
 print(degrees_of_freedom(m))
 
 solver = get_solver("ipopt_v2")
-solver.options["max_iter"] = 15000
+solver.options["max_iter"] = 30000
+# solver.options["halt_on_ampl_error"] = "yes"
 solver.solve(m, tee=True)
