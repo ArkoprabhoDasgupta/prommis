@@ -68,3 +68,36 @@ plt.ylabel("Feed-membrane efficiency Pr")
 plt.title("Pr efficiency quadratic model profile")
 plt.legend(["1 M HCl", "3 M HCl", "5 M HCl"])
 plt.show()
+
+df_alpha_alt = pd.read_excel(data_path, sheet_name="All HCl data alt")
+df_alpha_alt = df_alpha_alt.set_index(["Unnamed: 0"])
+
+HCl_conc = [1, 3, 5]
+
+fig, ax = plt.subplots(3, 1, figsize=(5, 9))
+fig.suptitle("Pr quadratic parameters variation")
+ax[0].scatter(
+    HCl_conc,
+    [df_alpha_alt.loc["Pr_c", f"{e} M HCl"] for e in HCl_conc],
+    marker="o",
+)
+ax[0].set(xlabel="HCl conc (M)", ylabel="Pr_c")
+ax[0].set_xlim([0, 6])
+ax[0].set_title("Pr_c")
+ax[1].scatter(
+    HCl_conc,
+    [df_alpha_alt.loc["Pr_l", f"{e} M HCl"] for e in HCl_conc],
+    marker="o",
+)
+ax[1].set(xlabel="HCl conc (M)", ylabel="Pr_l")
+ax[1].set_xlim([0, 6])
+ax[1].set_title("Pr_l")
+ax[2].scatter(
+    HCl_conc,
+    [df_alpha_alt.loc["Pr_q", f"{e} M HCl"] for e in HCl_conc],
+    marker="o",
+)
+ax[2].set(xlabel="HCl conc (M)", ylabel="Pr_q")
+ax[2].set_title("Pr_q")
+ax[2].set_xlim([0, 6])
+plt.tight_layout()

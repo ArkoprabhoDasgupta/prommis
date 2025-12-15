@@ -189,7 +189,9 @@ m.fs.membrane_module.eff[:, :, "Sc"].fix(1.5e-5)
 
 element_to_optimize = ["Pr", "La", "Y", "Ce", "Sm", "Gd", "Nd", "Dy"]
 
-m.a = Var(m.fs.mem_prop.component_list, ["c", "l", "q"], initialize=0.1)
+m.a = Var(
+    m.fs.mem_prop.component_list, ["c", "l", "q"], initialize=0.1, bounds=(0, None)
+)
 
 for e in element_to_optimize:
     m.fs.membrane_module.eff[:, "feed", e].unfix()
@@ -633,7 +635,7 @@ for e in element_to_optimize:
 with pd.ExcelWriter(
     "feed_phi_parameters.xlsx", mode="a", engine="openpyxl", if_sheet_exists="replace"
 ) as writer:
-    eff_corr_1M.to_excel(writer, sheet_name="1 M HCl", index=True)
+    eff_corr_1M.to_excel(writer, sheet_name="1 M HCl alt", index=True)
 
 flow_alpha = pd.DataFrame(columns=["v", "alpha"], index=[t for t in m.fs.time])
 
@@ -644,4 +646,4 @@ for t in m.fs.time:
 with pd.ExcelWriter(
     "feed_phi_parameters.xlsx", mode="a", engine="openpyxl", if_sheet_exists="replace"
 ) as writer:
-    flow_alpha.to_excel(writer, sheet_name="1 M HCl alpha values", index=True)
+    flow_alpha.to_excel(writer, sheet_name="1 M HCl alpha values alt", index=True)
