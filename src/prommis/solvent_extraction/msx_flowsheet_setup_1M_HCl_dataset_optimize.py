@@ -647,3 +647,29 @@ with pd.ExcelWriter(
     "feed_phi_parameters.xlsx", mode="a", engine="openpyxl", if_sheet_exists="replace"
 ) as writer:
     flow_alpha.to_excel(writer, sheet_name="1 M HCl alpha values alt", index=True)
+
+fig, ax = plt.subplots(2, 2, figsize=(10, 7))
+fig.suptitle("Pr 1 M HCl strip tank profile")
+ax[0, 0].step(m.fs.time, m.fs.feed_tank.inlet.flow_vol[:]())
+ax[0, 0].set_xlabel("Time, mins")
+ax[0, 0].set_ylabel("Feed inlet flowrate, L/hr")
+ax[0, 0].set_title("Change in feed inlet flowrate")
+ax[0, 1].step(m.fs.time, m.fs.strip_tank.inlet.flow_vol[:]())
+ax[0, 1].set_xlabel("Time, mins")
+ax[0, 1].set_ylabel("Strip inlet flowrate, L/hr")
+ax[0, 1].set_title("Change in strip inlet flowrate")
+ax[1, 0].step(m.fs.time, m.fs.feed_tank.inlet.conc_mass_comp[:, "Pr"]())
+ax[1, 0].set_xlabel("Time, mins")
+ax[1, 0].set_ylabel("Pr feed inlet concentration, mg/L")
+ax[1, 0].set_title("Change in Pr feed inlet concentration")
+ax[1, 1].plot(
+    m.fs.time, m.fs.strip_tank.control_volume.properties_out[:].conc_mass_comp["Pr"]()
+)
+ax[1, 1].scatter(
+    time_break_points, [strip_data["Pr"][t] * 1e-3 for t in time_break_points]
+)
+ax[1, 1].set_xlabel("Time, mins")
+ax[1, 1].set_ylabel("Pr strip tank concentration (mg/L)")
+ax[1, 1].set_title("Pr strip tank concentration profile")
+ax[1, 1].legend(["model", "experiment"])
+plt.tight_layout()
