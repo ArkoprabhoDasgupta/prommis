@@ -45,34 +45,34 @@ from idaes.core.util import DiagnosticsToolbox
 m = ConcreteModel()
 
 time_break_points = [0, 10, 19, 28, 37, 46, 55, 64, 73, 82, 91, 97, 101]
-time_fe = 2
+time_fe = 3
 time_set = []
-
-# for i in range(len(time_break_points)):
-#     if i == 0:
-#         time_set.append(time_break_points[i])
-#     else:
-#         if (time_break_points[i] - time_break_points[i - 1]) >= time_fe:
-#             number_of_points = int(
-#                 (time_break_points[i] - time_break_points[i - 1]) / time_fe
-#             )
-#             if (time_break_points[i] - time_break_points[i - 1]) % time_fe == 0:
-#                 for j in range(1, number_of_points):
-#                     time_set.append(time_break_points[i - 1] + j * time_fe)
-#             else:
-#                 for j in range(1, number_of_points + 1):
-#                     time_set.append(time_break_points[i - 1] + j * time_fe)
-#             time_set.append(time_break_points[i])
-#         else:
-#             time_set.append(time_break_points[i])
 
 for i in range(len(time_break_points)):
     if i == 0:
         time_set.append(time_break_points[i])
     else:
-        mid_point = int((time_break_points[i] + time_break_points[i - 1]) / 2)
-        time_set.append(mid_point)
-        time_set.append(time_break_points[i])
+        if (time_break_points[i] - time_break_points[i - 1]) >= time_fe:
+            number_of_points = int(
+                (time_break_points[i] - time_break_points[i - 1]) / time_fe
+            )
+            if (time_break_points[i] - time_break_points[i - 1]) % time_fe == 0:
+                for j in range(1, number_of_points):
+                    time_set.append(time_break_points[i - 1] + j * time_fe)
+            else:
+                for j in range(1, number_of_points + 1):
+                    time_set.append(time_break_points[i - 1] + j * time_fe)
+            time_set.append(time_break_points[i])
+        else:
+            time_set.append(time_break_points[i])
+
+# for i in range(len(time_break_points)):
+#     if i == 0:
+#         time_set.append(time_break_points[i])
+#     else:
+#         mid_point = int((time_break_points[i] + time_break_points[i - 1]) / 2)
+#         time_set.append(mid_point)
+#         time_set.append(time_break_points[i])
 
 # assert 1 == 2
 
@@ -328,3 +328,14 @@ with pd.ExcelWriter(
     "feed_phi_parameters.xlsx", mode="a", engine="openpyxl", if_sheet_exists="replace"
 ) as writer:
     eff_corr_5M.to_excel(writer, sheet_name="5 M HCl", index=True)
+
+flow_alpha = pd.DataFrame(columns=["v", "alpha"], index=[t for t in m.fs.time])
+
+for t in m.fs.time:
+    flow_alpha.loc[t, "v"] = m.fs.membrane_module.feed_phase.properties[t, 0].flow_vol()
+    flow_alpha.loc[t, "alpha"] = m.fs.membrane_module.eff[t, "feed", "Pr"]()
+
+with pd.ExcelWriter(
+    "feed_phi_parameters.xlsx", mode="a", engine="openpyxl", if_sheet_exists="replace"
+) as writer:
+    flow_alpha.to_excel(writer, sheet_name="5 M HCl alpha values", index=True)

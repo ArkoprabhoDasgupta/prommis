@@ -456,3 +456,14 @@ with pd.ExcelWriter(
     "feed_phi_parameters.xlsx", mode="a", engine="openpyxl", if_sheet_exists="replace"
 ) as writer:
     eff_corr_3M.to_excel(writer, sheet_name="3 M HCl", index=True)
+
+flow_alpha = pd.DataFrame(columns=["v", "alpha"], index=[t for t in m.fs.time])
+
+for t in m.fs.time:
+    flow_alpha.loc[t, "v"] = m.fs.membrane_module.feed_phase.properties[t, 0].flow_vol()
+    flow_alpha.loc[t, "alpha"] = m.fs.membrane_module.eff[t, "feed", "Pr"]()
+
+with pd.ExcelWriter(
+    "feed_phi_parameters.xlsx", mode="a", engine="openpyxl", if_sheet_exists="replace"
+) as writer:
+    flow_alpha.to_excel(writer, sheet_name="3 M HCl alpha values", index=True)
