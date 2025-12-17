@@ -148,7 +148,7 @@ class SolventExtractionReactionsData(
                 "Gd": 5.8e-9,
                 "Dy": 0.05774,
                 "Sm": 0.0218,
-                "Nd": 0.00294,
+                "Nd": 0.0294,
                 "La": 0,
                 "Pr": 0,
                 "Sc": 0,
