@@ -87,9 +87,9 @@ def set_inputs(m, dosage):
 
     """
     pH_set = {
-        "P1D1": 1.02,
-        "P2D1": 1.9,
-        "P3D1": 2.4,
+        1: 1.02,
+        2: 1.9,
+        3: 2.4,
         # "P1D2": 1.5,
         # "P2D2": 2,
         # "P3D2": 2.5,
@@ -111,9 +111,9 @@ def set_inputs(m, dosage):
         m.fs.mixer_settler_ex[s].aqueous_inlet.conc_mass_comp[0, "SO4"].fix(
             10 ** -pH_set[s] * 96e3
         )
-        m.fs.mixer_settler_ex[s].organic_inlet.extractant_dosage.fix(dosage_set[s])
+        # m.fs.mixer_settler_ex[s].organic_inlet.extractant_dosage.fix(dosage_set[s])
         m.fs.mixer_settler_ex[s].organic_inlet.conc_mass_comp[0, "DEHPA"].fix(
-            975.8e3 * dosage_set[s] / 100
+            975.8e3 * dosage / 100
         )
 
     # pH = 1.5
@@ -401,4 +401,4 @@ plt.plot(pH_list, percentage_extraction["TREE"], marker="v", color="black")
 plt.xlabel("pH")
 plt.ylabel("Extraction %")
 plt.title(f"Extraction % comparison for 5% DEHPA 10% TBP")
-plt.legend()
+plt.legend(fontsize=8)

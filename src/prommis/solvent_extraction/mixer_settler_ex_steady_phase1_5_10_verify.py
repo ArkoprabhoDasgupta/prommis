@@ -149,13 +149,13 @@ def set_inputs(m, dosage):
 
     m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "H2O"].fix(1e6)
     # m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "H"].fix(10**-pH * 1e3)
-    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "SO4"].fix(1e-10)
-    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "HSO4"].fix(1e-10)
-    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Al"].fix(1e-10)
-    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Ca"].fix(1e-10)
+    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "SO4"].fix(1e-7)
+    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "HSO4"].fix(1e-7)
+    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Al"].fix(1e-7)
+    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Ca"].fix(1e-7)
     # m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Cl"].fix(10**-pH * 35e3)
-    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Fe"].fix(1e-10)
-    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Sc"].fix(1e-10)
+    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Fe"].fix(1e-7)
+    m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Sc"].fix(1e-7)
     m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Y"].fix(225)
     m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "La"].fix(5)
     m.fs.mixer_settler_ex[:].aqueous_inlet.conc_mass_comp[0, "Ce"].fix(50)
@@ -171,18 +171,18 @@ def set_inputs(m, dosage):
     # m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "DEHPA"].fix(
     #     975.8e3 * dosage / 100
     # )
-    m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Al_o"].fix(1e-10)
-    m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Ca_o"].fix(1e-10)
-    m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Fe_o"].fix(1e-10)
-    m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Sc_o"].fix(1e-10)
-    m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Y_o"].fix(1e-10)
-    m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "La_o"].fix(1e-10)
-    m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Ce_o"].fix(1e-10)
-    m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Pr_o"].fix(1e-10)
-    m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Nd_o"].fix(1e-10)
-    m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Sm_o"].fix(1e-10)
-    m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Gd_o"].fix(1e-10)
-    m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Dy_o"].fix(1e-10)
+    m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Al_o"].fix(1e-7)
+    m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Ca_o"].fix(1e-7)
+    m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Fe_o"].fix(1e-7)
+    m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Sc_o"].fix(1e-7)
+    m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Y_o"].fix(1e-7)
+    m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "La_o"].fix(1e-7)
+    m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Ce_o"].fix(1e-7)
+    m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Pr_o"].fix(1e-7)
+    m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Nd_o"].fix(1e-7)
+    m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Sm_o"].fix(1e-7)
+    m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Gd_o"].fix(1e-7)
+    m.fs.mixer_settler_ex[:].organic_inlet.conc_mass_comp[0, "Dy_o"].fix(1e-7)
 
     m.fs.mixer_settler_ex[:].organic_inlet.flow_vol.fix(62.01)
 
@@ -313,7 +313,7 @@ print(degrees_of_freedom(m))
 #     # )
 
 for s in m.system:
-    for e in ["La", "Ce", "Pr", "Nd", "Sm"]:
+    for e in ["La", "Ce", "Pr", "Nd", "Sm","Gd","Dy","Y"]:
         # set_scaling_factor(
         #     m.fs.mixer_settler_ex[8]
         #     .mixer[1]
@@ -336,10 +336,13 @@ scaled_model = scaling.create_using(m, rename=False)
 
 # MixerSettlerExtractionInitializer().initialize(scaled_model.fs.mixer_settler_ex[8])
 
-# solve_model(m)
+# for s in m.system:
+#     MixerSettlerExtractionInitializer().initialize(scaled_model.fs.mixer_settler_ex[s])
+
+solve_model(scaled_model)
 
 # # initialize_steady_model(m)
-solve_model(scaled_model)
+# solve_model(scaled_model)
 
 # for s in m.system:
 #     MixerSettlerExtractionInitializer().initialize(m.fs.mixer_settler_ex[s])
@@ -383,10 +386,10 @@ for e in m.fs.leach_soln.component_list:
 # # )
 # # percentage_extraction
 
-df = pd.read_excel("data for parmest.xlsx", sheet_name="model validation new")
+df = pd.read_excel("data for parmest.xlsx", sheet_name="Sheet2")
 
-element_list = ["Y", "Dy", "Gd", "Sm", "Nd", "Ce"]
-colors = {"Y": "r", "Dy": "g", "Gd": "b", "Sm": "c", "Nd": "m", "Ce": "y"}
+element_list = ["Y", "Dy", "Gd", "Sm", "Nd", "Ce","La","Pr"]
+colors = {"Y": "r", "Dy": "g", "Gd": "r", "Sm": "g", "Nd": "r", "Ce": "r","La": "g", "Pr": "g"}
 pH_list = [
     m.fs.mixer_settler_ex[s]
     .mixer[1]
@@ -395,29 +398,103 @@ pH_list = [
     for s in m.system
 ]
 
-for e in element_list:
-    plt.scatter(df["pH"], df[e], marker="o", color=colors[e], label=f"{e}_exp")
-    plt.plot(
-        pH_list,
-        percentage_extraction[e],
-        color=colors[e],
-        label=f"{e}_model",
-    )
-plt.xlabel("pH")
-plt.ylabel("Extraction %")
-plt.title(f"Extraction % comparison for 5% DEHPA 10% TBP")
-plt.legend()
+# for e in element_list:
+#     plt.scatter(df["pH"], df[e], marker="o", color=colors[e], label=f"{e}_exp")
+#     plt.plot(
+#         pH_list,
+#         percentage_extraction[e],
+#         color=colors[e],
+#         label=f"{e}_model",
+#     )
+# plt.xlabel("pH")
+# plt.ylabel("Extraction %")
+# plt.title(f"Extraction % comparison for 5% DEHPA 10% TBP")
+# plt.legend()
 
-plt.figure(dpi=300)
-for e in ["Y", "Dy", "Gd"]:
-    plt.scatter(df["pH"], df[e], marker="o", color=colors[e], label=f"{e}_exp")
-    plt.plot(
+# plt.figure(dpi=300)
+# for e in ["Y", "Dy", "La","Sm"]:
+#     for i in df.index:
+#         if df.loc[i,f'w_{e}'] == 1:
+#             plt.scatter(df.loc[i,"pH"], df.loc[i,e], marker="o", color=colors[e], label=f"{e}_exp")
+#     plt.plot(
+#         pH_list,
+#         percentage_extraction[e],
+#         color=colors[e],
+#         label=f"{e}_model",
+#     )
+# plt.xlabel("pH")
+# plt.ylabel("Extraction %")
+# plt.title(f"Extraction % comparison for 5% DEHPA 10% TBP")
+# plt.legend()
+
+fig, ax = plt.subplots(2,2,dpi=300,figsize=(7,5))
+plt.suptitle('Extraction profile at 5% DEHPA 10% TBP')
+for e in ["Dy", "Y"]:
+    pH_exp = []
+    ext = []
+    for i in df.index:
+        if df.loc[i, f"w_{e}"] == 1 and 4 < df.loc[i, 'dosage'] < 5:
+            pH_exp.append(df.loc[i, "pH"])
+            ext.append(10**df.loc[i, f'logD {e}']/(1+10**df.loc[i, f'logD {e}'])*100)
+    ax[0,0].scatter(pH_exp, ext, marker="o", color=colors[e], label=f"{e}_exp")
+    ax[0,0].plot(
         pH_list,
         percentage_extraction[e],
         color=colors[e],
         label=f"{e}_model",
     )
-plt.xlabel("pH")
-plt.ylabel("Extraction %")
-plt.title(f"Extraction % comparison for 5% DEHPA 10% TBP")
-plt.legend()
+    ax[0,0].set_xlabel("pH")
+    ax[0,0].set_ylabel("Extraction %")
+    ax[0,0].legend(fontsize=8)
+for e in ["Sm", "Gd"]:
+    pH_exp = []
+    ext = []
+    for i in df.index:
+        if df.loc[i, f"w_{e}"] == 1 and 4 < df.loc[i, 'dosage'] < 5:
+            pH_exp.append(df.loc[i, "pH"])
+            ext.append(10**df.loc[i, f'logD {e}']/(1+10**df.loc[i, f'logD {e}'])*100)
+    ax[0,1].scatter(pH_exp, ext, marker="o", color=colors[e], label=f"{e}_exp")
+    ax[0,1].plot(
+        pH_list,
+        percentage_extraction[e],
+        color=colors[e],
+        label=f"{e}_model",
+    )
+    ax[0,1].set_xlabel("pH")
+    ax[0,1].set_ylabel("Extraction %")
+    ax[0,1].legend(fontsize=8)
+for e in ["Pr", "Ce"]:
+    pH_exp = []
+    ext = []
+    for i in df.index:
+        if df.loc[i, f"w_{e}"] == 1 and 4 < df.loc[i, 'dosage'] < 5:
+            pH_exp.append(df.loc[i, "pH"])
+            ext.append(10**df.loc[i, f'logD {e}']/(1+10**df.loc[i, f'logD {e}'])*100)
+    ax[1,0].scatter(pH_exp, ext, marker="o", color=colors[e], label=f"{e}_exp")
+    ax[1,0].plot(
+        pH_list,
+        percentage_extraction[e],
+        color=colors[e],
+        label=f"{e}_model",
+    )
+    ax[1,0].set_xlabel("pH")
+    ax[1,0].set_ylabel("Extraction %")
+    ax[1,0].legend(fontsize=8)
+for e in ["La", "Nd"]:
+    pH_exp = []
+    ext = []
+    for i in df.index:
+        if df.loc[i, f"w_{e}"] == 1 and 4 < df.loc[i, 'dosage'] < 5:
+            pH_exp.append(df.loc[i, "pH"])
+            ext.append(10**df.loc[i, f'logD {e}']/(1+10**df.loc[i, f'logD {e}'])*100)
+    ax[1,1].scatter(pH_exp, ext, marker="o", color=colors[e], label=f"{e}_exp")
+    ax[1,1].plot(
+        pH_list,
+        percentage_extraction[e],
+        color=colors[e],
+        label=f"{e}_model",
+    )
+    ax[1,1].set_xlabel("pH")
+    ax[1,1].set_ylabel("Extraction %")
+    ax[1,1].legend(fontsize=8)
+plt.tight_layout()

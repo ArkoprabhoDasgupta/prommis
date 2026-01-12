@@ -46,7 +46,7 @@ m.fs.reaxn = SolventExtractionReactions()
 
 # m.fs.reaxn.extractant_dosage = dosage
 
-number_of_stages = 2
+number_of_stages = 1
 
 m.scenario = Set(initialize=["P1D1", "P2D1"])
 
@@ -295,15 +295,15 @@ percentage_extraction["TREE"] = [
 
 pH_list = [
     m.fs.mixer_settler_ex[s]
-    .mixer[2]
+    .mixer[1]
     .unit.mscontactor.aqueous[0.0, 1]
     .pH_phase["liquid"]()
     for s in m.scenario
 ]
 
-# plt.scatter([1.5, 2, 2.5], [10, 22, 29], marker="o", color="red")
-# plt.plot(pH_list, percentage_extraction["TREE"], marker="v", color="black")
-# plt.xlabel("pH")
-# plt.ylabel("Extraction %")
-# plt.title(f"Extraction % comparison for 5% DEHPA 10% TBP")
-# plt.legend()
+plt.scatter([1.5, 2, 2.5], [20, 35, 40], marker="o", color="red")
+plt.plot(pH_list, percentage_extraction["La"], marker="v", color="black")
+plt.xlabel("pH")
+plt.ylabel("Extraction %")
+plt.title(f"Extraction % comparison for 5% DEHPA 10% TBP")
+plt.legend(fontsize=8)

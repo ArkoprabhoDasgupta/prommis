@@ -284,7 +284,7 @@ print(degrees_of_freedom(m))
 #     #     1e-1,
 #     # )
 
-for e in ["La", "Ce", "Pr", "Nd", "Sm"]:
+for e in ["La", "Ce", "Pr", "Nd", "Sm","Gd", "Dy", "Y"]:
     # set_scaling_factor(
     #     m.fs.mixer_settler_ex[8]
     #     .mixer[1]
@@ -362,10 +362,10 @@ for e in m.fs.leach_soln.component_list:
 # # )
 # # percentage_extraction
 
-df = pd.read_excel("data for parmest.xlsx", sheet_name="model validation")
+df = pd.read_excel("data for parmest.xlsx", sheet_name="Sheet2")
 
 element_list = ["Y", "Dy", "Gd", "Sm", "Nd", "Ce"]
-colors = {"Y": "r", "Dy": "g", "Gd": "b", "Sm": "c", "Nd": "m", "Ce": "y"}
+colors = {"Y": "r", "Dy": "g", "Gd": "b", "Sm": "b", "Nd": "r", "Ce": "g"}
 pH_list = [
     m.fs.mixer_settler_ex[s]
     .mixer[1]
@@ -374,10 +374,51 @@ pH_list = [
     for s in m.system
 ]
 
-for e in element_list:
-    plt.scatter(df["pH"], df[e], marker="o", color=colors[e])
-    plt.plot(pH_list, percentage_extraction[e], marker="v", color=colors[e], label=e)
-plt.xlabel("pH")
-plt.ylabel("Extraction %")
-plt.title(f"Extraction % comparison for 2% DEHPA 10% TBP")
-plt.legend()
+# for e in element_list:
+#     plt.scatter(df["pH"], df[e], marker="o", color=colors[e])
+#     plt.plot(pH_list, percentage_extraction[e], marker="v", color=colors[e], label=e)
+# plt.xlabel("pH")
+# plt.ylabel("Extraction %")
+# plt.title(f"Extraction % comparison for 2% DEHPA 10% TBP")
+# plt.legend()
+
+
+fig, ax = plt.subplots(1,2,dpi=300,figsize=(6,3))
+plt.suptitle('Extraction profile at 2% DEHPA 10% TBP')
+for e in ["Dy", "Y", "Gd"]:
+    pH_exp = []
+    ext = []
+    for i in df.index:
+        if df.loc[i, f"w_{e}"] == 1 and 1 < df.loc[i, 'dosage'] < 2:
+            pH_exp.append(df.loc[i, "pH"])
+            ext.append(10**df.loc[i, f'logD {e}']/(1+10**df.loc[i, f'logD {e}'])*100)
+    ax[0].scatter(pH_exp[:-1], ext[:-1], marker="o", color=colors[e], label=f"{e}_exp")
+    ax[0].plot(
+        pH_list[:-1],
+        percentage_extraction[e][:-1],
+        color=colors[e],
+        label=f"{e}_model",
+    )
+    ax[0].set_xlabel("pH")
+    ax[0].set_ylabel("Extraction %")
+    ax[0].set_xlim([0.2,1.8])
+    ax[0].legend(fontsize=7)
+for e in ["Sm", "Ce","Nd"]:
+    pH_exp = []
+    ext = []
+    for i in df.index:
+        if df.loc[i, f"w_{e}"] == 1 and 1 < df.loc[i, 'dosage'] < 2:
+            pH_exp.append(df.loc[i, "pH"])
+            ext.append(10**df.loc[i, f'logD {e}']/(1+10**df.loc[i, f'logD {e}'])*100)
+    ax[1].scatter(pH_exp[:-1], ext[:-1], marker="o", color=colors[e], label=f"{e}_exp")
+    ax[1].plot(
+        pH_list[:-1],
+        percentage_extraction[e][:-1],
+        color=colors[e],
+        label=f"{e}_model",
+    )
+    ax[1].set_xlabel("pH")
+    ax[1].set_ylabel("Extraction %")
+    ax[1].set_xlim([0.2,1.8])
+    ax[1].legend(fontsize=7)
+plt.tight_layout()

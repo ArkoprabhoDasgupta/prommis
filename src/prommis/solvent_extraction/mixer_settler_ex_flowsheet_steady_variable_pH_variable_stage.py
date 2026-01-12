@@ -256,5 +256,5 @@ for i in RangeSet(0, 2):
         )
         ax[i, j].set(xlabel="Number of stages", ylabel="percent extraction")
         ax[i, j].set_title(f"{element_mapper[i + 1 + j * 3]} recovery wrt stages")
-plt.legend()
+plt.legend(fontsize=8)
 plt.tight_layout()
