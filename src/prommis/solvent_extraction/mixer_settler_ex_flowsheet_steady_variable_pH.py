@@ -21,7 +21,7 @@ from prommis.solvent_extraction.ree_og_distribution_new import REESolExOgParamet
 from prommis.solvent_extraction.mixer_settler_extraction import (
     MixerSettlerExtraction,
 )
-from prommis.solvent_extraction.solvent_extraction_reaction_package_new import (
+from prommis.solvent_extraction.solvent_extraction_reaction_package_new_modified import (
     SolventExtractionReactions,
 )
 
@@ -81,24 +81,46 @@ def set_inputs(m, dosage):
         None
 
     """
-    pH = 1.2
+    pH = 1.5
+    # m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "H2O"].fix(1e6)
+    # m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "H"].fix((10**-pH) * 1e3)
+    # m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "SO4"].fix((10**-pH) * 96e3)
+    # m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "HSO4"].fix(1e-4)
+    # m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Al"].fix(422.375)
+    # m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Ca"].fix(109.542)
+    # m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Cl"].fix(1e-7)
+    # m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Fe"].fix(688.266)
+    # m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Sc"].fix(0.032)
+    # m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Y"].fix(0.124)
+    # m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "La"].fix(0.986)
+    # m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Ce"].fix(2.277)
+    # m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Pr"].fix(0.303)
+    # m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Nd"].fix(0.946)
+    # m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Sm"].fix(0.097)
+    # m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Gd"].fix(0.2584)
+    # m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Dy"].fix(0.047)
+
+    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Al"].fix(137.27)
+    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Ca"].fix(25.78)
+    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Fe"].fix(138.27)
+    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Sc"].fix(0.277)
+    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "La"].fix(2.09)
+    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Ce"].fix(5)
+    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Pr"].fix(0.73)
+    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Nd"].fix(2.10)
+    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Sm"].fix(0.236)
+    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Gd"].fix(0.56)
+    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Dy"].fix(0.09)
+    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Y"].fix(0.346)
     m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "H2O"].fix(1e6)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "H"].fix((10**-pH) * 1e3)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "SO4"].fix((10**-pH) * 96e3)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "HSO4"].fix(1e-4)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Al"].fix(422.375)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Ca"].fix(109.542)
     m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Cl"].fix(1e-7)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Fe"].fix(688.266)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Sc"].fix(0.032)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Y"].fix(0.124)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "La"].fix(0.986)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Ce"].fix(2.277)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Pr"].fix(0.303)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Nd"].fix(0.946)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Sm"].fix(0.097)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Gd"].fix(0.2584)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Dy"].fix(0.047)
+    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "H"].fix(
+        10 ** (-pH) * units.gram / units.L
+    )
+    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "SO4"].fix(
+        10 ** (-pH) * 48 * units.gram / units.L
+    )
+    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "HSO4"].fix(1e-4)
 
     m.fs.mixer_settler_ex.aqueous_inlet.flow_vol.fix(62.01)
 
@@ -106,18 +128,31 @@ def set_inputs(m, dosage):
     m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "DEHPA"].fix(
         975.8e3 * dosage / 100
     )
-    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Al_o"].fix(1.267e-5)
-    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Ca_o"].fix(2.684e-5)
-    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Fe_o"].fix(2.873e-6)
-    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Sc_o"].fix(1.734)
-    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Y_o"].fix(2.179e-5)
-    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "La_o"].fix(0.000105)
-    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Ce_o"].fix(0.00031)
-    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Pr_o"].fix(3.711e-5)
-    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Nd_o"].fix(0.000165)
-    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Sm_o"].fix(1.701e-5)
-    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Gd_o"].fix(3.357e-5)
-    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Dy_o"].fix(8.008e-6)
+    # m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Al_o"].fix(1.267e-5)
+    # m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Ca_o"].fix(2.684e-5)
+    # m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Fe_o"].fix(2.873e-6)
+    # m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Sc_o"].fix(1.734)
+    # m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Y_o"].fix(2.179e-5)
+    # m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "La_o"].fix(0.000105)
+    # m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Ce_o"].fix(0.00031)
+    # m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Pr_o"].fix(3.711e-5)
+    # m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Nd_o"].fix(0.000165)
+    # m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Sm_o"].fix(1.701e-5)
+    # m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Gd_o"].fix(3.357e-5)
+    # m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Dy_o"].fix(8.008e-6)
+
+    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Al_o"].fix(1e-7)
+    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Ca_o"].fix(1e-7)
+    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Fe_o"].fix(1e-7)
+    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Sc_o"].fix(1e-7)
+    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Y_o"].fix(1e-7)
+    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "La_o"].fix(1e-7)
+    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Ce_o"].fix(1e-7)
+    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Pr_o"].fix(1e-7)
+    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Nd_o"].fix(1e-7)
+    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Sm_o"].fix(1e-7)
+    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Gd_o"].fix(1e-7)
+    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Dy_o"].fix(1e-7)
 
     m.fs.mixer_settler_ex.organic_inlet.flow_vol.fix(62.01)
 
@@ -134,6 +169,14 @@ def set_inputs(m, dosage):
     m.fs.mixer_settler_ex.aqueous_settler[:].unit.area.fix(1)
     m.fs.mixer_settler_ex.aqueous_settler[:].unit.length.fix(1)
     m.fs.mixer_settler_ex.organic_settler[:].unit.length.fix(1)
+
+    for e in ["Al", "Ca", "Fe", "Sc"]:
+        m.fs.mixer_settler_ex.mixer[:].unit.mscontactor.heterogeneous_reaction_extent[
+            0.0, 1, f"{e}_mass_transfer"
+        ].fix(0)
+        m.fs.mixer_settler_ex.mixer[:].unit.distribution_extent_constraint[
+            0, 1, e
+        ].deactivate()
 
 
 def model_buildup_and_set_inputs(dosage, number_of_stages):
@@ -211,7 +254,7 @@ def main(dosage, number_of_stages):
 
 
 dosage = 5
-number_of_stages = 20
+number_of_stages = 3
 
 if __name__ == "__main__":
     m, results = main(dosage, number_of_stages)
@@ -264,3 +307,20 @@ percentage_extraction["TREE"] = [
     )
     * 100
 ]
+
+bar_x = []
+bar_y = []
+for k, v in percentage_extraction.items():
+    bar_x.append(k)
+    bar_y.append(v[0])
+
+import matplotlib.pyplot as plt
+
+plt.figure(dpi=300)
+plt.bar(bar_x, bar_y)
+plt.xlabel("Elements")
+plt.ylabel("Percentage extraction (%)")
+plt.title("Extraction profile, stages = 3, feed pH = 1.5, DEHPA dosage = 5%")
+plt.grid(axis="y", which="both", linewidth="0.5")
+plt.minorticks_on()
+plt.gca().set_axisbelow(True)
