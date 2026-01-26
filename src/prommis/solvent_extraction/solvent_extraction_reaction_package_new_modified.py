@@ -16,8 +16,9 @@ This is an example of how to write a reaction package for rare earth elements in
 solvent extraction.
 
 """
+
 from pyomo.common.config import ConfigValue
-from pyomo.environ import Constraint, Param, Set, Var, units, log10
+from pyomo.environ import Constraint, Param, Set, Var, units, log10, exp
 
 from idaes.core import ProcessBlock, ProcessBlockData, declare_process_block_class
 from idaes.core.base import property_meta
@@ -151,7 +152,7 @@ class SolventExtractionReactionsData(
                 "Nd": 0.0294,
                 "La": 2.16e-7,
                 "Pr": 1.27e-7,
-                "Sc": 0,
+                "Sc": 3.171e-6,
                 "Al": 0.215,
                 "Ca": 0.079,
                 "Fe": 0,
@@ -194,41 +195,6 @@ class SolventExtractionReactionsData(
             },
         )
 
-        self.K1 = Param(
-            self.element_list,
-            initialize={
-                "Ce": 0,
-                "Y": 0,
-                "Gd": 0,
-                "Dy": 0,
-                "Sm": 0,
-                "Nd": 0,
-                "La": 0,
-                "Pr": 0,
-                "Sc": 632.4976,
-                "Al": 0.0531,
-                "Ca": 0.0658,
-                "Fe": 0.1496,
-            },
-        )
-
-        self.K_corr = Param(
-            self.element_list,
-            initialize={
-                "Ce": 0,
-                "Y": 0,
-                "Gd": 0,
-                "Dy": 0,
-                "Sm": 0,
-                "Nd": 0,
-                "La": 0,
-                "Pr": 0,
-                "Sc": 0,
-                "Al": 0,
-                "Ca": 0,
-                "Fe": 0,
-            },
-        )
 
     @classmethod
     def define_metadata(cls, obj):
@@ -311,6 +277,8 @@ class SolventExtractionReactionsData(ProcessBlockData):
             initialize=1,
         )
 
+        self.ascorbic_dosage = Var(initialize=0.1, bounds=(0,2))
+
         def distribution_expression(b, e):
             aq_block = b.parent_block().aqueous[b.index()]
             org_block = b.parent_block().organic[b.index()]
@@ -319,10 +287,15 @@ class SolventExtractionReactionsData(ProcessBlockData):
             pH = aq_block.pH_phase["liquid"]
             dosage = org_block.extractant_dosage
             # dosage = org_feed_block.extractant_dosage
-            return (b.distribution_coefficient[e]) == 10 ** (
-                (b.params.m0[e] + dosage * b.params.m1[e]) * pH
-                + (b.params.B0[e] + b.params.B1[e] * log10(dosage))
-            ) * (1 - b.params.K_corr[e]) + b.params.K_corr[e] * b.params.K1[e]
+            if e!='Fe':
+                return (b.distribution_coefficient[e]) == 10 ** (
+                    (b.params.m0[e] + dosage * b.params.m1[e]) * pH
+                    + (b.params.B0[e] + b.params.B1[e] * log10(dosage))
+                )
+            else:
+                alpha = -1.808*exp(-9.99*b.ascorbic_dosage) + 0.185
+                beta = -1.486 -0.335*b.ascorbic_dosage-0.269*b.ascorbic_dosage**2 + 0.841*dosage
+                return b.distribution_coefficient[e] == 10 ** (alpha*pH + beta) 
 
         self.distribution_expression_constraint = Constraint(
             self.params.element_list, rule=distribution_expression
