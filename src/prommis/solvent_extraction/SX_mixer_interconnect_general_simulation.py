@@ -1,3 +1,4 @@
+from matplotlib.category import _log
 from pyomo.environ import (
     ConcreteModel,
     units,
@@ -11,7 +12,7 @@ from pyomo.environ import (
     Constraint,
     Suffix,
 )
-from pyomo.network import Arc
+from pyomo.network import Arc, SequentialDecomposition
 
 from idaes.core import (
     FlowDirection,
@@ -22,11 +23,16 @@ from idaes.core.util import to_json
 from idaes.core.util.model_diagnostics import degrees_of_freedom
 from idaes.core.solvers import get_solver
 from idaes.core.util.scaling import set_scaling_factor
+from idaes.core.initialization import (
+    SingleControlVolumeUnitInitializer,
+    BlockTriangularizationInitializer,
+)
 
 from prommis.leaching.leach_solution_properties import LeachSolutionParameters
 from prommis.solvent_extraction.ree_og_distribution_new import REESolExOgParameters
 from prommis.solvent_extraction.mixer_settler_extraction import (
     MixerSettlerExtraction,
+    MixerSettlerExtractionInitializer,
 )
 from prommis.solvent_extraction.solvent_extraction_reaction_package_new_modified import (
     SolventExtractionReactions,
@@ -150,15 +156,6 @@ m.fs.aq_inter_mixer = Mixer(
     momentum_mixing_type=MomentumMixingType.none,
 )
 
-# m.fs.aq_scrub_mixer = Mixer(
-#     property_package=m.fs.leach_soln,
-#     num_inlets=2,
-#     inlet_list=["sx", "feed"],
-#     material_balance_type=MaterialBalanceType.componentTotal,
-#     energy_mixing_type=MixingType.none,
-#     momentum_mixing_type=MomentumMixingType.none,
-# )
-
 # add neutral tanks
 
 m.fs.aq_feed_neutral = NeutralizationTank(property_package=m.fs.leach_soln)
@@ -168,7 +165,7 @@ m.fs.aq_feed_neutral = NeutralizationTank(property_package=m.fs.leach_soln)
 # loading arcs
 
 # neutral tank to sx loading aqueous inlet
-m.neutral_to_aq_sx = Arc(
+m.neutral_to_load_aq_sx = Arc(
     source=m.fs.aq_feed_neutral.outlet, destination=m.fs.load_sx[1].aqueous_inlet
 )
 
@@ -176,7 +173,7 @@ for i in load_stage_list:
     if i != 1:
         # loading sx aqueous phases
         m.add_component(
-            f"load_aqueous_sx_{i-1}_to_{i}",
+            f"load_aq_sx_{i-1}_to_{i}",
             Arc(
                 source=m.fs.load_sx[i - 1].aqueous_outlet,
                 destination=m.fs.load_sx[i].aqueous_inlet,
@@ -184,7 +181,7 @@ for i in load_stage_list:
         )
         # loading sx organic to interstage
         m.add_component(
-            f"load_organic_sx_{i}_to_interstage_{i-1}",
+            f"load_org_sx_{i}_to_load_org_inter_{i-1}",
             Arc(
                 source=m.fs.load_sx[i].organic_outlet,
                 destination=m.fs.org_inter_mixer[i - 1].sx,
@@ -193,7 +190,7 @@ for i in load_stage_list:
     # interstage to loading organic
     if i != loading_stages:
         m.add_component(
-            f"load_interstage_organic_{i}_to_sx_organic_{i}",
+            f"load_org_inter_{i}_to_load_org_sx_{i}",
             Arc(
                 source=m.fs.org_inter_mixer[i].outlet,
                 destination=m.fs.load_sx[i].organic_inlet,
@@ -205,7 +202,7 @@ for i in load_stage_list:
 for i in strip_stage_list:
     # stripping aqueous mixer to aqueous sx
     m.add_component(
-        f"strip_aqueous_mixer_{i}_to_sx_{i}",
+        f"strip_aq_inter_{i}_to_strip_aq_sx_{i}",
         Arc(
             source=m.fs.aq_inter_mixer[i].outlet,
             destination=m.fs.strip_sx[i].aqueous_inlet,
@@ -214,7 +211,7 @@ for i in strip_stage_list:
     if i != strip_stages:
         # stripping sx mixer to aqueous sx
         m.add_component(
-            f"strip_aqueous_sx_{i}_to_mixer_{i+1}",
+            f"strip_aq_sx_{i}_to_strip_aq_inter_{i+1}",
             Arc(
                 source=m.fs.strip_sx[i].aqueous_outlet,
                 destination=m.fs.aq_inter_mixer[i + 1].sx,
@@ -222,29 +219,21 @@ for i in strip_stage_list:
         )
         # stripping organic
         m.add_component(
-            f"strip_organic_sx_{i+1}_to_{i}",
+            f"strip_org_sx_{i+1}_to_strip_organic_sx_{i}",
             Arc(
                 source=m.fs.strip_sx[i + 1].organic_outlet,
                 destination=m.fs.strip_sx[i].organic_inlet,
             ),
         )
 
-
-# connect scrub mixer and scrub sx
-
-# m.aqueous_scrub_mixer_to_sx = Arc(
-#     source=m.fs.aq_scrub_mixer.outlet,
-#     destination=m.fs.scrub_sx.aqueous_inlet,
-# )
-
 # connect organic loading and scrubbing and stripping
 
-m.organic_load_to_scrub = Arc(
+m.org_load_out_to_scrub_in = Arc(
     source=m.fs.load_sx[1].organic_outlet,
     destination=m.fs.scrub_sx.organic_inlet,
 )
 
-m.organic_scrub_to_strip = Arc(
+m.org_scrub_out_to_strip_in = Arc(
     source=m.fs.scrub_sx.organic_outlet,
     destination=m.fs.strip_sx[strip_stages].organic_inlet,
 )
@@ -255,7 +244,7 @@ TransformationFactory("network.expand_arcs").apply_to(m)
 
 # neutralization tank input
 
-pH_load = 1.2
+pH_load = 0.6
 m.fs.aq_feed_neutral.inlet.flow_vol.fix(62.01)
 m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Al"].fix(137.27)
 m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Ca"].fix(25.78)
@@ -278,8 +267,8 @@ m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "SO4"].fix(
     10 ** (-pH_load) * 48 * units.gram / units.L
 )
 m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "HSO4"].fix(1e-4)
-# m.fs.aq_feed_neutral.base_flowrate[0].fix(1)
-# m.fs.aq_feed_neutral.base_concentration[0].fix(0.01) #dv
+m.fs.aq_feed_neutral.base_flowrate[0].fix(1)
+m.fs.aq_feed_neutral.base_concentration[0].fix(0.1)  # dv
 
 # loading sx organic inlet
 
@@ -301,25 +290,25 @@ for i in load_interstage_list:
             m.fs.org_inter_mixer[i].feed.conc_mass_comp[0, e].fix(1e-9)
     m.fs.org_inter_mixer[i].feed.flow_vol.fix(2)
     m.fs.org_inter_mixer[i].feed.conc_mass_comp[0, "Kerosene"].fix(820e3)
-    # dosage = 10  # in vol %
-    # m.fs.org_inter_mixer[i].feed.conc_mass_comp[0, "DEHPA"].fix(975.8e3 * dosage / 100) # dv
-
-    # m.fs.org_inter_mixer[i].feed.flow_vol.setub(5)
-    # m.fs.org_inter_mixer[i].feed.flow_vol.setlb(1)
+    dosage = 10  # in vol %
+    m.fs.org_inter_mixer[i].feed.conc_mass_comp[0, "DEHPA"].fix(
+        975.8e3 * dosage / 100
+    )  # dv
 
 # stripping aqueous interstage addition
 
+pH_strip = 0.5
 for i in strip_stage_list:
     for e in m.fs.leach_soln.component_list:
         if e not in ["H2O", "HSO4", "SO4", "H"]:
             m.fs.aq_inter_mixer[i].feed.conc_mass_comp[0, e].fix(1e-9)
-    m.fs.aq_inter_mixer[i].feed.flow_vol.fix(3)
+    m.fs.aq_inter_mixer[i].feed.flow_vol.fix(2)
     m.fs.aq_inter_mixer[i].feed.conc_mass_comp[0, "H2O"].fix(1e6)
-    # m.fs.aq_inter_mixer[i].feed.conc_mass_comp[0, "H"].fix(
-    #     10 ** (-pH_strip) * 2 * units.gram / units.L
-    # ) #dv
-    m.fs.aq_inter_mixer[i].feed.conc_mass_comp[0, "SO4"].fix(1e-8)
-    m.fs.aq_inter_mixer[i].feed.conc_mass_comp[0, "HSO4"].fix(1e-8)
+    m.fs.aq_inter_mixer[i].feed.conc_mass_comp[0, "H"].fix(
+        10 ** (-pH_strip) * 2 * units.gram / units.L
+    )  # dv
+    m.fs.aq_inter_mixer[i].feed.conc_mass_comp[0, "SO4"].fix(1e-7)
+    m.fs.aq_inter_mixer[i].feed.conc_mass_comp[0, "HSO4"].fix(1e-7)
 
 # aqueous strip sx inlet
 
@@ -333,21 +322,8 @@ m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, "H2O"].fix(1e6)
 m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, "H"].fix(
     1 * units.gram / units.L
 )  # maybe dv
-m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, "SO4"].fix(1e-8)
-m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, "HSO4"].fix(1e-8)
-
-# # aqueous scrub sx inlet
-
-# for e in m.fs.leach_soln.component_list:
-#     if e not in ["H2O", "HSO4", "SO4", "H"]:
-#         m.fs.aq_scrub_mixer.sx.conc_mass_comp[0, e].fix(1e-9)
-# m.fs.aq_scrub_mixer.sx.flow_vol.fix(62.01)
-# m.fs.aq_scrub_mixer.sx.conc_mass_comp[0, "H2O"].fix(1e6)
-# m.fs.aq_scrub_mixer.sx.conc_mass_comp[0, "H"].fix(
-#     0.1 * units.gram / units.L
-# )  # maybe dv
-# m.fs.aq_scrub_mixer.sx.conc_mass_comp[0, "SO4"].fix(1e-8)
-# m.fs.aq_scrub_mixer.sx.conc_mass_comp[0, "HSO4"].fix(1e-8)
+m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, "SO4"].fix(1e-7)
+m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, "HSO4"].fix(1e-7)
 
 # aqueous scrub sx feed
 
@@ -356,9 +332,9 @@ for e in m.fs.leach_soln.component_list:
         m.fs.scrub_sx.aqueous_inlet.conc_mass_comp[0, e].fix(1e-9)
 m.fs.scrub_sx.aqueous_inlet.flow_vol.fix(1)
 m.fs.scrub_sx.aqueous_inlet.conc_mass_comp[0, "H2O"].fix(1e6)
-m.fs.scrub_sx.aqueous_inlet.conc_mass_comp[0, "H"].fix(0.1 * units.gram / units.L)
-m.fs.scrub_sx.aqueous_inlet.conc_mass_comp[0, "SO4"].fix(1e-8)
-m.fs.scrub_sx.aqueous_inlet.conc_mass_comp[0, "HSO4"].fix(1e-8)
+m.fs.scrub_sx.aqueous_inlet.conc_mass_comp[0, "H"].fix(10**-0.3 * units.gram / units.L)
+m.fs.scrub_sx.aqueous_inlet.conc_mass_comp[0, "SO4"].fix(1e-7)
+m.fs.scrub_sx.aqueous_inlet.conc_mass_comp[0, "HSO4"].fix(1e-7)
 
 
 # fix parameters
@@ -408,10 +384,10 @@ m.fs.org_inter_mixer[:].mixed_state[0.0].temperature.fix(305)
 m.fs.aq_inter_mixer[:].mixed_state[0.0].temperature.fix(305)
 m.fs.org_inter_mixer[:].mixed_state[0.0].pressure.fix(101325)
 m.fs.aq_inter_mixer[:].mixed_state[0.0].pressure.fix(101325)
-# m.fs.aq_scrub_mixer.mixed_state[0.0].pressure.fix(101325)
-# m.fs.aq_scrub_mixer.mixed_state[0.0].temperature.fix(305)
 
-
+m.fs.load_sx[1].mixer[1].unit.mscontactor.heterogeneous_reactions[
+    0.0, 1
+].ascorbic_dosage.fix(0)
 m.fs.strip_sx[:].mixer[1].unit.mscontactor.heterogeneous_reactions[
     0.0, 1
 ].ascorbic_dosage.fix(0)
@@ -437,254 +413,162 @@ def ascorbic_acid_constraint(m, s):
         )
 
 
-@m.Constraint(load_stage_list)
-def organic_dosage_constraint(m, s):
-    if s == loading_stages:
-        return Constraint.Skip
-    else:
-        return (
-            m.fs.load_sx[s].organic_inlet.conc_mass_comp[0, "DEHPA"] / 9758
-            >= m.fs.load_sx[s + 1].organic_inlet.conc_mass_comp[0, "DEHPA"] / 9758
-        )
-
-
-print(degrees_of_freedom(m))
 # assert 1==2
 
-REE_list = [
-    e
-    for e in m.fs.leach_soln.component_list
-    if e not in ["H2O", "H", "SO4", "HSO4", "Cl", "Al", "Fe", "Ca"]
-]
+# m.scaling_factor = Suffix(direction=Suffix.EXPORT)
 
-m.percentage_recovery = Var(REE_list, initialize=0.5, bounds=(0, 1))
-
-
-@m.Constraint(REE_list)
-def recovery_constraint(m, e):
-    scrubbing_inlet = (
-        m.fs.scrub_sx.aqueous_inlet.conc_mass_comp[0, e]
-        * m.fs.scrub_sx.aqueous_inlet.flow_vol[0]
-    )
-    scrubbing_outlet = (
-        m.fs.scrub_sx.aqueous_outlet.conc_mass_comp[0, e]
-        * m.fs.scrub_sx.aqueous_outlet.flow_vol[0]
-    )
-    stripping_inlet = (
-        m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, e]
-        * m.fs.aq_inter_mixer[1].sx.flow_vol[0]
-    )
-    stripping_outlet = (
-        m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, e]
-        * m.fs.strip_sx[strip_stages].aqueous_outlet.flow_vol[0]
-    )
-    load_inlet = (
-        m.fs.aq_feed_neutral.inlet.flow_vol[0]
-        * m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, e]
-    )
-    return m.percentage_recovery[e] == (stripping_outlet - stripping_inlet) / load_inlet
-
-
-m.tree_recovery = Var(initialize=0.3, bounds=(0, 1))
-
-
-@m.Constraint()
-def tree_recovery_constraint(m):
-
-    scrubbing_inlet = (
-        sum(m.fs.scrub_sx.aqueous_inlet.conc_mass_comp[0, e] for e in REE_list)
-        * m.fs.scrub_sx.aqueous_inlet.flow_vol[0]
-    )
-    scrubbing_outlet = (
-        sum(m.fs.scrub_sx.aqueous_outlet.conc_mass_comp[0, e] for e in REE_list)
-        * m.fs.scrub_sx.aqueous_outlet.flow_vol[0]
-    )
-
-    stripping_inlet = (
-        sum(m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, e] for e in REE_list)
-        * m.fs.aq_inter_mixer[1].sx.flow_vol[0]
-    )
-    stripping_outlet = (
-        sum(
-            m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, e]
-            for e in REE_list
-        )
-        * m.fs.strip_sx[strip_stages].aqueous_outlet.flow_vol[0]
-    )
-
-    load_inlet = m.fs.aq_feed_neutral.inlet.flow_vol[0] * sum(
-        m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, e] for e in REE_list
-    )
-
-    # return (
-    #     m.tree_recovery
-    #     == (scrubbing_outlet - scrubbing_inlet + stripping_outlet - stripping_inlet)
-    #     / load_inlet
-    # )
-
-    return m.tree_recovery == (stripping_outlet - stripping_inlet) / load_inlet
-
-
-# @m.Constraint()
-# def tree_recovery_constraint(m):
-#     load_inlet = m.fs.aq_feed_neutral.inlet.flow_vol[0] * sum(m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, e] for e in REE_list)
-#     load_outlet = m.fs.load_sx[loading_stages].aqueous_outlet.flow_vol[0] * sum(m.fs.load_sx[loading_stages].aqueous_outlet.conc_mass_comp[0, e] for e in REE_list)
-#     return m.tree_recovery == (1-load_outlet/load_inlet)*100
-
-# @m.Objective(sense=maximize)
-# def objective_function(m):
-#     return m.tree_recovery
-
-
-# set upper bounds to decision variables
-# m.fs.aq_feed_neutral.base_concentration.setlb(0.01)
-m.fs.aq_feed_neutral.base_concentration.setub(7)
-m.fs.aq_feed_neutral.base_concentration.setlb(1)
-m.fs.aq_feed_neutral.base_flowrate.setub(5)
-m.fs.aq_feed_neutral.base_flowrate.setlb(0.1)
-# m.fs.aq_feed_neutral.base_flowrate.fix(2)
-
-for i in strip_stage_list:
-    m.fs.aq_inter_mixer[i].feed.conc_mass_comp[0, "H"].setub(2 * units.gram / units.L)
-    m.fs.aq_inter_mixer[i].feed.conc_mass_comp[0, "H"].setlb(
-        1e-3 * units.gram / units.L
-    )
-
-m.product_distribution = Var(REE_list, initialize=0.12, bounds=(0, 1))
-
-
-@m.Constraint(REE_list)
-def product_distribution_constraint(m, e):
-    return m.product_distribution[e] == (
-        m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, e]
-        / sum(
-            m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, s]
-            for s in REE_list
-        )
-    )
-
-
-m.R_I_dist = Var(["ree", "Al", "Ca", "Fe", "Sc"], bounds=(0, 1), initialize=0.5)
-
-
-@m.Constraint()
-def ree_composition(m):
-    return m.R_I_dist["ree"] == sum(
-        m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, e]
-        for e in REE_list
-    ) / sum(
-        m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, e]
-        for e in m.fs.leach_soln.component_list
-        if e not in ["H2O", "H", "SO4", "HSO4", "Cl"]
-    )
-
-
-@m.Constraint(["Al", "Ca", "Fe", "Sc"])
-def impurity_composition(m, e):
-    return m.R_I_dist[e] == m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[
-        0, e
-    ] / sum(
-        m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, e]
-        for e in m.fs.leach_soln.component_list
-        if e not in ["H2O", "H", "SO4", "HSO4", "Cl"]
-    )
-
-
-# @m.Constraint()
-# def production_constraint(m):
-#     return m.R_I_dist["Al"] + m.R_I_dist["Fe"] <= 0.6
-
-
-# m.Y_Ce_combo = Var(initialize=0.5, bounds=(0, 1))
-
-
-# @m.Constraint()
-# def Y_Ce_constraint(m):
-#     return m.Y_Ce_combo == (
-#         sum(
-#             m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, e]
-#             for e in ["Y", "Ce"]
+# # set_scaling_factor(m.fs.aq_inter_mixer[1].feed_state[0.0].pH_constraint['liquid'], 1e3)
+# for s in strip_stage_list:
+#     if s != 2:
+#         set_scaling_factor(
+#             m.fs.aq_inter_mixer[s].feed_state[0.0].pH_constraint["liquid"], 1e3
 #         )
-#         * m.fs.strip_sx[strip_stages].aqueous_outlet.flow_vol[0]
-#         - sum(m.fs.aq_inter_mixer[2].sx.conc_mass_comp[0, e] for e in ["Y", "Ce"])
-#         * m.fs.aq_inter_mixer[2].sx.flow_vol[0]
-#     ) / (
-#         m.fs.aq_feed_neutral.inlet.flow_vol[0]
-#         * sum(m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, e] for e in ["Y", "Ce"])
+#     else:
+#         set_scaling_factor(
+#             m.fs.aq_inter_mixer[s].sx_state[0.0].pH_constraint["liquid"], 1e3
+#         )
+#     for e in REE_list:
+#         set_scaling_factor(
+#             m.fs.strip_sx[s].mixer[1].unit.distribution_extent_constraint[0, 1, e], 1
+#         )
+#     set_scaling_factor(
+#         m.fs.strip_sx[s].mixer[1].unit.distribution_extent_constraint[0, 1, "Fe"], 1
 #     )
+#     set_scaling_factor(
+#         m.fs.strip_sx[s].mixer[1].unit.distribution_extent_constraint[0, 1, "Al"], 1
+#     )
+# for s in load_stage_list:
+#     for e in REE_list:
+#         set_scaling_factor(
+#             m.fs.load_sx[s].mixer[1].unit.distribution_extent_constraint[0, 1, e], 1
+#         )
 
 
-# m.percentage_recovery["Gd"].setub(30)
-# m.R_I_dist["Al"].setub(0.6)
-
-
-@m.Objective(sense=maximize)
-def objective_function(m):
-    return m.tree_recovery
-    # return m.tree_recovery + 1e-3 * (0.6 - m.R_I_dist["Al"] - m.R_I_dist["Fe"])
-    # return m.percentage_recovery["Gd"] + 0.03 * (
-    #     10 - m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, "Y"]
-    # )
-    # return m.percentage_recovery["Gd"] + 40 * (0.12 - m.product_distribution["Ce"])
-    # return m.percentage_recovery["Y"] + 1.2e-2 * (0.13 - m.product_distribution["Ce"])
-    # return m.Y_Ce_combo
-    # return m.R_I_dist["Al"] + m.R_I_dist["Fe"]
-
-
-m.scaling_factor = Suffix(direction=Suffix.EXPORT)
-
-# set_scaling_factor(m.fs.aq_inter_mixer[1].feed_state[0.0].pH_constraint['liquid'], 1e3)
-for s in strip_stage_list:
-    if s != 2:
-        set_scaling_factor(
-            m.fs.aq_inter_mixer[s].feed_state[0.0].pH_constraint["liquid"], 1e3
-        )
-    else:
-        set_scaling_factor(
-            m.fs.aq_inter_mixer[s].sx_state[0.0].pH_constraint["liquid"], 1e3
-        )
-    for e in REE_list:
-        set_scaling_factor(
-            m.fs.strip_sx[s].mixer[1].unit.distribution_extent_constraint[0, 1, e], 1
-        )
-    set_scaling_factor(
-        m.fs.strip_sx[s].mixer[1].unit.distribution_extent_constraint[0, 1, "Fe"], 1
-    )
-    set_scaling_factor(
-        m.fs.strip_sx[s].mixer[1].unit.distribution_extent_constraint[0, 1, "Al"], 1
-    )
-for s in load_stage_list:
-    for e in REE_list:
-        set_scaling_factor(
-            m.fs.load_sx[s].mixer[1].unit.distribution_extent_constraint[0, 1, e], 1
-        )
-
-
-scaling = TransformationFactory("core.scale_model")
-scaled_model = scaling.create_using(m, rename=False)
+# scaling = TransformationFactory("core.scale_model")
+# scaled_model = scaling.create_using(m, rename=False)
 
 print(degrees_of_freedom(m))
 
+# assert 1 == 2
+seq = SequentialDecomposition()
+seq.options.select_tear_method = "heuristic"
+seq.options.tear_method = "Wegstein"
+seq.options.iterLim = 3
+
+# Using the SD tool
+G = seq.create_graph(m)
+heuristic_tear_set = seq.tear_set_arcs(G, method="heuristic")
+order = seq.calculation_order(G)
+
+for o in heuristic_tear_set:
+    print(o.name)
+
+# seq = SequentialDecomposition()
+# seq.options.tear_method = "Direct"
+# seq.options.tear_solver = "ipopt_v2"
+# seq.options.iterLim = 1
+# seq.options.tear_set = [
+#     m.load_aq_sx_1_to_2,
+#     m.load_aq_sx_2_to_3,
+#     m.load_aq_sx_3_to_4,
+#     m.strip_aq_sx_1_to_strip_aq_inter_2,
+#     m.strip_aq_sx_2_to_strip_aq_inter_3,
+# ]
+
+# assert 1 == 2
+tear_guesses1 = {
+    "flow_vol": {0: 62.01},
+    "conc_mass_comp": {
+        (0, "Al"): 157.27,
+        (0, "Ca"): 25.78,
+        (0, "Ce"): 5,
+        (0, "Cl"): 1e-7,
+        (0, "Dy"): 0.09,
+        (0, "Fe"): 138.27,
+        (0, "Gd"): 0.56,
+        (0, "H"): 10 ** (3 - 0.6),
+        (0, "H2O"): 1000000,
+        (0, "HSO4"): 1e-4,
+        (0, "La"): 2.09,
+        (0, "Nd"): 2.1,
+        (0, "Pr"): 0.73,
+        (0, "SO4"): 10 ** (3 - 0.6) * 48,
+        (0, "Sc"): 0.277,
+        (0, "Sm"): 0.236,
+        (0, "Y"): 0.346,
+    },
+}
+
+tear_guesses2 = {
+    "flow_vol": {0: 62.01},
+    "conc_mass_comp": {
+        (0, "Al"): 1e-4,
+        (0, "Ca"): 1e-4,
+        (0, "Ce"): 1e-4,
+        (0, "Cl"): 1e-4,
+        (0, "Dy"): 1e-4,
+        (0, "Fe"): 1e-4,
+        (0, "Gd"): 0.56,
+        (0, "H"): 1000,
+        (0, "H2O"): 1000000,
+        (0, "HSO4"): 1e-4,
+        (0, "La"): 1e-4,
+        (0, "Nd"): 1e-4,
+        (0, "Pr"): 1e-4,
+        (0, "SO4"): 1e-4,
+        (0, "Sc"): 1e-4,
+        (0, "Sm"): 1e-4,
+        (0, "Y"): 1e-4,
+    },
+}
+
+seq.set_guesses_for(m.fs.load_sx[2].aqueous_inlet, tear_guesses1)
+seq.set_guesses_for(m.fs.load_sx[3].aqueous_inlet, tear_guesses1)
+seq.set_guesses_for(m.fs.load_sx[4].aqueous_inlet, tear_guesses1)
+seq.set_guesses_for(m.fs.aq_inter_mixer[2].sx, tear_guesses2)
+seq.set_guesses_for(m.fs.aq_inter_mixer[3].sx, tear_guesses2)
+
+sx_initializer = MixerSettlerExtractionInitializer()
+load_sx_units = [m.fs.load_sx[s] for s in load_stage_list]
+scrub_sx_units = m.fs.scrub_sx
+strip_sx_units = [m.fs.strip_sx[s] for s in strip_stage_list]
+
+mixer_initializer = MixerInitializer()
+load_interstage_mixer = [m.fs.org_inter_mixer[s] for s in load_interstage_list]
+strip_interstage_mixer = [m.fs.aq_inter_mixer[s] for s in strip_stage_list]
+
+tank_initializer = BlockTriangularizationInitializer()
+neutral_tank = m.fs.aq_feed_neutral
+
+
+def function(unit):
+    if unit in load_sx_units:
+        print(degrees_of_freedom(unit))
+        print(f"Initializing {unit}")
+        sx_initializer.initialize(unit)
+    elif unit in scrub_sx_units:
+        print(f"Initializing {unit}")
+        sx_initializer.initialize(unit)
+    elif unit in strip_sx_units:
+        print(f"Initializing {unit}")
+        sx_initializer.initialize(unit)
+    elif unit in load_interstage_mixer:
+        print(degrees_of_freedom(unit))
+        print(f"Initializing {unit}")
+        mixer_initializer.initialize(unit)
+    elif unit in strip_interstage_mixer:
+        print(degrees_of_freedom(unit))
+        print(f"Initializing {unit}")
+        mixer_initializer.initialize(unit)
+    elif unit == neutral_tank:
+        print(f"Initializing {unit}")
+        tank_initializer.initialize(unit)
+
+
+seq.run(m, function)
+
 solver = get_solver("ipopt_v2")
-solver.options["max_iter"] = 20000
+solver.options["max_iter"] = 2000
 # solver.options["halt_on_ampl_error"] = "yes"
 # solver.options["nlp_scaling_method"] = "user-scaling"
-solver.solve(scaled_model, tee=True)
-# solver.solve(m, tee=True)
-
-scaling.propagate_solution(scaled_model, m)
-
-decision_vars = {
-    "Neutralization tank base flowrate": value(m.fs.aq_feed_neutral.base_flowrate[0]),
-    "Neutralization tank base concentration": value(
-        m.fs.aq_feed_neutral.base_concentration[0]
-    ),
-    "Organic interstage mixer dosages": [
-        value(m.fs.org_inter_mixer[i].feed.conc_mass_comp[0, "DEHPA"]) / 9758
-        for i in range(1, loading_stages)
-    ],
-    "Aqueous interstage mixer acidities": [
-        value(m.fs.aq_inter_mixer[i].feed.conc_mass_comp[0, "H"])
-        for i in range(1, strip_stages + 1)
-    ],
-}
+solver.solve(m, tee=True)

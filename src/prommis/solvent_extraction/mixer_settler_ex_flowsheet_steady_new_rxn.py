@@ -119,6 +119,10 @@ def set_inputs(m, dosage):
     m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Gd_o"].fix(3.357e-5)
     m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[0, "Dy_o"].fix(8.008e-6)
 
+    m.fs.mixer_settler_ex.mixer[:].unit.mscontactor.heterogeneous_reactions[
+        0.0, 1
+    ].ascorbic_dosage.fix(0)
+
     m.fs.mixer_settler_ex.organic_inlet.flow_vol.fix(62.01)
 
     m.fs.mixer_settler_ex.mixer[:].unit.mscontactor.aqueous[:, :].temperature.fix(
@@ -205,7 +209,7 @@ def main(dosage, number_of_stages):
     m = model_buildup_and_set_inputs(dosage, number_of_stages)
     initialize_steady_model(m)
     results = solve_model(m)
-    export_results(m)
+    # export_results(m)
 
     return m, results
 
