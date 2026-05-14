@@ -324,20 +324,24 @@ m.tree_recovery = Var(initialize=1, bounds=(0, 100))
 
 @m.Constraint()
 def tree_recovery_constraint(m):
-    return m.tree_recovery == (
-        (
-            sum(
-                m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, e]
-                for e in REE_list
+    return (
+        m.tree_recovery
+        == (
+            (
+                sum(
+                    m.fs.strip_sx[strip_stages].aqueous_outlet.conc_mass_comp[0, e]
+                    for e in REE_list
+                )
+                * m.fs.strip_sx[strip_stages].aqueous_outlet.flow_vol[0]
+                - sum(m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, e] for e in REE_list)
+                * m.fs.aq_inter_mixer[1].sx.flow_vol[0]
             )
-            * m.fs.strip_sx[strip_stages].aqueous_outlet.flow_vol[0]
-            - sum(m.fs.aq_inter_mixer[1].sx.conc_mass_comp[0, e] for e in REE_list)
-            * m.fs.aq_inter_mixer[1].sx.flow_vol[0]
+            / (
+                m.fs.aq_feed_neutral.inlet.flow_vol[0]
+                * sum(m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, e] for e in REE_list)
+            )
         )
-        / (
-            m.fs.aq_feed_neutral.inlet.flow_vol[0]
-            * sum(m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, e] for e in REE_list)
-        )
+        * 100
     )
 
 
@@ -348,6 +352,10 @@ def tree_recovery_constraint(m):
 
 # set upper bounds to decision variables
 m.fs.aq_feed_neutral.base_concentration.setlb(0.01)
+m.fs.aq_feed_neutral.base_concentration.setub(5)
+m.fs.load_sx[4].mixer[1].unit.mscontactor.heterogeneous_reactions[
+    0.0, 1
+].ascorbic_dosage.setlb(1e-5)
 
 # for i in strip_stage_list:
 #     m.fs.aq_inter_mixer[i].feed.conc_mass_comp[0, "H"].setub(2 * units.gram / units.L)
@@ -477,6 +485,6 @@ def objective_function(m):
 print(degrees_of_freedom(m))
 
 solver = get_solver("ipopt_v2")
-solver.options["max_iter"] = 30000
+solver.options["max_iter"] = 3000
 # solver.options["halt_on_ampl_error"] = "yes"
 solver.solve(m, tee=True)

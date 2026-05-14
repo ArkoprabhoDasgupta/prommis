@@ -19,10 +19,11 @@ from idaes.core.solvers import get_solver
 
 
 from prommis.leaching.leach_solution_properties import LeachSolutionParameters
-from prommis.solvent_extraction.ree_og_distribution import REESolExOgParameters
+from prommis.solvent_extraction.ree_og_distribution_new import REESolExOgParameters
 from prommis.solvent_extraction.solvent_extraction import SolventExtraction
+from idaes.core.util import to_json
 
-from prommis.solvent_extraction.solvent_extraction_reaction_package import (
+from prommis.solvent_extraction.solvent_extraction_reaction_package_new_modified import (
     SolventExtractionReactions,
 )
 
@@ -193,3 +194,4 @@ number_of_stages = 3
 
 if __name__ == "__main__":
     m, results = main(dosage, number_of_stages)
+    to_json(m, fname="solvent_extraction.json", human_read=True)

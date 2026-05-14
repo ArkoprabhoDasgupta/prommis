@@ -17,11 +17,11 @@ from idaes.core.util import to_json
 from idaes.core.solvers import get_solver
 
 from prommis.leaching.leach_solution_properties import LeachSolutionParameters
-from prommis.solvent_extraction.ree_og_distribution import REESolExOgParameters
+from prommis.solvent_extraction.ree_og_distribution_new import REESolExOgParameters
 from prommis.solvent_extraction.mixer_settler_extraction import (
     MixerSettlerExtraction,
 )
-from prommis.solvent_extraction.solvent_extraction_reaction_package import (
+from prommis.solvent_extraction.solvent_extraction_reaction_package_new_modified import (
     SolventExtractionReactions,
 )
 
@@ -135,6 +135,14 @@ def set_inputs(m, dosage):
     m.fs.mixer_settler_ex.aqueous_settler[:].unit.length.fix(1)
     m.fs.mixer_settler_ex.organic_settler[:].unit.length.fix(1)
 
+    for e in ["Al", "Ca", "Fe", "Sc"]:
+        m.fs.mixer_settler_ex.mixer[:].unit.mscontactor.heterogeneous_reaction_extent[
+            0.0, 1, f"{e}_mass_transfer"
+        ].fix(0)
+        m.fs.mixer_settler_ex.mixer[:].unit.distribution_extent_constraint[
+            0, 1, e
+        ].deactivate()
+
 
 def model_buildup_and_set_inputs(dosage, number_of_stages):
     """
@@ -215,3 +223,27 @@ number_of_stages = 3
 
 if __name__ == "__main__":
     m, results = main(dosage, number_of_stages)
+    percentage_recovery = {}
+    for e in m.fs.leach_soln.component_list:
+        if e not in ["H2O", "H", "SO4", "HSO4", "Cl"]:
+            percentage_recovery[e] = [
+                (
+                    (
+                        m.fs.mixer_settler_ex.organic_outlet.conc_mass_comp[
+                            t, f"{e}_o"
+                        ]()
+                        * m.fs.mixer_settler_ex.organic_outlet.flow_vol[t]()
+                        - m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[
+                            t, f"{e}_o"
+                        ]()
+                        * m.fs.mixer_settler_ex.organic_inlet.flow_vol[t]()
+                    )
+                    / (
+                        m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, e]()
+                        * m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t]()
+                    )
+                )
+                * 100
+                for t in m.fs.time
+            ]
+    print(percentage_recovery)

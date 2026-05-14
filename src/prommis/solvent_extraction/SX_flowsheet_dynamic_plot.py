@@ -25,9 +25,7 @@ from idaes.core.solvers import get_solver
 
 from prommis.leaching.leach_solution_properties import LeachSolutionParameters
 from prommis.solvent_extraction.ree_og_distribution_new import REESolExOgParameters
-from prommis.solvent_extraction.mixer_settler_extraction import (
-    MixerSettlerExtraction,
-)
+from prommis.solvent_extraction.solvent_extraction import SolventExtraction
 from prommis.solvent_extraction.solvent_extraction_reaction_package_new_modified import (
     SolventExtractionReactions,
 )
@@ -57,8 +55,8 @@ def build_model(dosage, number_of_stages, time_duration):
 
     m.fs.reaxn.extractant_dosage = dosage
 
-    m.fs.mixer_settler_ex = MixerSettlerExtraction(
-        number_of_stages=number_of_stages,
+    m.fs.solex = SolventExtraction(
+        number_of_finite_elements=number_of_stages,
         aqueous_stream={
             "property_package": m.fs.leach_soln,
             "flow_direction": FlowDirection.forward,
@@ -73,9 +71,6 @@ def build_model(dosage, number_of_stages, time_duration):
         },
         heterogeneous_reaction_package=m.fs.reaxn,
         has_holdup=True,
-        settler_transformation_method="dae.finite_difference",
-        settler_transformation_scheme="BACKWARD",
-        settler_finite_elements=4,
     )
 
     return m
@@ -130,91 +125,75 @@ def set_inputs(m, dosage, perturb_time):
 
     """
 
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "H2O"].fix(1e6)
-    # m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "H"].fix(10.75)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "SO4"].fix(100)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "HSO4"].fix(1e4)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "Al"].fix(422.375)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "Ca"].fix(109.542)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "Cl"].fix(1e-7)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "Fe"].fix(688.266)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "Sc"].fix(0.032)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "Y"].fix(0.124)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "La"].fix(0.986)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "Ce"].fix(2.277)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "Pr"].fix(0.303)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "Nd"].fix(0.946)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "Sm"].fix(0.097)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "Gd"].fix(0.2584)
-    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "Dy"].fix(0.047)
+    m.fs.solex.aqueous_inlet.conc_mass_comp[:, "H2O"].fix(1e6)
+    # m.fs.solex.aqueous_inlet.conc_mass_comp[:, "H"].fix(10.75)
+    m.fs.solex.aqueous_inlet.conc_mass_comp[:, "SO4"].fix(100)
+    m.fs.solex.aqueous_inlet.conc_mass_comp[:, "HSO4"].fix(1e4)
+    m.fs.solex.aqueous_inlet.conc_mass_comp[:, "Al"].fix(422.375)
+    m.fs.solex.aqueous_inlet.conc_mass_comp[:, "Ca"].fix(109.542)
+    m.fs.solex.aqueous_inlet.conc_mass_comp[:, "Cl"].fix(1e-7)
+    m.fs.solex.aqueous_inlet.conc_mass_comp[:, "Fe"].fix(688.266)
+    m.fs.solex.aqueous_inlet.conc_mass_comp[:, "Sc"].fix(0.032)
+    m.fs.solex.aqueous_inlet.conc_mass_comp[:, "Y"].fix(0.124)
+    m.fs.solex.aqueous_inlet.conc_mass_comp[:, "La"].fix(0.986)
+    m.fs.solex.aqueous_inlet.conc_mass_comp[:, "Ce"].fix(2.277)
+    m.fs.solex.aqueous_inlet.conc_mass_comp[:, "Pr"].fix(0.303)
+    m.fs.solex.aqueous_inlet.conc_mass_comp[:, "Nd"].fix(0.946)
+    m.fs.solex.aqueous_inlet.conc_mass_comp[:, "Sm"].fix(0.097)
+    m.fs.solex.aqueous_inlet.conc_mass_comp[:, "Gd"].fix(0.2584)
+    m.fs.solex.aqueous_inlet.conc_mass_comp[:, "Dy"].fix(0.047)
 
     for t in m.fs.time:
         if t <= perturb_time:
-            m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t].fix(62.01)
+            m.fs.solex.aqueous_inlet.flow_vol[t].fix(62.01)
         else:
-            m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t].fix(68.01)
-            # m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t].fix(62.01)
+            # m.fs.solex.aqueous_inlet.flow_vol[t].fix(68.01)
+            m.fs.solex.aqueous_inlet.flow_vol[t].fix(62.01)
         if t <= perturb_time:
-            m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "Gd"].fix(0.2584)
-        else:
-            # m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "Gd"].fix(0.2584)
-            m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "Gd"].fix(0.2584)
-        if t <= perturb_time * 3:
-            m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"].fix(10.75)
+            m.fs.solex.aqueous_inlet.conc_mass_comp[t, "H"].fix(10.75)
         # elif perturb_time <= t < perturb_time * 2:
-        #     m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"].fix(8.75)
+        #     m.fs.solex.aqueous_inlet.conc_mass_comp[t, "H"].fix(8.75)
         else:
-            m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"].fix(6.75)
-            # m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"].fix(10.75)
+            m.fs.solex.aqueous_inlet.conc_mass_comp[t, "H"].fix(5.75)
+            # m.fs.solex.aqueous_inlet.conc_mass_comp[t, "H"].fix(10.75)
 
-    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "Kerosene"].fix(820e3)
-    # m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "DEHPA"].fix(
+    m.fs.solex.organic_inlet.conc_mass_comp[:, "Kerosene"].fix(820e3)
+    # m.fs.solex.organic_inlet.conc_mass_comp[:, "DEHPA"].fix(
     #     975.8e3 * dosage / 100
     # )
     for t in m.fs.time:
         if t <= perturb_time * 3:
-            m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[t, "DEHPA"].fix(
+            m.fs.solex.organic_inlet.conc_mass_comp[t, "DEHPA"].fix(
                 975.8e3 * dosage / 100
             )
         else:
-            m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[t, "DEHPA"].fix(
+            # m.fs.solex.organic_inlet.conc_mass_comp[t, "DEHPA"].fix(
+            #     975.8e3 * dosage * 1.4 / 100
+            # )
+            m.fs.solex.organic_inlet.conc_mass_comp[t, "DEHPA"].fix(
                 975.8e3 * dosage / 100
             )
-            # m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[t, "DEHPA"].fix(
-            #     975.8e3 * dosage / 100
-            # )
-    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "Al_o"].fix(1.267e-5)
-    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "Ca_o"].fix(2.684e-5)
-    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "Fe_o"].fix(2.873e-6)
-    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "Sc_o"].fix(1.734)
-    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "Y_o"].fix(2.179e-5)
-    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "La_o"].fix(0.000105)
-    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "Ce_o"].fix(0.00031)
-    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "Pr_o"].fix(3.711e-5)
-    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "Nd_o"].fix(0.000165)
-    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "Sm_o"].fix(1.701e-5)
-    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "Gd_o"].fix(3.357e-5)
-    m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[:, "Dy_o"].fix(8.008e-6)
+    m.fs.solex.organic_inlet.conc_mass_comp[:, "Al_o"].fix(1.267e-5)
+    m.fs.solex.organic_inlet.conc_mass_comp[:, "Ca_o"].fix(2.684e-5)
+    m.fs.solex.organic_inlet.conc_mass_comp[:, "Fe_o"].fix(2.873e-6)
+    m.fs.solex.organic_inlet.conc_mass_comp[:, "Sc_o"].fix(1.734)
+    m.fs.solex.organic_inlet.conc_mass_comp[:, "Y_o"].fix(2.179e-5)
+    m.fs.solex.organic_inlet.conc_mass_comp[:, "La_o"].fix(0.000105)
+    m.fs.solex.organic_inlet.conc_mass_comp[:, "Ce_o"].fix(0.00031)
+    m.fs.solex.organic_inlet.conc_mass_comp[:, "Pr_o"].fix(3.711e-5)
+    m.fs.solex.organic_inlet.conc_mass_comp[:, "Nd_o"].fix(0.000165)
+    m.fs.solex.organic_inlet.conc_mass_comp[:, "Sm_o"].fix(1.701e-5)
+    m.fs.solex.organic_inlet.conc_mass_comp[:, "Gd_o"].fix(3.357e-5)
+    m.fs.solex.organic_inlet.conc_mass_comp[:, "Dy_o"].fix(8.008e-6)
 
-    m.fs.mixer_settler_ex.organic_inlet.flow_vol.fix(62.01)
+    m.fs.solex.organic_inlet.flow_vol.fix(62.01)
 
     # Fixing mixer parameters
 
-    m.fs.mixer_settler_ex.mixer[:].unit.mscontactor.volume[:].fix(0.4 * units.m**3)
+    m.fs.solex.mscontactor.volume[:].fix(0.4 * units.m**3)
 
-    m.fs.mixer_settler_ex.mixer[:].unit.mscontactor.aqueous[:, :].temperature.fix(
-        305.15 * units.K
-    )
-    m.fs.mixer_settler_ex.mixer[:].unit.mscontactor.organic[:, :].temperature.fix(
-        305.15 * units.K
-    )
-
-    # Fixing settler parameters
-
-    m.fs.mixer_settler_ex.organic_settler[:].unit.area.fix(1)
-    m.fs.mixer_settler_ex.aqueous_settler[:].unit.area.fix(1)
-    m.fs.mixer_settler_ex.aqueous_settler[:].unit.length.fix(0.1)
-    m.fs.mixer_settler_ex.organic_settler[:].unit.length.fix(0.1)
+    m.fs.solex.mscontactor.aqueous[:, :].temperature.fix(305.15 * units.K)
+    m.fs.solex.mscontactor.organic[:, :].temperature.fix(305.15 * units.K)
 
 
 def set_initial_conditions(m):
@@ -229,72 +208,22 @@ def set_initial_conditions(m):
 
     for e in m.fs.leach_soln.component_list:
         if e not in ["H2O", "HSO4"]:
-            m.fs.mixer_settler_ex.mixer[:].unit.mscontactor.aqueous[
-                0, :
-            ].conc_mass_comp[e].fix()
+            m.fs.solex.mscontactor.aqueous[0, :].conc_mass_comp[e].fix()
 
-    m.fs.mixer_settler_ex.mixer[:].unit.mscontactor.volume_frac_stream[
-        0, :, "aqueous"
-    ].fix()
-    m.fs.mixer_settler_ex.mixer[:].unit.mscontactor.aqueous[0, :].flow_vol.fix()
+    m.fs.solex.mscontactor.volume_frac_stream[0, :, "aqueous"].fix()
+    m.fs.solex.mscontactor.aqueous[0, :].flow_vol.fix()
 
-    m.fs.mixer_settler_ex.mixer[:].unit.mscontactor.aqueous_inherent_reaction_extent[
-        0.0, :, "Ka2"
-    ].fix()
+    m.fs.solex.mscontactor.aqueous_inherent_reaction_extent[0.0, :, "Ka2"].fix()
 
-    m.fs.mixer_settler_ex.mixer[:].unit.mscontactor.organic[0, :].flow_vol.fix()
-    m.fs.mixer_settler_ex.mixer[:].unit.mscontactor.organic[0, :].conc_mass_comp[
-        "DEHPA"
-    ].fix()
+    m.fs.solex.mscontactor.organic[0, :].flow_vol.fix()
+    m.fs.solex.mscontactor.organic[0, :].conc_mass_comp["DEHPA"].fix()
 
     for e in m.fs.reaxn.element_list:
-        m.fs.mixer_settler_ex.mixer[:].unit.mscontactor.heterogeneous_reaction_extent[
+        m.fs.solex.mscontactor.heterogeneous_reaction_extent[
             0.0, :, f"{e}_mass_transfer"
         ].fix()
 
-    for e in ["Al", "Ca", "Fe", "Sc"]:
-        for s in m.fs.mixer_settler_ex.elements:
-            m.fs.mixer_settler_ex.mixer[
-                s
-            ].unit.mscontactor.heterogeneous_reaction_extent[
-                :, :, f"{e}_mass_transfer"
-            ].fix(
-                0
-            )
-            m.fs.mixer_settler_ex.mixer[s].unit.mscontactor.organic[
-                0.0, 1
-            ].conc_mass_comp[f"{e}_o"].fix()
-            m.fs.mixer_settler_ex.mixer[s].unit.distribution_extent_constraint[
-                :, :, e
-            ].deactivate()
-
     # set variable values in the settler at t=0
-
-    for s in m.fs.mixer_settler_ex.elements:
-        for x in m.fs.mixer_settler_ex.aqueous_settler[s].unit.length_domain:
-            if x != 0:
-                for e in m.fs.leach_soln.component_list:
-                    if e not in ["H2O", "HSO4"]:
-                        m.fs.mixer_settler_ex.aqueous_settler[s].unit.properties[
-                            0, x
-                        ].conc_mass_comp[e].fix()
-                m.fs.mixer_settler_ex.aqueous_settler[s].unit.properties[
-                    0, x
-                ].flow_vol.fix()
-                m.fs.mixer_settler_ex.aqueous_settler[s].unit.inherent_reaction_extent[
-                    0, x, "Ka2"
-                ].fix()
-
-        for x in m.fs.mixer_settler_ex.organic_settler[s].unit.length_domain:
-            if x != 0:
-                for e in m.fs.prop_o.component_list:
-                    if e not in ["Kerosene"]:
-                        m.fs.mixer_settler_ex.organic_settler[s].unit.properties[
-                            0, x
-                        ].conc_mass_comp[e].fix()
-                m.fs.mixer_settler_ex.organic_settler[s].unit.properties[
-                    0, x
-                ].flow_vol.fix()
 
 
 def build_model_and_discretize(dosage, number_of_stages, time_duration):
@@ -321,12 +250,12 @@ def build_model_and_discretize(dosage, number_of_stages, time_duration):
     #         == (
     #             1
     #             - (
-    #                 m.fs.mixer_settler_ex.aqueous_outlet.conc_mass_comp[t, "Y"]
-    #                 * m.fs.mixer_settler_ex.aqueous_outlet.flow_vol[t]
+    #                 m.fs.solex.aqueous_outlet.conc_mass_comp[t, "Y"]
+    #                 * m.fs.solex.aqueous_outlet.flow_vol[t]
     #             )
     #             / (
-    #                 m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "Y"]
-    #                 * m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t]
+    #                 m.fs.solex.aqueous_inlet.conc_mass_comp[t, "Y"]
+    #                 * m.fs.solex.aqueous_inlet.flow_vol[t]
     #             )
     #         )
     #         * 100
@@ -344,12 +273,12 @@ def build_model_and_discretize(dosage, number_of_stages, time_duration):
     #             == (
     #                 1
     #                 - (
-    #                     m.fs.mixer_settler_ex.aqueous_outlet.conc_mass_comp[0, "Y"]
-    #                     * m.fs.mixer_settler_ex.aqueous_outlet.flow_vol[0]
+    #                     m.fs.solex.aqueous_outlet.conc_mass_comp[0, "Y"]
+    #                     * m.fs.solex.aqueous_outlet.flow_vol[0]
     #                 )
     #                 / (
-    #                     m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[0, "Y"]
-    #                     * m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[0]
+    #                     m.fs.solex.aqueous_inlet.conc_mass_comp[0, "Y"]
+    #                     * m.fs.solex.aqueous_inlet.flow_vol[0]
     #                 )
     #             )
     #             * 100
@@ -440,7 +369,7 @@ if __name__ == "__main__":
         number_of_stages,
         time_duration,
         perturb_time,
-        path_name="mixer_settler_extraction.json",
+        path_name="solvent_extraction.json",
     )
 
 percentage_recovery = {}
@@ -451,12 +380,12 @@ percentage_recovery = {}
 #             (
 #                 1
 #                 - (
-#                     m.fs.mixer_settler_ex.aqueous_outlet.conc_mass_comp[t, e]()
-#                     * m.fs.mixer_settler_ex.aqueous_outlet.flow_vol[t]()
+#                     m.fs.solex.aqueous_outlet.conc_mass_comp[t, e]()
+#                     * m.fs.solex.aqueous_outlet.flow_vol[t]()
 #                 )
 #                 / (
-#                     m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, e]()
-#                     * m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t]()
+#                     m.fs.solex.aqueous_inlet.conc_mass_comp[t, e]()
+#                     * m.fs.solex.aqueous_inlet.flow_vol[t]()
 #                 )
 #             )
 #             * 100
@@ -468,14 +397,14 @@ for e in m.fs.leach_soln.component_list:
         percentage_recovery[e] = [
             (
                 (
-                    m.fs.mixer_settler_ex.organic_outlet.conc_mass_comp[t, f"{e}_o"]()
-                    * m.fs.mixer_settler_ex.organic_outlet.flow_vol[t]()
-                    - m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[t, f"{e}_o"]()
-                    * m.fs.mixer_settler_ex.organic_inlet.flow_vol[t]()
+                    m.fs.solex.organic_outlet.conc_mass_comp[t, f"{e}_o"]()
+                    * m.fs.solex.organic_outlet.flow_vol[t]()
+                    - m.fs.solex.organic_inlet.conc_mass_comp[t, f"{e}_o"]()
+                    * m.fs.solex.organic_inlet.flow_vol[t]()
                 )
                 / (
-                    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, e]()
-                    * m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t]()
+                    m.fs.solex.aqueous_inlet.conc_mass_comp[t, e]()
+                    * m.fs.solex.aqueous_inlet.flow_vol[t]()
                 )
             )
             * 100
@@ -514,7 +443,7 @@ plt.rcParams.update(
 # for s in RangeSet(number_of_stages):
 #     plt.plot(
 #         m.fs.time,
-#         m.fs.mixer_settler_ex.mixer[s]
+#         m.fs.solex.mixer[s]
 #         .unit.mscontactor.organic[:, 1]
 #         .conc_mass_comp["Y_o"](),
 #     )
@@ -527,7 +456,7 @@ plt.rcParams.update(
 # ax[0].step(
 #     m.fs.time,
 #     [
-#         -log10(m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"]() / 1000)
+#         -log10(m.fs.solex.aqueous_inlet.conc_mass_comp[t, "H"]() / 1000)
 #         for t in m.fs.time
 #     ],
 #     linewidth=3,
@@ -538,7 +467,7 @@ plt.rcParams.update(
 # ax[0].axvline(4, linestyle="--", color="green", linewidth=2)
 # ax[1].plot(
 #     m.fs.time,
-#     m.fs.mixer_settler_ex.organic_settler[1]
+#     m.fs.solex.organic_settler[1]
 #     .unit.properties[:, 1]
 #     .conc_mass_comp["Gd_o"](),
 #     linewidth=3,
@@ -549,7 +478,7 @@ plt.rcParams.update(
 # ax2 = ax[1].twinx()
 # ax2.plot(
 #     m.fs.time,
-#     m.fs.mixer_settler_ex.organic_settler[3]
+#     m.fs.solex.organic_settler[3]
 #     .unit.properties[:, 1]
 #     .conc_mass_comp["Gd_o"](),
 #     linewidth=3,
@@ -602,41 +531,22 @@ plt.rcParams.update(
 
 # plt.show()
 
-fig, ax = plt.subplots(1, 3, figsize=(15, 4), dpi=300)
+# fig, ax = plt.subplots(1, 3, figsize=(15, 4), dpi=300)
 
-fig.suptitle("Aqueous feed concentration perturbation effect on Gd")
+# fig.suptitle("Aqueous feed flowrate perturbation effect on Gd")
 # ax[0].step(
 #     m.fs.time,
-#     m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "Gd"](),
+#     m.fs.solex.aqueous_inlet.flow_vol[:](),
 #     linewidth=3,
 # )
 # ax[0].axvline(perturb_time, linestyle="--", color="green", linewidth=2)
 # ax[0].set_xlabel("Time, hrs")
-# ax[0].set_ylabel("Concentration, mg/L")
-# ax[0].set_ylim(0.25, 0.32)
-# ax[0].set_title("Aqueous feed concentration")
-ax[0].text(
-    perturb_time,
-    64,
-    " 1st change",
-    fontsize=12,
-    va="top",
-    ha="left",
-    color="black",
-)
-ax[0].step(
-    m.fs.time,
-    m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[:](),
-    linewidth=3,
-)
-ax[0].axvline(perturb_time, linestyle="--", color="green", linewidth=2)
-ax[0].set_xlabel("Time, hrs")
-ax[0].set_ylabel("Flowrate L/hr")
-ax[0].set_ylim(60, 70)
-ax[0].set_title("Aqueous feed flowrate")
+# ax[0].set_ylabel("Flowrate L/hr")
+# ax[0].set_ylim(60, 70)
+# ax[0].set_title("Aqueous feed flowrate")
 # ax[0].text(
 #     perturb_time,
-#     0.29,
+#     64,
 #     " 1st change",
 #     fontsize=12,
 #     va="top",
@@ -644,77 +554,69 @@ ax[0].set_title("Aqueous feed flowrate")
 #     color="black",
 # )
 
-
-ax[1].step(
-    m.fs.time,
-    [
-        -log10(m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"]() / 1000)
-        for t in m.fs.time
-    ],
-    linewidth=3,
-)
+# # ax[1].step(
+# #     m.fs.time,
+# #     [
+# #         -log10(m.fs.solex.aqueous_inlet.conc_mass_comp[t, "H"]() / 1000)
+# #         for t in m.fs.time
+# #     ],
+# #     linewidth=3,
+# # )
 # ax[1].step(
 #     m.fs.time,
 #     [
-#         m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[t, "DEHPA"]() * 100 / 975.8e3
+#         m.fs.solex.organic_inlet.conc_mass_comp[t, "DEHPA"]() * 100 / 975.8e3
 #         for t in m.fs.time
 #     ],
 #     linewidth=3,
 # )
-ax[1].set_xlabel("Time, hrs")
-ax[1].set_ylabel("pH")
+# ax[1].set_xlabel("Time, hrs")
+# # ax[1].set_ylabel("pH")
 # ax[1].set_ylabel("% v/v")
-# ax[1].set_ylim(4, 7)
-ax[1].set_ylim(1.9, 2.2)
-ax[1].set_title("Aqueous feed pH")
-ax[1].axvline(perturb_time * 3, linestyle="--", color="red", linewidth=2)
-ax[1].text(
-    perturb_time * 3,
-    2,
-    " 2nd change ",
-    fontsize=12,
-    va="top",
-    ha="left",
-    color="black",
-)
-ax[2].plot(m.fs.time, percentage_recovery["Gd"], linewidth=3)
-ax[2].axvline(perturb_time, linestyle="--", color="green", linewidth=2)
-ax[2].axvline(perturb_time * 3, linestyle="--", color="red", linewidth=2)
-ax[2].set_xlabel("Time, hrs")
-ax[2].set_ylabel("Gd Recovery %")
-ax[2].set_title("Gd Recovery % profile")
-ax[2].set_ylim(30, 35)
-ax[2].text(
-    perturb_time,
-    31,
-    " 1st change",
-    fontsize=12,
-    va="top",
-    ha="left",
-    color="black",
-)
-ax[2].text(
-    perturb_time * 3,
-    31,
-    " 2nd change ",
-    fontsize=12,
-    va="top",
-    ha="left",
-    color="black",
-)
-ax[0].set_axisbelow(True)  # Forces gridlines behind bars/plots
-ax[0].grid(True)
-ax[1].set_axisbelow(True)  # Forces gridlines behind bars/plots
-ax[1].grid(True)
-ax[2].set_axisbelow(True)  # Forces gridlines behind bars/plots
-ax[2].grid(True)
+# ax[1].set_ylim(4, 8)
+# ax[1].set_title("Extractant dosage")
+# ax[1].axvline(perturb_time * 3, linestyle="--", color="red", linewidth=2)
+# ax[1].text(
+#     perturb_time * 3,
+#     6,
+#     " 2nd change ",
+#     fontsize=12,
+#     va="top",
+#     ha="right",
+#     color="black",
+# )
+# ax[2].plot(m.fs.time, percentage_recovery["Gd"], linewidth=3)
+# ax[2].axvline(perturb_time, linestyle="--", color="green", linewidth=2)
+# ax[2].axvline(perturb_time * 3, linestyle="--", color="red", linewidth=2)
+# ax[2].set_xlabel("Time, hrs")
+# ax[2].set_ylabel("Gd Recovery %")
+# ax[2].set_title("Gd Recovery % profile")
+# ax[2].set_ylim(22, 25)
+# ax[2].text(
+#     perturb_time,
+#     22.5,
+#     " 1st change",
+#     fontsize=12,
+#     va="top",
+#     ha="left",
+#     color="black",
+# )
+# ax[2].text(
+#     perturb_time * 3,
+#     22.5,
+#     " 2nd change ",
+#     fontsize=12,
+#     va="top",
+#     ha="left",
+#     color="black",
+# )
 
-plt.tight_layout()
+# plt.tight_layout()
 
 # fig.suptitle("Aqueous feed flowrate perturbation effect on Gd")
 # ax[0].plot(
 #     m.fs.time,
-#     m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[:](),
+#     m.fs.solex.aqueous_inlet.flow_vol[:](),
 #     linewidth=3,
 # )
 # ax[0].axvline(4, linestyle="--", color="green", linewidth=2)
@@ -723,7 +625,7 @@ plt.tight_layout()
 # ax[0].set_title("Aqueous feed flowrate")
 # ax[1].plot(
 #     m.fs.time,
-#     m.fs.mixer_settler_ex.organic_settler[1]
+#     m.fs.solex.organic_settler[1]
 #     .unit.properties[:, 1]
 #     .conc_mass_comp["Gd_o"](),
 #     linewidth=3,
@@ -735,7 +637,7 @@ plt.tight_layout()
 # ax2 = ax[1].twinx()
 # ax2.plot(
 #     m.fs.time,
-#     m.fs.mixer_settler_ex.organic_settler[3]
+#     m.fs.solex.organic_settler[3]
 #     .unit.properties[:, 1]
 #     .conc_mass_comp["Gd_o"](),
 #     linewidth=3,
@@ -784,88 +686,84 @@ plt.tight_layout()
 # )
 
 
-# fig, ax = plt.subplots(1, 3, figsize=(18, 5), dpi=300)
+fig, ax = plt.subplots(1, 3, figsize=(18, 5), dpi=300)
 
-# fig.suptitle("pH perturbation effect on Gd")
-# ax[0].step(
-#     m.fs.time,
-#     [
-#         -log10(m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"]() / 1000)
-#         for t in m.fs.time
-#     ],
-#     linewidth=3,
-# )
-# ax[0].set_xlabel("Time, hrs")
-# ax[0].set_ylabel("pH")
-# ax[0].set_ylim(1.9, 2.3)
-# ax[0].set_title("Aqueous feed pH")
-# ax[0].axvline(4, linestyle="--", color="green", linewidth=2)
-# ax[1].plot(
-#     m.fs.time,
-#     m.fs.mixer_settler_ex.organic_settler[1]
-#     .unit.properties[:, 1]
-#     .conc_mass_comp["Gd_o"](),
-#     linewidth=3,
-#     label="stage 1",
-# )
-# ax[1].set_xlabel("Time, hrs")
-# ax[1].set_ylabel("Stage 1, Conc. (mg/L)")
-# ax2 = ax[1].twinx()
-# ax2.plot(
-#     m.fs.time,
-#     m.fs.mixer_settler_ex.organic_settler[3]
-#     .unit.properties[:, 1]
-#     .conc_mass_comp["Gd_o"](),
-#     linewidth=3,
-#     color="red",
-#     label="stage 3",
-# )
-# ax[1].axvline(4, linestyle="--", color="green", linewidth=2)
-# ax2.set_ylabel("Stage 3, Conc. (mg/L)")
-# ax[1].set_title("Organic settler outlet concentration profile")
-# ax[1].ticklabel_format(style="sci", axis="y", scilimits=(0, 0))
-# ax2.ticklabel_format(style="sci", axis="y", scilimits=(0, 0))
-# handles1, labels1 = ax[1].get_legend_handles_labels()
-# handles2, labels2 = ax2.get_legend_handles_labels()
-# all_handles = handles1 + handles2
-# all_labels = labels1 + labels2
-# ax[1].legend(all_handles, all_labels, loc="lower right")
-# ax[2].plot(m.fs.time, percentage_recovery["Gd"], linewidth=3)
-# ax[2].axvline(4, linestyle="--", color="green", linewidth=2)
-# ax[2].set_xlabel("Time, hrs")
-# ax[2].set_ylabel("Recovery %")
-# ax[2].set_title("Percentage recovery profile")
-# ax[0].text(
-#     4,
-#     2,
-#     " perturbation",
-#     fontsize=12,
-#     va="top",
-#     ha="left",
-#     color="black",
-# )
-# ax[2].text(
-#     4,
-#     26,
-#     " perturbation",
-#     fontsize=12,
-#     va="top",
-#     ha="left",
-#     color="black",
-# )
-# ax[1].text(
-#     4,
-#     0.067,
-#     " perturbation",
-#     fontsize=12,
-#     va="top",
-#     ha="left",
-#     color="black",
-# )
-# ax[2].set_ylim(24, 27.5)
+fig.suptitle("pH perturbation effect on Gd")
+ax[0].step(
+    m.fs.time,
+    [
+        -log10(m.fs.solex.aqueous_inlet.conc_mass_comp[t, "H"]() / 1000)
+        for t in m.fs.time
+    ],
+    linewidth=3,
+)
+ax[0].set_xlabel("Time, hrs")
+ax[0].set_ylabel("pH")
+ax[0].set_ylim(1.9, 2.3)
+ax[0].set_title("Aqueous feed pH")
+ax[0].axvline(4, linestyle="--", color="green", linewidth=2)
+ax[1].plot(
+    m.fs.time,
+    m.fs.solex.mscontactor.organic[:, 1].conc_mass_comp["Gd_o"](),
+    linewidth=3,
+    label="stage 1",
+)
+ax[1].set_xlabel("Time, hrs")
+ax[1].set_ylabel("Stage 1, Conc. (mg/L)")
+ax2 = ax[1].twinx()
+ax2.plot(
+    m.fs.time,
+    m.fs.solex.mscontactor.organic[:, 3].conc_mass_comp["Gd_o"](),
+    linewidth=3,
+    color="red",
+    label="stage 3",
+)
+ax[1].axvline(4, linestyle="--", color="green", linewidth=2)
+ax2.set_ylabel("Stage 3, Conc. (mg/L)")
+ax[1].set_title("Organic settler outlet concentration profile")
+ax[1].ticklabel_format(style="sci", axis="y", scilimits=(0, 0))
+ax2.ticklabel_format(style="sci", axis="y", scilimits=(0, 0))
+handles1, labels1 = ax[1].get_legend_handles_labels()
+handles2, labels2 = ax2.get_legend_handles_labels()
+all_handles = handles1 + handles2
+all_labels = labels1 + labels2
+ax[1].legend(all_handles, all_labels, loc="lower right")
+ax[2].plot(m.fs.time, percentage_recovery["Gd"], linewidth=3)
+ax[2].axvline(4, linestyle="--", color="green", linewidth=2)
+ax[2].set_xlabel("Time, hrs")
+ax[2].set_ylabel("Recovery %")
+ax[2].set_title("Percentage recovery profile")
+ax[0].text(
+    4,
+    2,
+    " perturbation",
+    fontsize=12,
+    va="top",
+    ha="left",
+    color="black",
+)
+ax[2].text(
+    4,
+    26,
+    " perturbation",
+    fontsize=12,
+    va="top",
+    ha="left",
+    color="black",
+)
+ax[1].text(
+    4,
+    0.067,
+    " perturbation",
+    fontsize=12,
+    va="top",
+    ha="left",
+    color="black",
+)
+ax[2].set_ylim(24, 27.5)
 
-# fig.subplots_adjust(wspace=1.5, bottom=0.12)
+fig.subplots_adjust(wspace=1.5, bottom=0.12)
 
-# # Add centered labels below each subplot (small font)
-# plt.tight_layout()
-# plt.show()
+# Add centered labels below each subplot (small font)
+plt.tight_layout()
+plt.show()

@@ -119,75 +119,83 @@ class SolventExtractionReactionsData(
 
         self.reaction_stoichiometry = reaction_stoichiometry
 
-        self.m0 = Param(
+        # self.extractant_dosage = Param(
+        #     doc="Extractant dosage of the system", initialize=1, mutable=True
+        # )
+
+        self.m0 = Var(
             self.element_list,
+            bounds=(-5, 5),
             initialize={
-                "Ce": 0.355,
-                "Y": 2.219,
-                "Gd": 1.271,
-                "Dy": 2.028,
-                "Sm": 0.984,
-                "Nd": 0.415,
-                "La": 0.468,
-                "Pr": 0.527,
-                "Sc": 1.335,
-                "Al": -0.808,
-                "Ca": 0.105,
-                "Fe": -3.892,
+                "Ce": 0.324,
+                "Y": 1.923,
+                "Gd": 1.096,
+                "Dy": 1.689,
+                "Sm": 0.788,
+                "Nd": 0.319,
+                "La": 0.541,
+                "Pr": 0.553,
+                "Sc": 1.044,
+                "Al": -0.812,
+                "Ca": 0.112,
+                "Fe": -0.988,
             },
         )
 
-        self.m1 = Param(
+        self.m1 = Var(
             self.element_list,
+            bounds=(0, 5),
             initialize={
-                "Ce": 1.71e-2,
-                "Y": 3.145e-2,
-                "Gd": 4.89e-2,
-                "Dy": 5.799e-2,
-                "Sm": 3.352e-2,
-                "Nd": 2.779e-2,
-                "La": 2.852e-7,
-                "Pr": 2.002e-8,
-                "Sc": 0,
-                "Al": 0.217,
+                "Ce": 0.0218,
+                "Y": 0.0748,
+                "Gd": 5.8e-9,
+                "Dy": 0.05774,
+                "Sm": 0.0101,
+                "Nd": 0.0294,
+                "La": 2.16e-7,
+                "Pr": 1.27e-7,
+                "Sc": 3.171e-6,
+                "Al": 0.215,
                 "Ca": 0.079,
-                "Fe": 0.308,
+                "Fe": 0,
             },
         )
 
-        self.B0 = Param(
+        self.B0 = Var(
             self.element_list,
+            bounds=(-5, 5),
             initialize={
-                "Ce": -1.881,
-                "Y": -2.327,
-                "Gd": -2.688,
-                "Dy": -2.799,
-                "Sm": -2.508,
-                "Nd": -1.964,
-                "La": -2.468,
-                "Pr": -2.568,
-                "Sc": -0.737,
-                "Al": -0.398,
-                "Ca": -0.271,
-                "Fe": 0.807,
+                "Ce": -1.908,
+                "Y": -2.186,
+                "Gd": -2.316,
+                "Dy": -2.354,
+                "Sm": -2.106,
+                "Nd": -1.82,
+                "La": -2.51,
+                "Pr": -3.015,
+                "Sc": -0.121,
+                "Al": 0.081,
+                "Ca": 0.202,
+                "Fe": 0.115,
             },
         )
 
-        self.B1 = Param(
+        self.B1 = Var(
             self.element_list,
+            bounds=(0, 5),
             initialize={
-                "Ce": 0.284,
-                "Y": 6.279e-7,
-                "Gd": 2.356e-6,
-                "Dy": 5.351e-7,
-                "Sm": 1.101e-5,
-                "Nd": 0.132,
-                "La": 0.901,
-                "Pr": 1.251,
-                "Sc": 0.897,
-                "Al": 0.046,
-                "Ca": 0.227,
-                "Fe": 0.226,
+                "Ce": 0.04,
+                "Y": 1e-6,
+                "Gd": 0.208,
+                "Dy": 1.09e-6,
+                "Sm": 4e-6,
+                "Nd": 1.1e-5,
+                "La": 0.814,
+                "Pr": 1.533,
+                "Sc": 0.89,
+                "Al": 0.048,
+                "Ca": 0.229,
+                "Fe": 0.913,
             },
         )
 
@@ -272,17 +280,30 @@ class SolventExtractionReactionsData(ProcessBlockData):
             initialize=1,
         )
 
+        # self.ascorbic_dosage = Var(initialize=0.1, bounds=(0, 2))
+
         def distribution_expression(b, e):
             aq_block = b.parent_block().aqueous[b.index()]
             org_block = b.parent_block().organic[b.index()]
+            org_feed_block = b.parent_block().organic_inlet_state[b.index()[0]]
 
             pH = aq_block.pH_phase["liquid"]
             dosage = org_block.extractant_dosage
-
-            return (b.distribution_coefficient[e]) == 10 ** (
+            # dosage = org_feed_block.extractant_dosage
+            # if e != "Fe":
+            return b.distribution_coefficient[e] == 10 ** (
                 (b.params.m0[e] + dosage * b.params.m1[e]) * pH
                 + (b.params.B0[e] + b.params.B1[e] * log10(dosage))
             )
+            # else:
+            #     alpha = -1.808 * exp(-9.99 * b.ascorbic_dosage) + 0.185
+            #     beta = (
+            #         -1.486
+            #         - 0.335 * b.ascorbic_dosage
+            #         - 0.269 * b.ascorbic_dosage**2
+            #         + 0.841 * dosage
+            #     )
+            #     return b.distribution_coefficient[e] == 10 ** (alpha * pH + beta)
 
         self.distribution_expression_constraint = Constraint(
             self.params.element_list, rule=distribution_expression

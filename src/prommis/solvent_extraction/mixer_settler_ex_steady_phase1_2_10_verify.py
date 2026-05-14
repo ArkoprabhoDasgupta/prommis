@@ -284,7 +284,7 @@ print(degrees_of_freedom(m))
 #     #     1e-1,
 #     # )
 
-for e in ["La", "Ce", "Pr", "Nd", "Sm","Gd", "Dy", "Y"]:
+for e in ["La", "Ce", "Pr", "Nd", "Sm", "Gd", "Dy", "Y"]:
     # set_scaling_factor(
     #     m.fs.mixer_settler_ex[8]
     #     .mixer[1]
@@ -297,15 +297,23 @@ for e in ["La", "Ce", "Pr", "Nd", "Sm","Gd", "Dy", "Y"]:
             m.fs.mixer_settler_ex[s]
             .mixer[1]
             .unit.distribution_extent_constraint[0.0, 1, e],
-            1e1,
+            1e2,
         )
 
         set_scaling_factor(
             m.fs.mixer_settler_ex[s]
             .mixer[1]
-            .unit.distribution_extent_constraint[0.0, 1, e],
-            1e1,
+            .unit.mscontactor.aqueous[0.0, 1]
+            .pH_constraint["liquid"],
+            1e2,
         )
+
+        # set_scaling_factor(
+        #     m.fs.mixer_settler_ex[s]
+        #     .mixer[1]
+        #     .unit.distribution_extent_constraint[0.0, 1, e],
+        #     1,
+        # )
 
 # # set_scaling_factor(m.fs.mixer_settler_ex[:].mixer[1].unit.mscontactor.aqueous[0.0,1].conc_mol_comp['HSO4'])
 
@@ -362,7 +370,7 @@ for e in m.fs.leach_soln.component_list:
 # # )
 # # percentage_extraction
 
-df = pd.read_excel("data for parmest.xlsx", sheet_name="Sheet2")
+df = pd.read_excel("data for parmest.xlsx", sheet_name="Sheet2 (2)")
 
 element_list = ["Y", "Dy", "Gd", "Sm", "Nd", "Ce"]
 colors = {"Y": "r", "Dy": "g", "Gd": "b", "Sm": "b", "Nd": "r", "Ce": "g"}
@@ -383,15 +391,15 @@ pH_list = [
 # plt.legend()
 
 
-fig, ax = plt.subplots(1,2,dpi=300,figsize=(6,3))
-plt.suptitle('Extraction profile at 2% DEHPA 10% TBP')
+fig, ax = plt.subplots(1, 2, dpi=300, figsize=(6, 3))
+plt.suptitle("Extraction profile at 2% DEHPA 10% TBP")
 for e in ["Dy", "Y", "Gd"]:
     pH_exp = []
     ext = []
     for i in df.index:
-        if df.loc[i, f"w_{e}"] == 1 and 1 < df.loc[i, 'dosage'] < 2:
+        if df.loc[i, f"w_{e}"] != 0 and 1 < df.loc[i, "dosage"] < 2:
             pH_exp.append(df.loc[i, "pH"])
-            ext.append(10**df.loc[i, f'logD {e}']/(1+10**df.loc[i, f'logD {e}'])*100)
+            ext.append(df.loc[i, f"E {e}"])
     ax[0].scatter(pH_exp[:-1], ext[:-1], marker="o", color=colors[e], label=f"{e}_exp")
     ax[0].plot(
         pH_list[:-1],
@@ -401,15 +409,15 @@ for e in ["Dy", "Y", "Gd"]:
     )
     ax[0].set_xlabel("pH")
     ax[0].set_ylabel("Extraction %")
-    ax[0].set_xlim([0.2,1.8])
+    ax[0].set_xlim([0.2, 1.8])
     ax[0].legend(fontsize=7)
-for e in ["Sm", "Ce","Nd"]:
+for e in ["Sm", "Ce", "Nd"]:
     pH_exp = []
     ext = []
     for i in df.index:
-        if df.loc[i, f"w_{e}"] == 1 and 1 < df.loc[i, 'dosage'] < 2:
+        if df.loc[i, f"w_{e}"] != 0 and 1 < df.loc[i, "dosage"] < 2:
             pH_exp.append(df.loc[i, "pH"])
-            ext.append(10**df.loc[i, f'logD {e}']/(1+10**df.loc[i, f'logD {e}'])*100)
+            ext.append(df.loc[i, f"E {e}"])
     ax[1].scatter(pH_exp[:-1], ext[:-1], marker="o", color=colors[e], label=f"{e}_exp")
     ax[1].plot(
         pH_list[:-1],
@@ -419,6 +427,6 @@ for e in ["Sm", "Ce","Nd"]:
     )
     ax[1].set_xlabel("pH")
     ax[1].set_ylabel("Extraction %")
-    ax[1].set_xlim([0.2,1.8])
+    ax[1].set_xlim([0.2, 1.8])
     ax[1].legend(fontsize=7)
 plt.tight_layout()

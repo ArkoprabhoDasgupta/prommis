@@ -22,11 +22,11 @@ from idaes.core.util import from_json, StoreSpec
 from idaes.core.solvers import get_solver
 
 from prommis.leaching.leach_solution_properties import LeachSolutionParameters
-from prommis.solvent_extraction.ree_og_distribution import REESolExOgParameters
+from prommis.solvent_extraction.ree_og_distribution_new import REESolExOgParameters
 from prommis.solvent_extraction.mixer_settler_extraction import (
     MixerSettlerExtraction,
 )
-from prommis.solvent_extraction.solvent_extraction_reaction_package import (
+from prommis.solvent_extraction.solvent_extraction_reaction_package_new_modified import (
     SolventExtractionReactions,
 )
 import matplotlib.pyplot as plt
