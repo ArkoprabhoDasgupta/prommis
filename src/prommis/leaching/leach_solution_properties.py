@@ -28,6 +28,7 @@ from idaes.core import (
     StateBlock,
     StateBlockData,
     declare_process_block_class,
+    EnergyBalanceType,
 )
 from idaes.core.util.initialization import fix_state_vars
 from idaes.core.util.misc import add_object_reference
@@ -171,7 +172,8 @@ class LeachSolutionParameterData(PhysicalParameterBlock):
         )
         obj.add_default_units(
             {
-                "time": units.hour,
+                # Use seconds as the base time unit so derived pressure units are Pa
+                "time": units.hr,
                 "length": units.m,
                 "mass": units.kg,
                 "amount": units.mol,
@@ -303,6 +305,24 @@ class LeachSolutionStateBlockData(StateBlockData):
                 self.conc_mass_comp[j] / self.params.mw[j],
                 to_units=units.mol / units.m**3,
             )
+
+    def get_enthalpy_flow_terms(self, p):
+        return (
+            self.flow_vol
+            * (self.params.dens_mass / self.params.mw["H2O"])
+            * self.params.cp_mol
+            * (self.temperature - self.params.temperature_ref)
+        )
+
+    def get_energy_density_terms(self, p):
+        return (
+            (self.params.dens_mass / self.params.mw["H2O"])
+            * self.params.cp_mol
+            * (self.temperature - self.params.temperature_ref)
+        )
+
+    def default_energy_balance_type(self):
+        return EnergyBalanceType.enthalpyTotal
 
     def get_material_flow_basis(self):
         return MaterialFlowBasis.molar
