@@ -257,7 +257,7 @@ class MixerSettlerExtractionInitializer(ModularInitializerBase):
                         )
 
         solver = self._get_solver()
-        results_mx = solver.solve(model)
+        results_mx = solver.solve(model, tee=True)
 
         for e in model.elements:
 
@@ -321,7 +321,7 @@ class MixerSettlerExtractionInitializer(ModularInitializerBase):
                             f"{j}_{model.elements.prev(e)}_bypass_{e}_arc"
                         )
 
-        final_results = solver.solve(model)
+        final_results = solver.solve(model, tee=True)
 
         return final_results
 

@@ -152,14 +152,16 @@ def set_inputs(m, dosage, perturb_time):
         if t <= perturb_time:
             m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t].fix(62.01)
         else:
-            m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t].fix(68.01)
+            m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t].fix(62.01)
             # m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t].fix(62.01)
         if t <= perturb_time:
             m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "Gd"].fix(0.2584)
         else:
             # m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "Gd"].fix(0.2584)
-            m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "Gd"].fix(0.2584)
-        if t <= perturb_time * 3:
+            m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "Gd"].fix(
+                0.2584 * 1.5
+            )
+        if t <= perturb_time * 2:
             m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"].fix(10.75)
         # elif perturb_time <= t < perturb_time * 2:
         #     m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"].fix(8.75)
@@ -172,13 +174,13 @@ def set_inputs(m, dosage, perturb_time):
     #     975.8e3 * dosage / 100
     # )
     for t in m.fs.time:
-        if t <= perturb_time * 3:
+        if t <= perturb_time * 2:
             m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[t, "DEHPA"].fix(
                 975.8e3 * dosage / 100
             )
         else:
             m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[t, "DEHPA"].fix(
-                975.8e3 * dosage / 100
+                975.8e3 * dosage * 1 / 100
             )
             # m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[t, "DEHPA"].fix(
             #     975.8e3 * dosage / 100
@@ -482,6 +484,50 @@ for e in m.fs.leach_soln.component_list:
             for t in m.fs.time
         ]
 
+
+Gd_recovery_fraction = [
+    (
+        m.fs.mixer_settler_ex.organic_outlet.conc_mass_comp[t, "Gd_o"]()
+        * m.fs.mixer_settler_ex.organic_outlet.flow_vol[t]()
+    )
+    / (
+        m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "Gd"]()
+        * m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t]()
+    )
+    for t in m.fs.time
+]
+
+
+Gd_loss_fraction = [
+    (
+        m.fs.mixer_settler_ex.aqueous_outlet.conc_mass_comp[t, "Gd"]()
+        * m.fs.mixer_settler_ex.aqueous_outlet.flow_vol[t]()
+    )
+    / (
+        m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "Gd"]()
+        * m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t]()
+    )
+    for t in m.fs.time
+]
+
+Gd_accum_fraction = [
+    sum(
+        m.fs.mixer_settler_ex.mixer[s].unit.mscontactor.aqueous_material_accumulation[
+            t, 1, "liquid", "Gd"
+        ]()
+        + m.fs.mixer_settler_ex.mixer[s].unit.mscontactor.organic_material_accumulation[
+            t, 1, "organic", "Gd_o"
+        ]()
+        for s in m.fs.mixer_settler_ex.elements
+    )
+    / (
+        m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "Gd"]()
+        * m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t]()
+        / (m.fs.leach_soln.mw["Gd"]() * 1e6)
+    )
+    for t in m.fs.time
+]
+
 plt.rcParams.update(
     {
         "figure.max_open_warning": 0,
@@ -532,7 +578,7 @@ plt.rcParams.update(
 #     ],
 #     linewidth=3,
 # )
-# ax[0].set_xlabel("Time, hrs")
+# ax[0].set_xlabel("Time, hr")
 # ax[0].set_ylabel("pH")
 # ax[0].set_title("Aqueous feed pH")
 # ax[0].axvline(4, linestyle="--", color="green", linewidth=2)
@@ -544,7 +590,7 @@ plt.rcParams.update(
 #     linewidth=3,
 #     label="stage 1",
 # )
-# ax[1].set_xlabel("Time, hrs")
+# ax[1].set_xlabel("Time, hr")
 # ax[1].set_ylabel("Stage 1, Concentration, mg/L")
 # ax2 = ax[1].twinx()
 # ax2.plot(
@@ -568,7 +614,7 @@ plt.rcParams.update(
 # ax[1].legend(all_handles, all_labels, loc="upper left")
 # ax[2].plot(m.fs.time, percentage_recovery["Gd"], linewidth=3)
 # ax[2].axvline(4, linestyle="--", color="green", linewidth=2)
-# ax[2].set_xlabel("Time, hrs")
+# ax[2].set_xlabel("Time, hr")
 # ax[2].set_ylabel("Recovery %")
 # ax[2].set_title("Percentage recovery profile")
 # plt.tight_layout()
@@ -604,104 +650,82 @@ plt.rcParams.update(
 
 fig, ax = plt.subplots(1, 3, figsize=(15, 4), dpi=300)
 
-fig.suptitle("Aqueous feed concentration perturbation effect on Gd")
-# ax[0].step(
-#     m.fs.time,
-#     m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "Gd"](),
-#     linewidth=3,
-# )
-# ax[0].axvline(perturb_time, linestyle="--", color="green", linewidth=2)
-# ax[0].set_xlabel("Time, hrs")
-# ax[0].set_ylabel("Concentration, mg/L")
-# ax[0].set_ylim(0.25, 0.32)
-# ax[0].set_title("Aqueous feed concentration")
-ax[0].text(
-    perturb_time,
-    64,
-    " 1st change",
-    fontsize=12,
-    va="top",
-    ha="left",
-    color="black",
-)
 ax[0].step(
     m.fs.time,
-    m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[:](),
+    m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "Gd"](),
     linewidth=3,
+    color="black",
+    label="Concentration",
 )
-ax[0].axvline(perturb_time, linestyle="--", color="green", linewidth=2)
-ax[0].set_xlabel("Time, hrs")
-ax[0].set_ylabel("Flowrate L/hr")
-ax[0].set_ylim(60, 70)
-ax[0].set_title("Aqueous feed flowrate")
-# ax[0].text(
-#     perturb_time,
-#     0.29,
-#     " 1st change",
-#     fontsize=12,
-#     va="top",
-#     ha="left",
+ax[0].axvline(perturb_time, linestyle="--", color="black", linewidth=2)
+ax[0].set_xlabel("Time, hr")
+ax[0].set_ylabel("Concentration, mg/L")
+ax[0].set_ylim(0.225, 0.425)
+# ax[0].step(
+#     m.fs.time,
+#     m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[:](),
+#     linewidth=3,
 #     color="black",
+#     label="Flowrate",
 # )
+# ax[0].axvline(perturb_time, linestyle="--", color="black", linewidth=2)
+# ax[0].set_xlabel("Time, hr")
+# ax[0].set_ylabel("Flowrate L/hr")
+# ax[0].set_ylim(60, 70)
 
+ax_0 = ax[0].twinx()
 
-ax[1].step(
+ax_0.step(
     m.fs.time,
     [
         -log10(m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[t, "H"]() / 1000)
         for t in m.fs.time
     ],
     linewidth=3,
+    color="brown",
+    label="pH",
 )
-# ax[1].step(
+# ax_0.step(
 #     m.fs.time,
 #     [
 #         m.fs.mixer_settler_ex.organic_inlet.conc_mass_comp[t, "DEHPA"]() * 100 / 975.8e3
 #         for t in m.fs.time
 #     ],
 #     linewidth=3,
+#     label="Extractant dosage",
+#     color="red",
 # )
-ax[1].set_xlabel("Time, hrs")
-ax[1].set_ylabel("pH")
-# ax[1].set_ylabel("% v/v")
-# ax[1].set_ylim(4, 7)
-ax[1].set_ylim(1.9, 2.2)
-ax[1].set_title("Aqueous feed pH")
-ax[1].axvline(perturb_time * 3, linestyle="--", color="red", linewidth=2)
-ax[1].text(
-    perturb_time * 3,
-    2,
-    " 2nd change ",
-    fontsize=12,
-    va="top",
-    ha="left",
-    color="black",
-)
-ax[2].plot(m.fs.time, percentage_recovery["Gd"], linewidth=3)
-ax[2].axvline(perturb_time, linestyle="--", color="green", linewidth=2)
-ax[2].axvline(perturb_time * 3, linestyle="--", color="red", linewidth=2)
-ax[2].set_xlabel("Time, hrs")
-ax[2].set_ylabel("Gd Recovery %")
-ax[2].set_title("Gd Recovery % profile")
-ax[2].set_ylim(30, 35)
-ax[2].text(
-    perturb_time,
-    31,
-    " 1st change",
-    fontsize=12,
-    va="top",
-    ha="left",
-    color="black",
-)
-ax[2].text(
-    perturb_time * 3,
-    31,
-    " 2nd change ",
-    fontsize=12,
-    va="top",
-    ha="left",
-    color="black",
-)
+ax_0.set_xlabel("Time, hr")
+ax_0.set_ylabel("pH")
+# ax_0.set_ylabel("Dosage % v/v")
+ax_0.set_ylim(1.9, 2.2)
+ax_0.axvline(perturb_time * 2, linestyle="--", color="brown", linewidth=2)
+handles0, labels0 = ax[0].get_legend_handles_labels()
+handles0_twin, labels0_twin = ax_0.get_legend_handles_labels()
+ax[0].legend(handles0 + handles0_twin, labels0 + labels0_twin, loc="lower right")
+
+
+ax_1 = ax[1].twinx()
+ax[1].plot(m.fs.time, Gd_recovery_fraction, linewidth=3, label="Recovery")
+ax_1.plot(m.fs.time, Gd_loss_fraction, linewidth=3, label="Loss", color="purple")
+ax[1].axvline(perturb_time, linestyle="--", color="black", linewidth=2)
+ax[1].axvline(perturb_time * 2, linestyle="--", color="brown", linewidth=2)
+ax[1].set_xlabel("Time, hr")
+ax[1].set_ylabel("Recovery fraction")
+ax[1].set_ylim(0.22, 0.37)
+ax_1.set_ylim(0.62, 0.67)
+ax_1.set_ylabel("Loss fraction")
+handles1, labels1 = ax[1].get_legend_handles_labels()
+handles1_twin, labels1_twin = ax_1.get_legend_handles_labels()
+ax[1].legend(handles1 + handles1_twin, labels1 + labels1_twin, loc="lower right")
+
+ax[2].plot(m.fs.time, Gd_accum_fraction, linewidth=3, label="Recovery", color="green")
+ax[2].axvline(perturb_time, linestyle="--", color="black", linewidth=2)
+ax[2].axvline(perturb_time * 2, linestyle="--", color="brown", linewidth=2)
+ax[2].set_xlabel("Time, hr")
+ax[2].set_ylabel("Accumulation fraction")
+
+
 ax[0].set_axisbelow(True)  # Forces gridlines behind bars/plots
 ax[0].grid(True)
 ax[1].set_axisbelow(True)  # Forces gridlines behind bars/plots
@@ -709,7 +733,9 @@ ax[1].grid(True)
 ax[2].set_axisbelow(True)  # Forces gridlines behind bars/plots
 ax[2].grid(True)
 
+
 plt.tight_layout()
+
 
 # fig.suptitle("Aqueous feed flowrate perturbation effect on Gd")
 # ax[0].plot(
@@ -718,7 +744,7 @@ plt.tight_layout()
 #     linewidth=3,
 # )
 # ax[0].axvline(4, linestyle="--", color="green", linewidth=2)
-# ax[0].set_xlabel("Time, hrs")
+# ax[0].set_xlabel("Time, hr")
 # ax[0].set_ylabel("Flowrate L/hr")
 # ax[0].set_title("Aqueous feed flowrate")
 # ax[1].plot(
@@ -730,7 +756,7 @@ plt.tight_layout()
 #     label="stage 1",
 # )
 # ax[1].axvline(4, linestyle="--", color="green", linewidth=2)
-# ax[1].set_xlabel("Time, hrs")
+# ax[1].set_xlabel("Time, hr")
 # ax[1].set_ylabel("Stage 1, Concentration, mg/L")
 # ax2 = ax[1].twinx()
 # ax2.plot(
@@ -753,7 +779,7 @@ plt.tight_layout()
 # ax2.ticklabel_format(style="sci", axis="y", scilimits=(0, 0))
 # ax[2].plot(m.fs.time, percentage_recovery["Gd"], linewidth=3)
 # ax[2].axvline(4, linestyle="--", color="green", linewidth=2)
-# ax[2].set_xlabel("Time, hrs")
+# ax[2].set_xlabel("Time, hr")
 # ax[2].set_ylabel("Recovery %")
 # ax[2].set_title("Percentage recovery profile")
 # plt.tight_layout()
@@ -795,7 +821,7 @@ plt.tight_layout()
 #     ],
 #     linewidth=3,
 # )
-# ax[0].set_xlabel("Time, hrs")
+# ax[0].set_xlabel("Time, hr")
 # ax[0].set_ylabel("pH")
 # ax[0].set_ylim(1.9, 2.3)
 # ax[0].set_title("Aqueous feed pH")
@@ -808,7 +834,7 @@ plt.tight_layout()
 #     linewidth=3,
 #     label="stage 1",
 # )
-# ax[1].set_xlabel("Time, hrs")
+# ax[1].set_xlabel("Time, hr")
 # ax[1].set_ylabel("Stage 1, Conc. (mg/L)")
 # ax2 = ax[1].twinx()
 # ax2.plot(
@@ -832,7 +858,7 @@ plt.tight_layout()
 # ax[1].legend(all_handles, all_labels, loc="lower right")
 # ax[2].plot(m.fs.time, percentage_recovery["Gd"], linewidth=3)
 # ax[2].axvline(4, linestyle="--", color="green", linewidth=2)
-# ax[2].set_xlabel("Time, hrs")
+# ax[2].set_xlabel("Time, hr")
 # ax[2].set_ylabel("Recovery %")
 # ax[2].set_title("Percentage recovery profile")
 # ax[0].text(

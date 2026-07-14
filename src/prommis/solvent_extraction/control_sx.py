@@ -11,6 +11,7 @@ from pyomo.environ import (
 )
 from pyomo.dae.flatten import flatten_dae_components
 from pyomo.network import Arc
+from pyomo.dae import DerivativeVar
 
 import numpy as np
 
@@ -59,9 +60,7 @@ dosage = 5
 m = ConcreteModel()
 
 # make the mixer settler ex
-m.fs = FlowsheetBlock(
-    dynamic=True, time_set=[0, time_duration], time_units=units.hour
-)
+m.fs = FlowsheetBlock(dynamic=True, time_set=[0, time_duration], time_units=units.hour)
 m.fs.prop_o = REESolExOgParameters()
 m.fs.leach_soln = LeachSolutionParameters()
 m.fs.reaxn = SolventExtractionReactions()
@@ -94,6 +93,7 @@ m.fs.mixer_settler_ex = MixerSettlerExtraction(
 
 # m.discretizer = TransformationFactory("dae.collocation")
 # m.discretizer.apply_to(m, nfe=2, ncp=2, wrt=m.fs.time, scheme="LAGRANGE-RADAU")
+
 
 def _valve_pressure_flow_cb(b):
 
@@ -147,21 +147,31 @@ m.fs.sx_to_v = Arc(
 )
 
 m.fs.control = PIDController(
-    process_var=m.fs.mixer_settler_ex.mixer[1].unit.mscontactor.volume_frac_stream[:, 1, "aqueous"],
+    process_var=m.fs.mixer_settler_ex.mixer[1].unit.mscontactor.volume_frac_stream[
+        :, 1, "aqueous"
+    ],
     manipulated_var=m.fs.valve.valve_opening,
     controller_type=ControllerType.PI,
 )
 
+m.I_abs_error = Var(
+    m.fs.time, units=units.dimensionless, initialize=0, bounds=(0, None)
+)
+m.abs_error = DerivativeVar(
+    m.I_abs_error, wrt=m.fs.time, units=units.dimensionless, bounds=(0, None)
+)
+
+
 TransformationFactory("network.expand_arcs").apply_to(m.fs)
 
 # m.discretizer = TransformationFactory("dae.finite_difference")
-# m.discretizer.apply_to(m, nfe=6, wrt=m.fs.time, scheme="BACKWARD")
+# m.discretizer.apply_to(m, nfe=24, wrt=m.fs.time, scheme="BACKWARD")
 
 m.discretizer = TransformationFactory("dae.collocation")
-m.discretizer.apply_to(m, nfe=6, ncp=2, wrt=m.fs.time, scheme="LAGRANGE-RADAU")
+m.discretizer.apply_to(m, nfe=12, ncp=2, wrt=m.fs.time, scheme="LAGRANGE-RADAU")
 
 
-path_name="mixer_settler_extraction.json"
+path_name = "mixer_settler_extraction.json"
 from_json(m, fname=path_name, wts=StoreSpec.value())
 
 m.fs.mixer_settler_ex.mixer[:].unit.volume_fraction_constraint.deactivate()
@@ -193,9 +203,16 @@ m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "Sm"].fix(0.097)
 m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "Gd"].fix(0.2584)
 m.fs.mixer_settler_ex.aqueous_inlet.conc_mass_comp[:, "Dy"].fix(0.047)
 
-perturb_time = 10
+perturb_time = 8
 for t in m.fs.time:
-    if t <= perturb_time:
+    # if t <= perturb_time:
+    #     m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t].fix(62.01)
+    # else:
+    #     m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t].fix(82.01)
+    #     # m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t].fix(62.01)
+    if t <= 4:
+        m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t].fix(62.01)
+    elif 4 < t <= 12:
         m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t].fix(62.01)
     else:
         m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[t].fix(62.01)
@@ -265,9 +282,9 @@ m.fs.mixer_settler_ex.organic_settler[:].unit.length.fix(0.1)
 
 for e in m.fs.leach_soln.component_list:
     if e not in ["H2O", "HSO4"]:
-        m.fs.mixer_settler_ex.mixer[:].unit.mscontactor.aqueous[
-            0, :
-        ].conc_mass_comp[e].fix()
+        m.fs.mixer_settler_ex.mixer[:].unit.mscontactor.aqueous[0, :].conc_mass_comp[
+            e
+        ].fix()
 
 m.fs.mixer_settler_ex.mixer[:].unit.mscontactor.volume_frac_stream[
     0, :, "aqueous"
@@ -290,16 +307,12 @@ for e in m.fs.reaxn.element_list:
 
 for e in ["Al", "Ca", "Fe", "Sc"]:
     for s in m.fs.mixer_settler_ex.elements:
-        m.fs.mixer_settler_ex.mixer[
-            s
-        ].unit.mscontactor.heterogeneous_reaction_extent[
+        m.fs.mixer_settler_ex.mixer[s].unit.mscontactor.heterogeneous_reaction_extent[
             :, :, f"{e}_mass_transfer"
-        ].fix(
-            0
-        )
-        m.fs.mixer_settler_ex.mixer[s].unit.mscontactor.organic[
-            0.0, 1
-        ].conc_mass_comp[f"{e}_o"].fix()
+        ].fix(0)
+        m.fs.mixer_settler_ex.mixer[s].unit.mscontactor.organic[0.0, 1].conc_mass_comp[
+            f"{e}_o"
+        ].fix()
         m.fs.mixer_settler_ex.mixer[s].unit.distribution_extent_constraint[
             :, :, e
         ].deactivate()
@@ -333,19 +346,29 @@ for s in m.fs.mixer_settler_ex.elements:
             ].flow_vol.fix()
 
 
-
-m.fs.control.gain_p.fix(30)
-m.fs.control.gain_i.fix(10)
+m.fs.control.gain_p.fix(10)
+m.fs.control.gain_i.fix(5)
 # m.fs.control.gain_d.fix(0)
 for t in m.fs.time:
-    if t <= 10:
+    if t <= 4:
         m.fs.control.setpoint[t].fix(0.5)
+    elif 4 < t <= 12:
+        m.fs.control.setpoint[t].fix(0.6)
     else:
         m.fs.control.setpoint[t].fix(0.7)
 # m.fs.control.setpoint.fix(0.5)
 m.fs.control.mv_ref.fix(0)
 # m.fs.control.derivative_term[0].fix(1e-4)
 # m.fs.control.mv_eqn[:].deactivate()
+
+
+@m.Constraint(m.fs.time)
+def abs_error_rule(m, t):
+    return m.abs_error[t] == abs(m.fs.control.error[t])
+
+
+m.I_abs_error[0].fix(0)
+
 
 m.fs.valve.control_volume.properties_out[:].pressure.fix(101235 * units.Pa)
 m.fs.valve.control_volume.properties_out[:].temperature.fix(305.15 * units.K)
@@ -354,6 +377,13 @@ m.fs.valve.control_volume.enthalpy_balances[:].deactivate()
 m.fs.valve.valve_opening[:].unfix()
 # m.fs.valve.valve_opening[:].fix(0.8)
 
+for t in m.fs.time:
+    set_scaling_factor(m.fs.valve.pressure_flow_equation[t], 1e-3)
+    set_scaling_factor(m.fs.control.mv_eqn[t], 1)
+
+
+scaling = TransformationFactory("core.scale_model")
+scaled_model = scaling.create_using(m, rename=False)
 
 print(dof(m))
 
@@ -370,4 +400,184 @@ solver = get_solver(solver="ipopt_v2")
 #     "ipopt_v2", writer_config={"linear_presolve": True, "scale_model": True}
 # )
 solver.options["max_iter"] = 10000
-solver.solve(m, tee=True)
+solver.solve(scaled_model, tee=True)
+
+scaling.propagate_solution(scaled_model, m)
+
+plt.rcParams.update(
+    {
+        "figure.max_open_warning": 0,
+        "figure.dpi": 300,
+        "figure.titlesize": 16,
+        "axes.titlesize": 16,
+        "axes.labelsize": 14,
+        "axes.linewidth": 2,
+        "lines.linewidth": 2,
+        "lines.markersize": 8,
+        "xtick.labelsize": 12,
+        "ytick.labelsize": 12,
+        "savefig.bbox": "tight",
+        "legend.fontsize": "large",
+    }
+)
+
+# fig, ax = plt.subplots(1, 2, figsize=(15, 4), dpi=300)
+
+# ax[0].step(m.fs.time, m.fs.control.setpoint[:](), label="SP", linewidth=3)
+# ax[0].plot(m.fs.time, m.fs.control.process_var[:](), label="PV", linewidth=3)
+# ax[0].set_xlabel("Time, hr")
+# ax[0].set_ylabel("Level")
+# ax[0].set_title("Controller PV")
+# ax[0].axvline(4, linestyle="--", color="green", linewidth=2)
+# ax[0].axvline(12, linestyle="--", color="red", linewidth=2)
+# ax[0].legend()
+# ax[0].set_ylim(0.45, 0.75)
+# ax[0].set_axisbelow(True)  # Forces gridlines behind bars/plots
+# ax[0].grid(True)
+# # ax[0].text(
+# #     4,
+# #     0.47,
+# #     " 4 hours",
+# #     fontsize=12,
+# #     va="top",
+# #     ha="left",
+# #     color="black",
+# # )
+# # ax[0].text(
+# #     12,
+# #     0.47,
+# #     " 12 hours",
+# #     fontsize=12,
+# #     va="top",
+# #     ha="left",
+# #     color="black",
+# # )
+
+
+# ax[1].plot(
+#     m.fs.time,
+#     m.fs.mixer_settler_ex.aqueous_outlet.flow_vol[:](),
+#     linewidth=3,
+#     label="aqueous",
+# )
+# ax[1].plot(
+#     m.fs.time,
+#     m.fs.mixer_settler_ex.organic_outlet.flow_vol[:](),
+#     linewidth=3,
+#     label="organic",
+# )
+# ax[1].set_xlabel("Time, hr")
+# ax[1].set_ylabel("Flowrate L/hr")
+# ax[1].set_title("Tank phase outlet flowrates")
+# ax[1].axvline(4, linestyle="--", color="green", linewidth=2)
+# ax[1].axvline(12, linestyle="--", color="red", linewidth=2)
+# # ax[1].set_ylim(0.02, 0.18)
+# ax[1].set_axisbelow(True)  # Forces gridlines behind bars/plots
+# ax[1].grid(True)
+# ax[1].legend()
+# # ax[1].text(
+# #     4,
+# #     0.04,
+# #     "4 hours",
+# #     fontsize=12,
+# #     va="top",
+# #     ha="right",
+# #     color="black",
+# # )
+# # ax[1].text(
+# #     12,
+# #     0.04,
+# #     "12 hours",
+# #     fontsize=12,
+# #     va="top",
+# #     ha="right",
+# #     color="black",
+# # )
+
+
+fig, ax = plt.subplots(1, 3, figsize=(15, 4), dpi=300)
+
+ax[0].step(m.fs.time, m.fs.mixer_settler_ex.aqueous_inlet.flow_vol[:](), linewidth=3)
+ax[0].set_xlabel("Time, hr")
+ax[0].set_ylabel("Flowrate (L/hr)")
+ax[0].set_title("Aqueous inlet flow disturbance")
+ax[0].axvline(4, linestyle="--", color="green", linewidth=2)
+ax[0].axvline(12, linestyle="--", color="red", linewidth=2)
+ax[0].set_ylim(60, 85)
+ax[0].set_axisbelow(True)  # Forces gridlines behind bars/plots
+ax[0].grid(True)
+
+
+ax[1].step(m.fs.time, m.fs.control.setpoint[:](), label="SP", linewidth=3)
+ax[1].plot(m.fs.time, m.fs.control.process_var[:](), label="PV", linewidth=3)
+ax[1].set_xlabel("Time, hr")
+ax[1].set_ylabel("Level")
+ax[1].set_title("Controller PV")
+ax[1].axvline(4, linestyle="--", color="green", linewidth=2)
+ax[1].axvline(12, linestyle="--", color="red", linewidth=2)
+ax[1].legend()
+ax[1].set_ylim(0.49, 0.51)
+ax[1].set_axisbelow(True)  # Forces gridlines behind bars/plots
+ax[1].grid(True)
+# ax[0].text(
+#     4,
+#     0.47,
+#     " 4 hours",
+#     fontsize=12,
+#     va="top",
+#     ha="left",
+#     color="black",
+# )
+# ax[0].text(
+#     12,
+#     0.47,
+#     " 12 hours",
+#     fontsize=12,
+#     va="top",
+#     ha="left",
+#     color="black",
+# )
+
+ax[2].plot(
+    m.fs.time,
+    m.fs.mixer_settler_ex.aqueous_outlet.flow_vol[:](),
+    linewidth=3,
+    label="aqueous",
+)
+ax[2].plot(
+    m.fs.time,
+    m.fs.mixer_settler_ex.organic_outlet.flow_vol[:](),
+    linewidth=3,
+    label="organic",
+)
+ax[2].set_xlabel("Time, hr")
+ax[2].set_ylabel("Flowrate L/hr")
+ax[2].set_title("Mixer settler outlet flowrates")
+ax[2].axvline(4, linestyle="--", color="green", linewidth=2)
+ax[2].axvline(12, linestyle="--", color="red", linewidth=2)
+ax[2].set_ylim(60, 85)
+ax[2].set_axisbelow(True)  # Forces gridlines behind bars/plots
+ax[2].grid(True)
+ax[2].legend()
+
+
+# ax[1].text(
+#     4,
+#     0.04,
+#     "4 hours",
+#     fontsize=12,
+#     va="top",
+#     ha="right",
+#     color="black",
+# )
+# ax[1].text(
+#     12,
+#     0.04,
+#     "12 hours",
+#     fontsize=12,
+#     va="top",
+#     ha="right",
+#     color="black",
+# )
+
+plt.tight_layout()

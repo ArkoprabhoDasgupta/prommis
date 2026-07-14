@@ -16,8 +16,9 @@ This is an example of how to write a reaction package for rare earth elements in
 solvent extraction.
 
 """
+
 from pyomo.common.config import ConfigValue
-from pyomo.environ import Constraint, Param, Set, Var, units, log10
+from pyomo.environ import Constraint, Param, Set, Var, units, log10, exp
 
 from idaes.core import ProcessBlock, ProcessBlockData, declare_process_block_class
 from idaes.core.base import property_meta
@@ -88,145 +89,78 @@ class SolventExtractionReactionsData(
         self._reaction_block_class = SolventExtractionReactionsBlock
 
         REE_list = ["La", "Y", "Pr", "Ce", "Nd", "Sm", "Gd", "Dy"]
-        Impurity_list = ["Al", "Ca", "Fe", "Sc"]
+        Impurity_list = ["Fe"]
 
         index_list = [f"{e}_mass_transfer" for e in (REE_list + Impurity_list)]
         element_list = REE_list + Impurity_list
 
+        self.ree_list = Set(initialize=element_list)
         self.element_list = Set(initialize=element_list)
         self.reaction_idx = Set(initialize=index_list)
 
         reaction_stoichiometry = {}
 
-        for e in REE_list:
+        for e in element_list:
             reaction_stoichiometry[(f"{e}_mass_transfer", "liquid", e)] = -1
             reaction_stoichiometry[(f"{e}_mass_transfer", "organic", f"{e}_o")] = 1
             reaction_stoichiometry[(f"{e}_mass_transfer", "liquid", "H")] = 3
             reaction_stoichiometry[(f"{e}_mass_transfer", "organic", "DEHPA")] = -3
 
-        for e in Impurity_list:
-            if e == "Ca":
-                reaction_stoichiometry[(f"{e}_mass_transfer", "liquid", e)] = -1
-                reaction_stoichiometry[(f"{e}_mass_transfer", "organic", f"{e}_o")] = 1
-                reaction_stoichiometry[(f"{e}_mass_transfer", "liquid", "H")] = 2
-                reaction_stoichiometry[(f"{e}_mass_transfer", "organic", "DEHPA")] = -2
-            else:
-                reaction_stoichiometry[(f"{e}_mass_transfer", "liquid", e)] = -1
-                reaction_stoichiometry[(f"{e}_mass_transfer", "organic", f"{e}_o")] = 1
-                reaction_stoichiometry[(f"{e}_mass_transfer", "liquid", "H")] = 3
-                reaction_stoichiometry[(f"{e}_mass_transfer", "organic", "DEHPA")] = -3
-
         self.reaction_stoichiometry = reaction_stoichiometry
 
-        self.extractant_dosage = Param(
-            doc="Extractant dosage of the system", initialize=1, mutable=True
-        )
-
         self.m0 = Param(
-            self.element_list,
+            self.ree_list,
             initialize={
-                "Ce": 0.30916,
-                "Y": 1.63166,
-                "Gd": 1.0225,
-                "Dy": 1.70783,
-                "Sm": 0.81233,
-                "Nd": 0.31183,
-                "La": 0.54,
-                "Pr": 0.29,
-                "Sc": 0,
-                "Al": 0,
-                "Ca": 0,
-                "Fe": 0,
+                "Ce": 0.355,
+                "Y": 2.219,
+                "Gd": 1.271,
+                "Dy": 2.028,
+                "Sm": 0.984,
+                "Nd": 0.415,
+                "La": 0.468,
+                "Pr": 0.527,
             },
         )
 
         self.m1 = Param(
             self.element_list,
             initialize={
-                "Ce": 0.04816,
-                "Y": 0.15166,
-                "Gd": 0.0195,
-                "Dy": 0.06443,
-                "Sm": -0.02247,
-                "Nd": 0.03763,
-                "La": 0,
-                "Pr": 0,
-                "Sc": 0,
-                "Al": 0,
-                "Ca": 0,
-                "Fe": 0,
+                "Ce": 1.71e-2,
+                "Y": 3.145e-2,
+                "Gd": 4.89e-2,
+                "Dy": 5.799e-2,
+                "Sm": 3.352e-2,
+                "Nd": 2.779e-2,
+                "La": 2.852e-7,
+                "Pr": 2.002e-8,
             },
         )
 
         self.B0 = Param(
             self.element_list,
             initialize={
-                "Ce": -1.66021,
-                "Y": -2.12601,
-                "Gd": -2.24143,
-                "Dy": -2.42226,
-                "Sm": -2.12172,
-                "Nd": -1.62372,
-                "La": -1.93,
-                "Pr": -1.48,
-                "Sc": 0,
-                "Al": 0,
-                "Ca": 0,
-                "Fe": 0,
+                "Ce": -1.881,
+                "Y": -2.327,
+                "Gd": -2.688,
+                "Dy": -2.799,
+                "Sm": -2.508,
+                "Nd": -1.964,
+                "La": -2.468,
+                "Pr": -2.568,
             },
         )
 
         self.B1 = Param(
             self.element_list,
             initialize={
-                "Ce": -0.38599,
-                "Y": 0.26612,
-                "Gd": 0.03065,
-                "Dy": -0.02538,
-                "Sm": 0.17414,
-                "Nd": -0.38096,
-                "La": 0,
-                "Pr": 0,
-                "Sc": 0,
-                "Al": 0,
-                "Ca": 0,
-                "Fe": 0,
-            },
-        )
-
-        self.K1 = Param(
-            self.element_list,
-            initialize={
-                "Ce": 0,
-                "Y": 0,
-                "Gd": 0,
-                "Dy": 0,
-                "Sm": 0,
-                "Nd": 0,
-                "La": 0,
-                "Pr": 0,
-                "Sc": 632.4976,
-                "Al": 0.0531,
-                "Ca": 0.0658,
-                "Fe": 0.1496,
-            },
-        )
-
-        self.K_corr = Param(
-            self.element_list,
-            initialize={
-                "Ce": 0,
-                "Y": 0,
-                "Gd": 0,
-                "Dy": 0,
-                "Sm": 0,
-                "Nd": 0,
-                "La": 0,
-                "Pr": 0,
-                "Sc": 1,
-                "Al": 1,
-                "Ca": 1,
-                "Fe": 1,
+                "Ce": 0.284,
+                "Y": 6.279e-7,
+                "Gd": 2.356e-6,
+                "Dy": 5.351e-7,
+                "Sm": 1.101e-5,
+                "Nd": 0.132,
+                "La": 0.901,
+                "Pr": 1.251,
             },
         )
 
@@ -313,12 +247,27 @@ class SolventExtractionReactionsData(ProcessBlockData):
 
         def distribution_expression(b, e):
             aq_block = b.parent_block().aqueous[b.index()]
+            org_block = b.parent_block().organic[b.index()]
 
             pH = aq_block.pH_phase["liquid"]
-            return (b.distribution_coefficient[e]) == 10 ** (
-                (b.params.m0[e] + b.params.extractant_dosage * b.params.m1[e]) * pH
-                + (b.params.B0[e] + b.params.B1[e] * log10(b.params.extractant_dosage))
-            ) * (1 - b.params.K_corr[e]) + b.params.K_corr[e] * b.params.K1[e]
+            dosage = org_block.extractant_dosage
+            ascorbic_conc = (
+                aq_block.conc_mass_comp["Ascorbic"] * 1e-3 * units.L / units.mg
+            )
+
+            if e == "Fe":
+                slope = 1.734 * exp(-10 * ascorbic_conc) + 0.196 * dosage
+                intercept = (
+                    -1.545
+                    + 0.084 * ascorbic_conc
+                    - 0.499 * ascorbic_conc**2
+                    + 0.627 * log10(dosage)
+                )
+            else:
+                slope = b.params.m0[e] + dosage * b.params.m1[e]
+                intercept = b.params.B0[e] + b.params.B1[e] * log10(dosage)
+
+            return (b.distribution_coefficient[e]) == 10 ** (slope * pH + intercept)
 
         self.distribution_expression_constraint = Constraint(
             self.params.element_list, rule=distribution_expression

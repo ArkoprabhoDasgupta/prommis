@@ -32,7 +32,7 @@ from prommis.solvent_extraction.mixer_settler_extraction import (
     MixerSettlerExtraction,
     MixerSettlerExtractionInitializer,
 )
-from prommis.solvent_extraction.solvent_extraction_reaction_package_for_optimizing import (
+from solvent_extraction_reaction_package_for_parmest import (
     SolventExtractionReactions,
 )
 from sklearn.metrics import r2_score
