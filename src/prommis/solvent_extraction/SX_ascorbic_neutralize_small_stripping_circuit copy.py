@@ -53,7 +53,7 @@ m.fs.reaxn = SolventExtractionReactions()
 
 # define stages
 dosage = 8
-strip_number_of_stages = 3
+strip_number_of_stages = 2
 strip_stage_list = RangeSet(1, strip_number_of_stages)
 strip_interstage_list = RangeSet(1, strip_number_of_stages - 1)
 
@@ -283,67 +283,73 @@ for o in heuristic_tear_set:
 # for o in order:
 #     print(o[0].name)
 
+# assert 1 == 2
+
 seq.set_guesses_for(m.fs.aq_inter_mixer[1].sx, sx_tear_guesses)
 seq.set_guesses_for(m.fs.aq_inter_mixer[2].sx, sx_tear_guesses)
+seq.set_guesses_for(m.fs.aq_inter_mixer[3].sx, sx_tear_guesses)
 
 seq.run(m, function)
 
 results = solver.solve(m, tee=True)
 
-# percentage_recovery = {}
-# for e in m.fs.leach_soln.component_list:
-#     if e not in ["H2O", "H", "SO4", "HSO4", "Cl", "Ascorbic"]:
-#         percentage_recovery[e] = [
-#             (
-#                 (
-#                     m.fs.load_sx[1].organic_outlet.conc_mass_comp[
-#                         t, f"{e}_o"
-#                     ]()
-#                     * m.fs.load_sx[1].organic_outlet.flow_vol[t]()
-#                     - m.fs.load_sx[
-#                         load_number_of_stages
-#                     ].organic_inlet.conc_mass_comp[t, f"{e}_o"]()
-#                     * m.fs.load_sx[load_number_of_stages].organic_inlet.flow_vol[
-#                         t
-#                     ]()
-#                 )
-#                 / (
-#                     m.fs.aq_feed_neutral.inlet.conc_mass_comp[t, e]()
-#                     * m.fs.aq_feed_neutral.inlet.flow_vol[t]()
-#                 )
-#             )
-#             * 100
-#             for t in m.fs.time
-#         ]
+percentage_recovery = {}
+for e in m.fs.leach_soln.component_list:
+    if e not in ["H2O", "H", "SO4", "HSO4", "Cl", "Ascorbic"]:
+        percentage_recovery[e] = [
+            (
+                (
+                    (
+                        m.fs.strip_sx[
+                            strip_number_of_stages
+                        ].aqueous_outlet.conc_mass_comp[t, e]()
+                        * m.fs.strip_sx[strip_number_of_stages].aqueous_outlet.flow_vol[
+                            t
+                        ]()
+                        - m.fs.strip_sx[1].aqueous_inlet.conc_mass_comp[t, e]()
+                        * m.fs.strip_sx[1].aqueous_inlet.flow_vol[t]()
+                    )
+                )
+                / (
+                    m.fs.scrub_sx.organic_inlet.conc_mass_comp[t, f"{e}_o"]()
+                    * m.fs.scrub_sx.organic_inlet.flow_vol[t]()
+                )
+            )
+            * 100
+            for t in m.fs.time
+        ]
 
 
-# percentage_recovery["tree"] = [
-#     (
-#         (
-#             sum(
-#                 m.fs.load_sx[1].organic_outlet.conc_mass_comp[t, f"{e}_o"]()
-#                 * m.fs.load_sx[1].organic_outlet.flow_vol[t]()
-#                 for e in m.fs.leach_soln.component_list
-#                 if e not in ["H2O", "H", "SO4", "HSO4", "Cl", "Ascorbic", "Fe"]
-#             )
-#             - sum(
-#                 m.fs.load_sx[load_number_of_stages].organic_inlet.conc_mass_comp[
-#                     t, f"{e}_o"
-#                 ]()
-#                 * m.fs.load_sx[load_number_of_stages].organic_inlet.flow_vol[t]()
-#                 for e in m.fs.leach_soln.component_list
-#                 if e not in ["H2O", "H", "SO4", "HSO4", "Cl", "Ascorbic", "Fe"]
-#             )
-#         )
-#         / sum(
-#             m.fs.aq_feed_neutral.inlet.conc_mass_comp[t, e]()
-#             * m.fs.aq_feed_neutral.inlet.flow_vol[t]()
-#             for e in m.fs.leach_soln.component_list
-#             if e not in ["H2O", "H", "SO4", "HSO4", "Cl", "Ascorbic", "Fe"]
-#         )
-#     )
-#     * 100
-#     for t in m.fs.time
-# ]
+percentage_recovery["tree"] = [
+    (
+        (
+            (
+                sum(
+                    m.fs.strip_sx[strip_number_of_stages].aqueous_outlet.conc_mass_comp[
+                        t, e
+                    ]()
+                    * m.fs.strip_sx[strip_number_of_stages].aqueous_outlet.flow_vol[t]()
+                    for e in m.fs.leach_soln.component_list
+                    if e not in ["H2O", "H", "SO4", "HSO4", "Cl", "Ascorbic", "Fe"]
+                )
+                - sum(
+                    m.fs.strip_sx[1].aqueous_inlet.conc_mass_comp[t, e]()
+                    * m.fs.strip_sx[1].aqueous_inlet.flow_vol[t]()
+                    for e in m.fs.leach_soln.component_list
+                    if e not in ["H2O", "H", "SO4", "HSO4", "Cl", "Ascorbic", "Fe"]
+                )
+            )
+        )
+        / sum(
+            m.fs.scrub_sx.organic_inlet.conc_mass_comp[t, f"{e}_o"]()
+            * m.fs.scrub_sx.organic_inlet.flow_vol[t]()
+            for e in m.fs.leach_soln.component_list
+            if e not in ["H2O", "H", "SO4", "HSO4", "Cl", "Ascorbic", "Fe"]
+        )
+    )
+    * 100
+    for t in m.fs.time
+]
+
 
 # print(percentage_recovery)

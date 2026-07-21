@@ -53,12 +53,12 @@ m.fs.reaxn = SolventExtractionReactions()
 
 
 # define stages
-dosage = 8
-load_number_of_stages = 4
+dosage = 12
+load_number_of_stages = 3
 load_stage_list = RangeSet(1, load_number_of_stages)
 load_interstage_list = RangeSet(1, load_number_of_stages - 1)
 
-strip_number_of_stages = 3
+strip_number_of_stages = 2
 strip_stage_list = RangeSet(1, strip_number_of_stages)
 strip_interstage_list = RangeSet(1, strip_number_of_stages - 1)
 
@@ -233,7 +233,7 @@ TransformationFactory("network.expand_arcs").apply_to(m)
 # define neutral tank conditions
 pH = 1.3
 m.fs.aq_feed_neutral.inlet.flow_vol.fix(60.01)
-m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Ascorbic"].fix(2.44 * units.g / units.L)
+m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Ascorbic"].fix(4 * units.g / units.L)
 m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Fe"].fix(138.27)
 m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "La"].fix(2.09)
 m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Ce"].fix(5)
@@ -250,8 +250,8 @@ m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "SO4"].fix(
     10 ** (-pH) * 48 * units.g / units.L
 )
 m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "HSO4"].fix(1e-4)
-m.fs.aq_feed_neutral.base_flowrate[0].fix(0.5)
-m.fs.aq_feed_neutral.base_concentration[0].fix(0.2)
+m.fs.aq_feed_neutral.base_flowrate[0].fix(0.1)
+m.fs.aq_feed_neutral.base_concentration[0].fix(5)
 
 m.fs.aq_feed_neutral.control_volume.properties_out[0.0].pressure.fix(101235)
 m.fs.aq_feed_neutral.control_volume.properties_out[0.0].temperature.fix(303.5)
@@ -304,7 +304,7 @@ m.fs.aq_inter_mixer[:].mixed_state[0.0].pressure.fix(101235)
 m.fs.aq_inter_mixer[:].mixed_state[0.0].temperature.fix(303.5)
 
 # define scrub sx aqueous inlet
-m.fs.scrub_sx.aqueous_inlet.flow_vol.fix(40.01)
+m.fs.scrub_sx.aqueous_inlet.flow_vol.fix(30.01)
 for e in m.fs.leach_soln.component_list:
     if e not in ["H2O", "H", "Cl"]:
         m.fs.scrub_sx.aqueous_inlet.conc_mass_comp[0, e].fix(1e-7)
@@ -318,7 +318,7 @@ m.fs.scrub_sx.mscontactor.organic[:, :].temperature.fix(305.15 * units.K)
 
 
 # define strip sx aqueous inlet
-m.fs.strip_sx[1].aqueous_inlet.flow_vol.fix(40.01)
+m.fs.strip_sx[1].aqueous_inlet.flow_vol.fix(60.01)
 for e in m.fs.leach_soln.component_list:
     if e not in ["H2O", "H", "Cl"]:
         m.fs.strip_sx[1].aqueous_inlet.conc_mass_comp[0, e].fix(1e-7)
@@ -435,9 +435,9 @@ sx_load_organic_guesses = {
 }
 
 seq.set_guesses_for(m.fs.aq_inter_mixer[1].sx, sx_strip_aqueous_guesses)
-seq.set_guesses_for(m.fs.aq_inter_mixer[2].sx, sx_strip_aqueous_guesses)
+# seq.set_guesses_for(m.fs.aq_inter_mixer[2].sx, sx_strip_aqueous_guesses)
 seq.set_guesses_for(m.fs.load_sx[3].aqueous_inlet, sx_load_aqueous_guesses)
-seq.set_guesses_for(m.fs.load_sx[4].aqueous_inlet, sx_strip_aqueous_guesses)
+# seq.set_guesses_for(m.fs.load_sx[4].aqueous_inlet, sx_load_aqueous_guesses)
 seq.set_guesses_for(m.fs.load_sx[1].organic_inlet, sx_load_organic_guesses)
 
 
@@ -472,16 +472,16 @@ def initialize_mixer_unit(unit):
 def function(unit):
     if unit in load_sx_units:
         initialize_sx_unit(unit)
-    elif unit is scrub_sx_units:
+    if unit is scrub_sx_units:
         initialize_sx_unit(unit)
-    elif unit in strip_sx_units:
+    if unit in strip_sx_units:
         initialize_sx_unit(unit)
-    elif unit in load_interstage_mixer:
+    if unit in load_interstage_mixer:
         initialize_mixer_unit(unit)
-    elif unit in strip_interstage_mixer:
+    if unit in strip_interstage_mixer:
         initialize_mixer_unit(unit)
-    else:
-        pass
+    if unit is neutral_tank:
+        # pass
         print(dof(unit))
         print(f"Initializing {unit}")
         # tank_initializer.initialize_main_model(unit)
@@ -492,7 +492,7 @@ seq.run(m, function)
 
 results = solver.solve(m, tee=True)
 print(dof(m))
-results = solver.solve(m, tee=True)
+# results = solver.solve(m, tee=True)
 
 # to_json(m, fname="sx_ascorbic_extraction_circuit_2.json", human_read=True)
 

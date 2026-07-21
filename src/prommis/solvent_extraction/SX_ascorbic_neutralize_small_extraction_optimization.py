@@ -66,12 +66,12 @@ m.fs.reaxn = SolventExtractionReactions()
 
 
 # define stages
-dosage = 12
-load_number_of_stages = 4
+dosage = 16
+load_number_of_stages = 3
 load_stage_list = RangeSet(1, load_number_of_stages)
 load_interstage_list = RangeSet(1, load_number_of_stages - 1)
 
-strip_number_of_stages = 3
+strip_number_of_stages = 2
 strip_stage_list = RangeSet(1, strip_number_of_stages)
 strip_interstage_list = RangeSet(1, strip_number_of_stages - 1)
 
@@ -264,7 +264,7 @@ m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "SO4"].fix(
 )
 m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "HSO4"].fix(1e-4)
 # m.fs.aq_feed_neutral.base_flowrate[0].fix(0.5)     df
-m.fs.aq_feed_neutral.base_concentration[0].fix(0.2)
+m.fs.aq_feed_neutral.base_concentration[0].fix(5)
 
 m.fs.aq_feed_neutral.control_volume.properties_out[0.0].pressure.fix(101235)
 m.fs.aq_feed_neutral.control_volume.properties_out[0.0].temperature.fix(303.5)
@@ -354,55 +354,62 @@ def organic_dosage_constraint(m, s):
         )
 
 
+@m.Constraint()
+def sx_feed_pH_constraint(m):
+    return (
+        m.fs.aq_feed_neutral.control_volume.properties_out[0.0].pH_phase["liquid"] <= 3
+    )
+
+
 solver = get_solver("ipopt_v2")
 solver.options["halt_on_ampl_error"] = "yes"
 solver.options["max_iter"] = 4000
 
-m.Nd_Ce_recovery = Var(initialize=20, bounds=(0, 100))
+# m.Nd_Ce_recovery = Var(initialize=20, bounds=(0, 100))
 
 
-@m.Constraint()
-def Nd_Ce_recovery_constraint(m):
+# @m.Constraint()
+# def Nd_Ce_recovery_constraint(m):
 
-    strip_inlet = sum(
-        m.fs.strip_sx[1].aqueous_inlet.conc_mass_comp[0, e]
-        * m.fs.strip_sx[1].aqueous_inlet.flow_vol[0]
-        for e in ["Ce", "Nd"]
-    )
+#     strip_inlet = sum(
+#         m.fs.strip_sx[1].aqueous_inlet.conc_mass_comp[0, e]
+#         * m.fs.strip_sx[1].aqueous_inlet.flow_vol[0]
+#         for e in ["Ce", "Nd"]
+#     )
 
-    scrub_inlet = sum(
-        m.fs.scrub_sx.aqueous_inlet.conc_mass_comp[0, e]
-        * m.fs.scrub_sx.aqueous_inlet.flow_vol[0]
-        for e in ["Ce", "Nd"]
-    )
+#     scrub_inlet = sum(
+#         m.fs.scrub_sx.aqueous_inlet.conc_mass_comp[0, e]
+#         * m.fs.scrub_sx.aqueous_inlet.flow_vol[0]
+#         for e in ["Ce", "Nd"]
+#     )
 
-    strip_outlet = sum(
-        m.fs.strip_sx[strip_number_of_stages].aqueous_outlet.conc_mass_comp[0, e]
-        * m.fs.strip_sx[strip_number_of_stages].aqueous_outlet.flow_vol[0]
-        for e in ["Ce", "Nd"]
-    )
+#     strip_outlet = sum(
+#         m.fs.strip_sx[strip_number_of_stages].aqueous_outlet.conc_mass_comp[0, e]
+#         * m.fs.strip_sx[strip_number_of_stages].aqueous_outlet.flow_vol[0]
+#         for e in ["Ce", "Nd"]
+#     )
 
-    scrub_outlet = sum(
-        m.fs.scrub_sx.aqueous_outlet.conc_mass_comp[0, e]
-        * m.fs.scrub_sx.aqueous_outlet.flow_vol[0]
-        for e in ["Ce", "Nd"]
-    )
+#     scrub_outlet = sum(
+#         m.fs.scrub_sx.aqueous_outlet.conc_mass_comp[0, e]
+#         * m.fs.scrub_sx.aqueous_outlet.flow_vol[0]
+#         for e in ["Ce", "Nd"]
+#     )
 
-    feed_inlet = sum(
-        m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, e]
-        * m.fs.aq_feed_neutral.inlet.flow_vol[0]
-        for e in ["Ce", "Nd"]
-    )
+#     feed_inlet = sum(
+#         m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, e]
+#         * m.fs.aq_feed_neutral.inlet.flow_vol[0]
+#         for e in ["Ce", "Nd"]
+#     )
 
-    # return (
-    #     100 * (strip_outlet + scrub_outlet - strip_inlet - scrub_inlet)
-    #     == m.Nd_Ce_recovery * feed_inlet
-    # )
+#     # return (
+#     #     100 * (strip_outlet + scrub_outlet - strip_inlet - scrub_inlet)
+#     #     == m.Nd_Ce_recovery * feed_inlet
+#     # )
 
-    return 100 * (strip_outlet - strip_inlet) == m.Nd_Ce_recovery * feed_inlet
+#     return 100 * (strip_outlet - strip_inlet) == m.Nd_Ce_recovery * feed_inlet
 
 
-m.tree_recovery = Var(initialize=20, bounds=(0, 100))
+m.tree_recovery = Var(initialize=0.3, bounds=(0, 1))
 
 
 @m.Constraint()
@@ -434,7 +441,7 @@ def tree_recovery_constraint(m):
     #     == m.Nd_Ce_recovery * feed_inlet
     # )
 
-    return 100 * (strip_outlet - strip_inlet) == m.tree_recovery * feed_inlet
+    return (strip_outlet - strip_inlet) == m.tree_recovery * feed_inlet
 
 
 # @m.Constraint()
@@ -448,7 +455,7 @@ def Fe_concentration_constraint(m):
 
     return (
         m.fs.strip_sx[strip_number_of_stages].aqueous_outlet.conc_mass_comp[0, "Fe"]
-        <= 3
+        <= 2.5e-4
     )
 
 
@@ -462,20 +469,24 @@ from_json(
 
 # set bounds to the dfs
 m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Ascorbic"].setlb(1.2 * units.g / units.L)
-m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Ascorbic"].setub(3 * units.g / units.L)
+m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Ascorbic"].setub(5 * units.g / units.L)
 
 m.fs.aq_feed_neutral.base_flowrate[0].setlb(0.1)
-m.fs.aq_feed_neutral.base_flowrate[0].setub(3)
+m.fs.aq_feed_neutral.base_flowrate[0].setub(1)
 
 for i in load_interstage_list:
     m.fs.org_inter_mixer[i].feed.flow_vol[0].setlb(0.1)
     m.fs.org_inter_mixer[i].feed.flow_vol[0].setub(3)
 
+    # m.fs.org_inter_mixer[i].feed.conc_mass_comp[0, "DEHPA"].setlb(975.8e3 * 6 / 100)
+    # m.fs.org_inter_mixer[i].feed.conc_mass_comp[0, "DEHPA"].setlb(975.8e3 * 20 / 100)
+
+
 m.fs.scrub_sx.aqueous_inlet.flow_vol[0].setlb(20.01)
-m.fs.scrub_sx.aqueous_inlet.flow_vol[0].setub(90.01)
+m.fs.scrub_sx.aqueous_inlet.flow_vol[0].setub(80.01)
 
 m.fs.strip_sx[1].aqueous_inlet.flow_vol[0].setlb(20.01)
-m.fs.strip_sx[1].aqueous_inlet.flow_vol[0].setub(90.01)
+m.fs.strip_sx[1].aqueous_inlet.flow_vol[0].setub(80.01)
 
 # m.fs.scrub_sx.aqueous_inlet.conc_mass_comp[0, "H"].setlb(10**-2 * units.g / units.L)
 # m.fs.scrub_sx.aqueous_inlet.conc_mass_comp[0, "H"].setub(6 * units.g / units.L)
@@ -488,10 +499,10 @@ for i in strip_interstage_list:
     m.fs.aq_inter_mixer[i].feed.flow_vol[0].setub(3)
 
 # m.fs.load_sx[load_number_of_stages].organic_inlet.conc_mass_comp[0, "DEHPA"].setlb(
-#     975.8e3 * 2 / 100
+#     975.8e3 * 6 / 100
 # )
 # m.fs.load_sx[load_number_of_stages].organic_inlet.conc_mass_comp[0, "DEHPA"].setub(
-#     975.8e3 * 15 / 100
+#     975.8e3 * 16 / 100
 # )
 
 
@@ -563,10 +574,10 @@ def update_tree_dataset(m, df):
     df.loc["Stripping acid (M)", c] = (
         m.fs.strip_sx[1].aqueous_inlet.conc_mass_comp[0, "H"]() / 1000
     )
-    df.loc["Tree recovery (%)", c] = round(m.tree_recovery(), 3)
+    df.loc["Tree recovery (%)", c] = round(m.tree_recovery() * 100, 3)
     df.loc["Fe concentration (mg/L)", c] = round(
         m.fs.strip_sx[strip_number_of_stages].aqueous_outlet.conc_mass_comp[0, "Fe"](),
-        3,
+        6,
     )
     df.loc["Ascorbic acid concentration (mg/L)", c] = round(
         m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Ascorbic"](),
