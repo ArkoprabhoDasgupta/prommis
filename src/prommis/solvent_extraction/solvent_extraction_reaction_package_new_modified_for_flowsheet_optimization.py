@@ -241,8 +241,7 @@ class SolventExtractionReactionsData(ProcessBlockData):
         add_object_reference(self, "_params", self.config.parameters)
 
         self.distribution_coefficient = Var(
-            self.params.element_list,
-            initialize=1,
+            self.params.element_list, initialize=1, bounds=(1e-8, 1e8)
         )
 
         def distribution_expression(b, e):

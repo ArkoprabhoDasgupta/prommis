@@ -52,7 +52,7 @@ m.fs.reaxn = SolventExtractionReactions()
 
 
 # define stages
-dosage = 8
+dosage = 20
 strip_number_of_stages = 2
 strip_stage_list = RangeSet(1, strip_number_of_stages)
 strip_interstage_list = RangeSet(1, strip_number_of_stages - 1)
@@ -169,7 +169,7 @@ m.fs.aq_inter_mixer[:].mixed_state[0.0].pressure.fix(101235)
 m.fs.aq_inter_mixer[:].mixed_state[0.0].temperature.fix(303.5)
 
 # define scrub sx aqueous inlet
-m.fs.scrub_sx.aqueous_inlet.flow_vol.fix(60.01)
+m.fs.scrub_sx.aqueous_inlet.flow_vol.fix(20.01)
 for e in m.fs.leach_soln.component_list:
     if e not in ["H2O", "H", "Cl"]:
         m.fs.scrub_sx.aqueous_inlet.conc_mass_comp[0, e].fix(1e-7)
@@ -196,12 +196,12 @@ m.fs.scrub_sx.mscontactor.organic[:, :].temperature.fix(305.15 * units.K)
 
 
 # define strip sx aqueous inlet
-m.fs.strip_sx[1].aqueous_inlet.flow_vol.fix(60.01)
+m.fs.strip_sx[1].aqueous_inlet.flow_vol.fix(80.01)
 for e in m.fs.leach_soln.component_list:
     if e not in ["H2O", "H", "Cl"]:
         m.fs.strip_sx[1].aqueous_inlet.conc_mass_comp[0, e].fix(1e-7)
 m.fs.strip_sx[1].aqueous_inlet.conc_mass_comp[0, "H2O"].fix(1e6)
-m.fs.strip_sx[1].aqueous_inlet.conc_mass_comp[0, "H"].fix(6 * units.g / units.L)
+m.fs.strip_sx[1].aqueous_inlet.conc_mass_comp[0, "H"].fix(12 * units.g / units.L)
 m.fs.strip_sx[1].aqueous_inlet.conc_mass_comp[0, "Cl"].fix(6 * 35.5 * units.g / units.L)
 m.fs.strip_sx[:].mscontactor.volume[:].fix(0.4 * units.m**3)
 m.fs.strip_sx[:].mscontactor.aqueous[:, :].temperature.fix(305.15 * units.K)
@@ -286,8 +286,8 @@ for o in heuristic_tear_set:
 # assert 1 == 2
 
 seq.set_guesses_for(m.fs.aq_inter_mixer[1].sx, sx_tear_guesses)
-seq.set_guesses_for(m.fs.aq_inter_mixer[2].sx, sx_tear_guesses)
-seq.set_guesses_for(m.fs.aq_inter_mixer[3].sx, sx_tear_guesses)
+# seq.set_guesses_for(m.fs.aq_inter_mixer[2].sx, sx_tear_guesses)
+# seq.set_guesses_for(m.fs.aq_inter_mixer[3].sx, sx_tear_guesses)
 
 seq.run(m, function)
 

@@ -66,7 +66,7 @@ m.fs.reaxn = SolventExtractionReactions()
 
 
 # define stages
-dosage = 16
+dosage = 30
 load_number_of_stages = 3
 load_stage_list = RangeSet(1, load_number_of_stages)
 load_interstage_list = RangeSet(1, load_number_of_stages - 1)
@@ -274,9 +274,9 @@ m.fs.aq_feed_neutral.control_volume.properties_out[0.0].temperature.fix(303.5)
 m.fs.load_sx[load_number_of_stages].organic_inlet.conc_mass_comp[0, "Kerosene"].fix(
     820e3
 )
-m.fs.load_sx[load_number_of_stages].organic_inlet.conc_mass_comp[0, "DEHPA"].fix(
-    975.8e3 * dosage / 100
-)
+# m.fs.load_sx[load_number_of_stages].organic_inlet.conc_mass_comp[0, "DEHPA"].fix(
+#     975.8e3 * dosage / 100
+# )
 for e in m.fs.prop_o.component_list:
     if e not in ["Kerosene", "DEHPA"]:
         m.fs.load_sx[load_number_of_stages].organic_inlet.conc_mass_comp[0, e].fix(1e-7)
@@ -350,20 +350,20 @@ def organic_dosage_constraint(m, s):
     else:
         return (
             m.fs.load_sx[s].mscontactor.organic[0, 1].extractant_dosage
-            <= m.fs.load_sx[s + 1].mscontactor.organic[0, 1].extractant_dosage
+            >= m.fs.load_sx[s + 1].mscontactor.organic[0, 1].extractant_dosage
         )
 
 
 @m.Constraint()
 def sx_feed_pH_constraint(m):
     return (
-        m.fs.aq_feed_neutral.control_volume.properties_out[0.0].pH_phase["liquid"] <= 3
+        m.fs.aq_feed_neutral.control_volume.properties_out[0.0].pH_phase["liquid"] <= 4
     )
 
 
 solver = get_solver("ipopt_v2")
 solver.options["halt_on_ampl_error"] = "yes"
-solver.options["max_iter"] = 4000
+solver.options["max_iter"] = 7000
 
 # m.Nd_Ce_recovery = Var(initialize=20, bounds=(0, 100))
 
@@ -409,7 +409,7 @@ solver.options["max_iter"] = 4000
 #     return 100 * (strip_outlet - strip_inlet) == m.Nd_Ce_recovery * feed_inlet
 
 
-m.tree_recovery = Var(initialize=0.3, bounds=(0, 1))
+m.tree_recovery = Var(initialize=0.75, bounds=(0, 1))
 
 
 @m.Constraint()
@@ -445,9 +445,9 @@ def tree_recovery_constraint(m):
 
 
 # @m.Constraint()
-# def Nd_Ce_composition_demand(m):
+# def tree_recovery_demand(m):
 
-#     return m.Nd_Ce_composition >= 0.5
+#     return m.tree_recovery >= 0.7
 
 
 @m.Constraint()
@@ -455,7 +455,7 @@ def Fe_concentration_constraint(m):
 
     return (
         m.fs.strip_sx[strip_number_of_stages].aqueous_outlet.conc_mass_comp[0, "Fe"]
-        <= 2.5e-4
+        <= 1e-3
     )
 
 
@@ -469,7 +469,7 @@ from_json(
 
 # set bounds to the dfs
 m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Ascorbic"].setlb(1.2 * units.g / units.L)
-m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Ascorbic"].setub(5 * units.g / units.L)
+m.fs.aq_feed_neutral.inlet.conc_mass_comp[0, "Ascorbic"].setub(6 * units.g / units.L)
 
 m.fs.aq_feed_neutral.base_flowrate[0].setlb(0.1)
 m.fs.aq_feed_neutral.base_flowrate[0].setub(1)
@@ -482,28 +482,28 @@ for i in load_interstage_list:
     # m.fs.org_inter_mixer[i].feed.conc_mass_comp[0, "DEHPA"].setlb(975.8e3 * 20 / 100)
 
 
-m.fs.scrub_sx.aqueous_inlet.flow_vol[0].setlb(20.01)
-m.fs.scrub_sx.aqueous_inlet.flow_vol[0].setub(80.01)
+m.fs.scrub_sx.aqueous_inlet.flow_vol[0].setlb(5.01)
+m.fs.scrub_sx.aqueous_inlet.flow_vol[0].setub(60.01)
 
-m.fs.strip_sx[1].aqueous_inlet.flow_vol[0].setlb(20.01)
+m.fs.strip_sx[1].aqueous_inlet.flow_vol[0].setlb(40.01)
 m.fs.strip_sx[1].aqueous_inlet.flow_vol[0].setub(80.01)
 
-# m.fs.scrub_sx.aqueous_inlet.conc_mass_comp[0, "H"].setlb(10**-2 * units.g / units.L)
-# m.fs.scrub_sx.aqueous_inlet.conc_mass_comp[0, "H"].setub(6 * units.g / units.L)
+m.fs.scrub_sx.aqueous_inlet.conc_mass_comp[0, "H"].setlb(10**-2 * units.g / units.L)
+m.fs.scrub_sx.aqueous_inlet.conc_mass_comp[0, "H"].setub(6 * units.g / units.L)
 
-# m.fs.strip_sx[1].aqueous_inlet.conc_mass_comp[0, "H"].setub(10 * units.g / units.L)
-# m.fs.strip_sx[1].aqueous_inlet.conc_mass_comp[0, "H"].setlb(10**-2 * units.g / units.L)
+m.fs.strip_sx[1].aqueous_inlet.conc_mass_comp[0, "H"].setub(6 * units.g / units.L)
+m.fs.strip_sx[1].aqueous_inlet.conc_mass_comp[0, "H"].setlb(10**-2 * units.g / units.L)
 
 for i in strip_interstage_list:
-    m.fs.aq_inter_mixer[i].feed.flow_vol[0].setlb(0.1)
-    m.fs.aq_inter_mixer[i].feed.flow_vol[0].setub(3)
+    m.fs.aq_inter_mixer[i].feed.flow_vol[0].setlb(1)
+    m.fs.aq_inter_mixer[i].feed.flow_vol[0].setub(4)
 
-# m.fs.load_sx[load_number_of_stages].organic_inlet.conc_mass_comp[0, "DEHPA"].setlb(
-#     975.8e3 * 6 / 100
-# )
-# m.fs.load_sx[load_number_of_stages].organic_inlet.conc_mass_comp[0, "DEHPA"].setub(
-#     975.8e3 * 16 / 100
-# )
+m.fs.load_sx[load_number_of_stages].organic_inlet.conc_mass_comp[0, "DEHPA"].setlb(
+    975.8e3 * 6 / 100
+)
+m.fs.load_sx[load_number_of_stages].organic_inlet.conc_mass_comp[0, "DEHPA"].setub(
+    975.8e3 * 25 / 100
+)
 
 
 from_json(
@@ -607,7 +607,7 @@ def update_tree_dataset(m, df):
     return df
 
 
-# df_tree_recovery_record = update_tree_dataset(m, df_tree_recovery_record)
+df_tree_recovery_record = update_tree_dataset(m, df_tree_recovery_record)
 
 # df_tree_recovery_record.to_json("tree_recovery.json", orient="split", indent=4)
 
@@ -671,3 +671,7 @@ def update_lb_ub(m, df):
 # df_tree_recovery_record_sorted = df_tree_recovery_record.loc[
 #     :, df_tree_recovery_record.loc[row_name].sort_values(ascending=False).index
 # ]
+
+
+# with pd.ExcelWriter('SX_optimization_results.xlsx', engine='openpyxl', mode='a', if_sheet_exists='new') as writer:
+#     df_tree_recovery_record.to_excel(writer, sheet_name='Sheet4', index=True)
