@@ -1,0 +1,8 @@
+idaes-pse>=2.7.0rc0
+pyomo>=6.7.0
+
+[flowsheet-processor]
+idaes-flowsheet-processor>=0.1.dev4
+
+[watertap]
+watertap>=1.2.0rc0

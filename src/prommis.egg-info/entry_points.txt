@@ -1,0 +1,5 @@
+[prommis.flowsheets]
+UKy = prommis.uky.uky_flowsheet_ui
+
+[pytest11]
+known_issues = prommis._testing_utils.known_issues

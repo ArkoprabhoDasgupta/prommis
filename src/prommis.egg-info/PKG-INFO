@@ -1,0 +1,103 @@
+Metadata-Version: 2.4
+Name: prommis
+Version: 0.3.0+g4ef0f8f
+Keywords: IDAES,energy systems,chemical engineering,process modeling
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: End Users/Desktop
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: BSD License
+Classifier: Natural Language :: English
+Classifier: Operating System :: MacOS
+Classifier: Operating System :: Microsoft :: Windows
+Classifier: Operating System :: Unix
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: Implementation :: CPython
+Classifier: Topic :: Scientific/Engineering :: Mathematics
+Classifier: Topic :: Scientific/Engineering :: Chemistry
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Description-Content-Type: text/markdown
+License-File: LICENSE.md
+Requires-Dist: idaes-pse>=2.7.0rc0
+Requires-Dist: pyomo>=6.7.0
+Provides-Extra: watertap
+Requires-Dist: watertap>=1.2.0rc0; extra == "watertap"
+Provides-Extra: flowsheet-processor
+Requires-Dist: idaes-flowsheet-processor>=0.1.dev4; extra == "flowsheet-processor"
+Dynamic: license-file
+
+# prommis
+Process Optimization and Modeling for Minerals Sustainability
+
+## Getting started (for PrOMMiS contributors)
+
+Unless otherwise noted, these commands assume that the working directory is the root of the local clone of this repository (i.e. the directory containing this README file).
+
+### Installation
+
+```sh
+conda create --name prommis-dev --yes python=3.11
+conda activate prommis-dev
+git clone https://github.com/prommis/prommis && cd prommis
+pip install -r requirements-dev.txt
+```
+
+### Before committing
+
+Before running any of these commands, ensure the `prommis-dev` Conda environment has been activated:
+
+```sh
+conda activate prommis-dev
+```
+
+#### Sort import statements
+
+```sh
+isort src/prommis
+```
+
+#### Formatting code
+
+```sh
+black .
+```
+
+#### Running linter (Pylint)
+
+```sh
+pylint prommis
+```
+
+#### Running spell checker (Typos)
+
+```sh
+typos
+```
+
+Note: if the `typos` executable is not found, it can be installed by running `conda install --yes -c conda-forge typos` after activating the `prommis-dev` Conda environment.
+
+#### Running tests
+
+```sh
+pytest                          # run the complete test suite
+pytest -k test_my_flowsheet.py  # run only test defined in the file named test_my_flowsheet.py
+```
+
+#### Building documentation
+
+From the `docs/` subdirectory:
+
+```sh
+jupyter-book build .
+```
+
+#### Testing (executing) notebooks
+
+From the `docs/` subdirectory:
+
+```sh
+pytest --nbmake -m "solution" .
+```
